@@ -1,0 +1,23 @@
+[
+    {
+        "id": "P001",
+        "location": "Maharashtra",
+        "type": "Poultry Farm",
+        "date_filed": "2025-06-15",
+        "details": "Proposed large-scale poultry farm near a residential area."
+    },
+    {
+        "id": "P002",
+        "location": "Punjab",
+        "type": "Dairy Farm",
+        "date_filed": "2025-06-20",
+        "details": "Expansion of an existing dairy farm, concerns about water pollution."
+    },
+    {
+        "id": "P003",
+        "location": "Karnataka",
+        "type": "Piggery",
+        "date_filed": "2025-06-25",
+        "details": "New piggery proposed in an ecologically sensitive zone."
+    }
+]
