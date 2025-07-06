@@ -2,7 +2,7 @@
 
 ## 🧠 Objective
 
-Build a minimal, clear, and impactful MVP that-
+Build a minimal, clear, and impactful MVP that:
 *   Detects factory farm permit filings (mocked for demo).
 *   Uses AI (Gemini API) to generate objection letters citing Indian regulations.
 *   Sends downloadable letters + email alerts.
@@ -23,6 +23,7 @@ Build a minimal, clear, and impactful MVP that-
 *   **AI Prompt Engineer Task:** Start drafting 2-3 robust prompt templates for Gemini API based on farm type and legal references. Focus on making them clear and effective for generating persuasive letters.
     *   **Prompt Example:** "Write a formal objection letter to a poultry factory farm permit in Maharashtra, referencing the Environment Protection Act (1986) and animal cruelty concerns under the PCA Act (1960)."
 *   **Backend Dev Task:** Add `Flask` and `google-generativeai` to `AFOG_Project/backend/requirements.txt`.
+*   **Running Backend (for testing):** After setup, you can run the backend by navigating to `AFOG_Project/backend` and executing `python app.py`.
 
 ### ✅ Hour 4: Frontend UI Development (Frontend Dev)
 *   **Frontend Dev Task:** The Next.js project is already initialized in the `frontend/` directory.
@@ -31,6 +32,7 @@ Build a minimal, clear, and impactful MVP that-
     *   Input fields for user name and email.
     *   A button to trigger the letter generation process.
 *   **Frontend Dev Task:** Utilize Tailwind CSS for styling by importing `globals.css` and applying utility classes.
+*   **Running Frontend (for testing):** After setup, you can run the frontend by navigating to `frontend` and executing `npm run dev` (or `yarn dev`).
 
 ### ✅ Hour 5: Frontend-Backend Integration & Email Mock (Frontend Dev / Backend Dev)
 *   **Frontend Dev Task:** Implement API calls from `frontend/pages/index.js` (or a dedicated API utility) to:

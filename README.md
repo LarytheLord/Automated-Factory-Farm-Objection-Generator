@@ -69,12 +69,6 @@ Install the required Python packages:
 pip install -r requirements.txt
 ```
 
-**To Run the Backend:**
-```bash
-python app.py
-```
-The backend server will typically run on `http://127.0.0.1:5000`. This server will handle API requests for permit data and letter generation.
-
 ### 2. Frontend Setup
 
 The Next.js frontend is located in the `frontend` directory. It has already been initialized.
@@ -90,14 +84,26 @@ npm install
 # or yarn install
 ```
 
-**To Run the Frontend:**
+### 3. How to Run
+
+To run the full application, you need to start both the backend and the frontend servers.
+
+**Start Backend:**
+Open a new terminal, navigate to `AFOG_Project/backend`, and run:
+```bash
+python app.py
+```
+The backend server will typically run on `http://127.0.0.1:5000`.
+
+**Start Frontend:**
+Open another new terminal, navigate to `frontend`, and run:
 ```bash
 npm run dev
 # or yarn dev
 ```
-The frontend development server will typically run on `http://localhost:3000`. This is where you'll interact with the application.
+The frontend development server will typically run on `http://localhost:3000`. Open this URL in your web browser to access the application.
 
-### 3. AI API Key (Future Step)
+### 4. AI API Key (Future Step)
 
 Once you start integrating the Gemini API, you will need an API key. This will be configured within the `AFOG_Project/backend/app.py` file. For now, the AI integration is a placeholder, but the structure is ready for it.
 
