@@ -10,7 +10,7 @@ export default function Home() {
   const [customDetails, setCustomDetails] = useState('');
   const [generatedLetter, setGeneratedLetter] = useState('');
   const [generatingLetter, setGeneratingLetter] = useState(false);
-  const [letterError, setLetterError] = useState(null);
+  const [letterError, setLetterError] = useState<string | null>(null);
 
   // New state variables for personal details
   const [yourName, setYourName] = useState('');
