@@ -24,7 +24,7 @@ The **Automated Factory Farm Objection Generator (AFOG)** is a hackathon project
 | **Email**     | Actual email comes  | use Node mailer  | For simulating email alerts . |
 
 ## 📂 Project Structure
-
+policies and laws are added
 ```
 Hackathon/
 ├── AFOG_Project/
