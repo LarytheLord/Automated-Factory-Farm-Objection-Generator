@@ -36,7 +36,7 @@ export default function Home() {
   const [recipientEmail, setRecipientEmail] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailSentMessage, setEmailSentMessage] = useState('');
-  const [emailError, setEmailError] = useState(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPermits = async () => {
