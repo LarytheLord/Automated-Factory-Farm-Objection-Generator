@@ -36,8 +36,12 @@ export default function Home() {
         }
         const data = await response.json();
         setPermits(data);
-      } catch (e) {
-        setError(e.message);
+      } catch (e: unknown) {
+        if (e instanceof Error) {
+          setError(e.message);
+        } else {
+          setError('An unknown error occurred');
+        }
       } finally {
         setLoading(false);
       }
