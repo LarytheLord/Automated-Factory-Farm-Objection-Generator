@@ -1,0 +1,94 @@
+[
+    {
+        "project_title": "Miki Exports International",
+        "location": "MIDC Taloja, Panvel, Raigad",
+        "activity": "Slaughtering of chicken and processing of meat/fish/vegetables/fruits",
+        "capacity": "1500 Birds/Hr, 2000 MT/M processing",
+        "effluent_limit": {
+            "trade": "7.0 m3/day",
+            "sewage": "3.6 m3/day"
+        },
+        "solid_waste": [
+            {
+                "type": "Chicken/Fish waste",
+                "quantity": "520 Kg/day",
+                "disposal": "Rendering Plant Ambernath"
+            },
+            {
+                "type": "Bones",
+                "quantity": "3 MT/M",
+                "disposal": "Rendering Plant"
+            },
+            {
+                "type": "ETP Sludge",
+                "quantity": "5 Kg/day",
+                "disposal": "Used as manure"
+            }
+        ],
+        "air_emission_standard": {
+            "SPM/TPM": "\u2264150 mg/Nm3",
+            "SO2": "\u22649.76 Kg/day"
+        },
+        "notes": "No hazardous waste generated; strong focus on reuse, effluent treatment, and noise control."
+    },
+    {
+        "project_title": "Kusum Jadhav Poultry Farm",
+        "location": "Behvaldi (Bk), Shrigonda, Ahmednagar",
+        "activity": "Growing of Chicken Birds (No slaughtering)",
+        "capacity": "Not mentioned (Small scale - birds/month)",
+        "effluent_limit": {
+            "trade": "0.001 CMD",
+            "sewage": "0.10 CMD"
+        },
+        "solid_waste": [
+            {
+                "type": "Dead birds & excreta",
+                "disposal": "To CHWTSDF or Fish farm"
+            }
+        ],
+        "air_emission_standard": {
+            "SPM": "\u2264110 mg/Nm3",
+            "SO2": "\u22641.5 Kg/day"
+        },
+        "notes": "Scientific disposal of manure and dead birds required; deep burial and no public access allowed."
+    },
+    {
+        "project_title": "Priyanka Poultry Farm",
+        "location": "Kangoan Phata, Tal. Nandgaon, Dist. Nashik",
+        "activity": "Poultry rearing (without slaughtering)",
+        "capacity": "Not specified (standard scale)",
+        "effluent_limit": {
+            "trade": "Nil",
+            "sewage": "0.50 CMD"
+        },
+        "solid_waste": [
+            {
+                "type": "Manure and dead birds",
+                "disposal": "Scientific disposal recommended"
+            }
+        ],
+        "air_emission_standard": {
+            "SPM": "\u2264150 mg/Nm3"
+        },
+        "notes": "Consent valid for 5 years; poultry farms doing slaughtering are categorized as RED industries."
+    },
+    {
+        "project_title": "Clean E-Waste Recycling (Non-animal husbandry)",
+        "location": "Vasai (East), Palghar",
+        "activity": "E-waste refurbishing and cable peeling",
+        "capacity": "100 MT/A refurbishing, 500 MT/A cable processing",
+        "effluent_limit": {
+            "trade": "0.0 CMD",
+            "sewage": "0.1 CMD"
+        },
+        "solid_waste": [
+            {
+                "type": "Plastic/metal scrap",
+                "quantity": "0.5 MT/A",
+                "disposal": "Authorized party"
+            }
+        ],
+        "air_emission_standard": "NA",
+        "notes": "Not an animal husbandry project. Detailed hazardous and e-waste compliance required."
+    }
+]
