@@ -7,8 +7,8 @@ The **Automated Factory Farm Objection Generator (AFOG)** is a hackathon project
 ### Key Features:
 *   **Mock Permit Detection:** Simulates the identification of new factory farm permit applications.
 *   **AI-Powered Letter Generation:** Uses the Gemini API to draft persuasive objection letters, citing relevant Indian environmental and animal welfare regulations.
-*   **Downloadable Letters:** Provides generated letters in a downloadable format (e.g., `.txt`).
-*   **Email Alerts (Mock):** Simulates email notifications for new permit filings.
+*   **Downloadable Letters:** Provides generated letters in a downloadable format (e.g., `.pdf`).
+*   **Email Alerts (Mock):** Simulates email notifications for new permit filings.use node mailer.
 *   **User-Friendly Web Interface:** A simple interface for viewing mock permits and generating letters.
 
 ## ⚙️ Tech Stack
@@ -16,10 +16,10 @@ The **Automated Factory Farm Objection Generator (AFOG)** is a hackathon project
 | Component     | Technology Used               | Notes                                                              |
 |---------------|-------------------------------|--------------------------------------------------------------------|
 | **Frontend**  | Next.js (React), Tailwind CSS | A powerful React framework for building modern web applications with integrated styling. ESLint is configured for code quality. |
-| **Backend**   | Flask (Python)                | A lightweight web framework for handling API requests and AI integration. It serves as the brain for data processing and AI interaction. |
+| **Backend**   | Node.js        | A web framework for handling API requests and AI integration. It serves as the brain for data processing and AI interaction. |
 | **AI/LLM**    | Google Gemini API             | For generating intelligent and context-aware objection letters. This is the core AI component. |
 | **Data Storage**| JSON File (Mock Database)     | Simple, file-based storage for mock permit data within the backend. No complex database setup needed for the hackathon. |
-| **Email**     | Mock (Console Output)         | For simulating email alerts without external service setup. This allows us to demonstrate the functionality without relying on external services. |
+| **Email**     | Actual email comes  | use Node mailer  | For simulating email alerts . |
 
 ## 📂 Project Structure
 
