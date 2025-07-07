@@ -1,103 +1,325 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from 'react';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [permits, setPermits] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedPermit, setSelectedPermit] = useState(null); // Change: Store the full permit object
+  const [customDetails, setCustomDetails] = useState('');
+  const [generatedLetter, setGeneratedLetter] = useState('');
+  const [generatingLetter, setGeneratingLetter] = useState(false);
+  const [letterError, setLetterError] = useState(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
+  // New state variables for personal details
+  const [yourName, setYourName] = useState('');
+  const [yourAddress, setYourAddress] = useState('');
+  const [yourCity, setYourCity] = useState('');
+  const [yourPostalCode, setYourPostalCode] = useState('');
+  const [yourPhone, setYourPhone] = useState('');
+  const [yourEmail, setYourEmail] = useState('');
+  const [currentDate, setCurrentDate] = useState('');
+
+  // New state for email sending
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailSentMessage, setEmailSentMessage] = useState('');
+  const [emailError, setEmailError] = useState(null);
+
+  useEffect(() => {
+    const fetchPermits = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/permits'); // Assuming your backend runs on port 3001
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setPermits(data);
+      } catch (e) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPermits();
+  }, []);
+
+  const handleGenerateLetter = async (e) => {
+    e.preventDefault();
+    setGeneratingLetter(true);
+    setLetterError(null);
+    setGeneratedLetter('');
+    setEmailSentMessage('');
+    setEmailError(null);
+
+    try {
+      const response = await fetch('http://localhost:3001/api/generate-letter', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          permitDetails: {
+            ...selectedPermit,
+            customDetails: customDetails,
+            yourName: yourName,
+            yourAddress: yourAddress,
+            yourCity: yourCity,
+            yourPostalCode: yourPostalCode,
+            yourPhone: yourPhone,
+            yourEmail: yourEmail,
+            currentDate: currentDate,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setGeneratedLetter(data.letter);
+    } catch (e) {
+      setLetterError(e.message);
+    } finally {
+      setGeneratingLetter(false);
+    }
+  };
+
+  const handleSendEmail = async () => {
+    setSendingEmail(true);
+    setEmailError(null);
+    setEmailSentMessage('');
+
+    if (!generatedLetter) {
+      setEmailError('No letter generated to send.');
+      setSendingEmail(false);
+      return;
+    }
+
+    if (!recipientEmail) {
+      setEmailError('Please enter a recipient email address.');
+      setSendingEmail(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('http://localhost:3001/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: recipientEmail,
+          subject: `Objection Letter for Permit ID: ${selectedPermit.id}`,
+          text: generatedLetter,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setEmailSentMessage(data.message);
+    } catch (e) {
+      setEmailError(e.message);
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-between p-24">
+        <p>Loading permits...</p>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-between p-24">
+        <p className="text-red-500">Error: {error}</p>
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-between p-24">
+      <h1 className="text-4xl font-bold mb-8">Permit Objection App</h1>
+      <p className="text-lg mb-8">Here are the permits:</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+        {permits.length > 0 ? (
+          permits.map((permit) => (
+            <div key={permit.id} className="bg-white shadow-md rounded-lg p-6">
+              <h2 className="text-xl font-semibold mb-2">{permit.address}</h2>
+              <p className="text-gray-700">**Permit ID:** {permit.id}</p>
+              <p className="text-gray-700">**Description:** {permit.description}</p>
+              <p className="text-gray-700">**Status:** {permit.status}</p>
+              <button
+                onClick={() => setSelectedPermit(permit)} // Change: Pass the full permit object
+                className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+              >
+                Select for Objection
+              </button>
+            </div>
+          ))
+        ) : (
+          <p>No permits found.</p>
+        )}
+      </div>
+
+      {selectedPermit && ( // Change: Check for selectedPermit object
+        <section className="w-full max-w-2xl bg-white shadow-md rounded-lg p-8 mb-12">
+          <h2 className="text-2xl font-bold mb-4">Generate Objection Letter for Permit ID: {selectedPermit.id}</h2>
+          <form onSubmit={handleGenerateLetter} className="space-y-4">
+            {/* New input fields for personal details */}
+            <div>
+              <label htmlFor="yourName" className="block text-gray-700 text-sm font-bold mb-2">Your Name:</label>
+              <input
+                type="text"
+                id="yourName"
+                value={yourName}
+                onChange={(e) => setYourName(e.target.value)}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="yourAddress" className="block text-gray-700 text-sm font-bold mb-2">Your Address:</label>
+              <input
+                type="text"
+                id="yourAddress"
+                value={yourAddress}
+                onChange={(e) => setYourAddress(e.target.value)}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="yourCity" className="block text-gray-700 text-sm font-bold mb-2">City:</label>
+              <input
+                type="text"
+                id="yourCity"
+                value={yourCity}
+                onChange={(e) => setYourCity(e.target.value)}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="yourPostalCode" className="block text-gray-700 text-sm font-bold mb-2">Postal Code:</label>
+              <input
+                type="text"
+                id="yourPostalCode"
+                value={yourPostalCode}
+                onChange={(e) => setYourPostalCode(e.target.value)}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="yourPhone" className="block text-gray-700 text-sm font-bold mb-2">Phone Number:</label>
+              <input
+                type="tel"
+                id="yourPhone"
+                value={yourPhone}
+                onChange={(e) => setYourPhone(e.target.value)}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="yourEmail" className="block text-gray-700 text-sm font-bold mb-2">Email Address:</label>
+              <input
+                type="email"
+                id="yourEmail"
+                value={yourEmail}
+                onChange={(e) => setYourEmail(e.target.value)}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="currentDate" className="block text-gray-700 text-sm font-bold mb-2">Date:</label>
+              <input
+                type="date"
+                id="currentDate"
+                value={currentDate}
+                onChange={(e) => setCurrentDate(e.target.value)}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                required
+              />
+            </div>
+
+            <div>
+              <label htmlFor="customDetails" className="block text-gray-700 text-sm font-bold mb-2">
+                Additional Details (optional):
+              </label>
+              <textarea
+                id="customDetails"
+                rows="5"
+                value={customDetails}
+                onChange={(e) => setCustomDetails(e.target.value)}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                placeholder="e.g., reasons for objection, specific concerns, etc."
+              ></textarea>
+            </div>
+            <button
+              type="submit"
+              className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+              disabled={generatingLetter}
+            >
+              {generatingLetter ? 'Generating...' : 'Generate Letter'}
+            </button>
+          </form>
+
+          {letterError && (
+            <p className="text-red-500 mt-4">Error generating letter: {letterError}</p>
+          )}
+
+          {generatedLetter && (
+            <div className="mt-8 p-6 bg-gray-100 rounded-lg">
+              <h3 className="text-xl font-bold mb-4">Generated Objection Letter:</h3>
+              <pre className="whitespace-pre-wrap font-sans text-gray-800">{generatedLetter}</pre>
+
+              {/* New email sending section */}
+              <div className="mt-6 pt-4 border-t border-gray-300">
+                <h3 className="text-xl font-bold mb-4">Send Objection Letter via Email:</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="recipientEmail" className="block text-gray-700 text-sm font-bold mb-2">Recipient Email:</label>
+                    <input
+                      type="email"
+                      id="recipientEmail"
+                      value={recipientEmail}
+                      onChange={(e) => setRecipientEmail(e.target.value)}
+                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                      placeholder="e.g., authority@example.com"
+                    />
+                  </div>
+                  <button
+                    onClick={handleSendEmail}
+                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                    disabled={sendingEmail || !generatedLetter || !recipientEmail}
+                  >
+                    {sendingEmail ? 'Sending...' : 'Send Email'}
+                  </button>
+                </div>
+                {emailSentMessage && (
+                  <p className="text-green-500 mt-4">{emailSentMessage}</p>
+                )}
+                {emailError && (
+                  <p className="text-red-500 mt-4">Error sending email: {emailError}</p>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+    </main>
   );
 }

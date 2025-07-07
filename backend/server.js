@@ -59,25 +59,41 @@ app.get('/api/permits', (req, res) => {
 
 // Endpoint to generate objection letter using Gemini API
 app.post('/api/generate-letter', async (req, res) => {
-    const { permitDetails } = req.body;
-
-    if (!permitDetails) {
-        return res.status(400).json({ message: 'Permit details are required.' });
-    }
-
     try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+        const { permitDetails } = req.body;
+        
+        // Destructure personal details from permitDetails
+        const { yourName, yourAddress, yourCity, yourPostalCode, yourPhone, yourEmail, currentDate } = permitDetails;
 
-        const prompt = `Generate a compelling objection letter against a factory farm planning permit application based on the following details:\n\n${JSON.stringify(permitDetails, null, 2)}\n\nFocus on environmental impact, animal welfare, and potential negative effects on local community and infrastructure. Reference Indian regulations and land use guidelines where applicable.`;
+        // Construct a more detailed prompt using all permit details and personal details
+        const prompt = `Generate a formal objection letter regarding the following permit application:
+          - Applicant: ${permitDetails.applicant || 'Unknown Applicant'}
+          - Address: ${permitDetails.address || 'Unknown Address'}
+          - Permit Type: ${permitDetails.type || 'Unknown Type'}
+          - Description: ${permitDetails.description || 'No Description Provided'}
+          - Permit ID: ${permitDetails.id || 'Not Available'}
+          - Additional Details from User: ${permitDetails.customDetails || 'None'}
 
+          Please include the following personal details in the letter where appropriate:
+          - Your Name: ${yourName || '[Your Name]'}
+          - Your Address: ${yourAddress || '[Your Address]'}
+          - Your City: ${yourCity || '[Your City]'}
+          - Your Postal Code: ${yourPostalCode || '[Your Postal Code]'}
+          - Your Phone Number: ${yourPhone || '[Your Phone Number]'}
+          - Your Email Address: ${yourEmail || '[Your Email Address]'}
+          - Date: ${currentDate || '[Current Date]'}
+          
+          The letter should be professional, cite relevant regulations, and clearly state the objections. Please ensure all fields like applicant name, address, permit type, description, permit ID, and your personal details are filled in from the provided details. Do not use placeholders like [Your Name] or [Applicant Name]. If a specific detail is not provided, state 'Not Available' or 'Unknown'.`;
+    
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text();
-
+    
         res.json({ letter: text });
     } catch (error) {
         console.error('Error generating letter:', error);
-        res.status(500).json({ message: 'Error generating objection letter', error: error.message });
+        res.status(500).json({ error: 'Failed to generate letter' });
     }
 });
 
