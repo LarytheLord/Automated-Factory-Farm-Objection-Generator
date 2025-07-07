@@ -128,6 +128,12 @@ export default function Home() {
       return;
     }
 
+    if (!selectedPermit) {
+      setEmailError('No permit selected to send email for.');
+      setSendingEmail(false);
+      return;
+    }
+
     try {
       const response = await fetch('http://localhost:3001/api/send-email', {
         method: 'POST',
