@@ -1,12 +1,23 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+
+interface Permit {
+  project_title: string;
+  location: string;
+  activity: string;
+  capacity: string;
+  effluent_limit: string;
+  solid_waste: string;
+  air_emission_standard: string;
+  notes: string;
+}
 
 export default function Home() {
-  const [permits, setPermits] = useState([]);
+  const [permits, setPermits] = useState<Permit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedPermit, setSelectedPermit] = useState(null); // Change: Store the full permit object
+  const [selectedPermit, setSelectedPermit] = useState<Permit | null>(null); // Change: Store the full permit object
   const [customDetails, setCustomDetails] = useState('');
   const [generatedLetter, setGeneratedLetter] = useState('');
   const [generatingLetter, setGeneratingLetter] = useState(false);
