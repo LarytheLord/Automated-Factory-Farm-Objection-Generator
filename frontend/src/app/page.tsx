@@ -42,7 +42,7 @@ export default function Home() {
   useEffect(() => {
     const fetchPermits = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/permits'); // Assuming your backend runs on port 3001
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/permits`); // Assuming your backend runs on port 3001
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -76,7 +76,7 @@ export default function Home() {
     setEmailError(null);
 
     try {
-      const response = await fetch('http://localhost:3001/api/generate-letter', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/generate-letter`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -137,7 +137,7 @@ export default function Home() {
     }
 
     try {
-      const response = await fetch('http://localhost:3001/api/send-email', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/send-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
