@@ -129,7 +129,7 @@ export default function Home() {
       const data = await response.json();
       setEmailSentMessage(data.message);
     } catch (e) {
-      setEmailError(e.message);
+      setEmailError(e instanceof Error ? e.message : 'An unknown error occurred');
     } finally {
       setSendingEmail(false);
     }
