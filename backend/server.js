@@ -37,6 +37,9 @@ const transporter = nodemailer.createTransport({
         user: emailUser,
         pass: emailPass,
     },
+    // Add logging for debugging
+    logger: true,
+    debug: true,
 });
 
 // Endpoint to get all permits
@@ -122,6 +125,8 @@ app.post('/api/send-email', async (req, res) => {
         res.status(200).json({ message: 'Email sent successfully!' });
     } catch (error) {
         console.error('Error sending email:', error);
+        // Log the full error object for more details
+        console.error('Nodemailer error details:', error);
         res.status(500).json({ message: 'Error sending email', error: error.message });
     }
 });
