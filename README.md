@@ -1,5 +1,7 @@
 # Automated Factory Farm Objection Generator (AFOG)
 
+teammate please refere plan.txt for future progress
+
 ## 🚀 Project Overview
 
 The **Automated Factory Farm Objection Generator (AFOG)** is a hackathon project designed to empower citizens and NGOs to effectively oppose factory farm planning permit applications. Our system automates the detection of mock permit filings and leverages AI to generate compelling, legally-referenced objection letters.
