@@ -3,26 +3,25 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const policyData = require(path.join(__dirname, '..', 'policiesandlaws.json'));
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const nodemailer = require('nodemailer'); // Import nodemailer
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Access your API key as an environment variable (recommended)
+// Environment variables
 const geminiApiKey = process.env.GEMINI_API_KEY;
-const emailUser = process.env.EMAIL_USER; // Your email address
-const emailPass = process.env.EMAIL_PASS; // Your email password or app-specific password
+const emailUser  = process.env.USER_EMAIL;
+const emailPass = process.env.USER_PASS;
 
-// Check if API key is provided
+// Validate environment variables
 if (!geminiApiKey) {
     console.error('GEMINI_API_KEY environment variable is not set.');
-    process.exit(1); // Exit if API key is missing
+    process.exit(1);
 }
-
-// Check if email credentials are provided
-if (!emailUser || !emailPass) {
-    console.warn('EMAIL_USER or EMAIL_PASS environment variables are not set. Email functionality may not work.');
+if (!emailUser  || !emailPass) {
+    console.warn('USER_EMAIL or USER_PASS environment variables are not set. Email functionality may not work.');
 }
 
 const genAI = new GoogleGenerativeAI(geminiApiKey);
@@ -30,77 +29,105 @@ const genAI = new GoogleGenerativeAI(geminiApiKey);
 app.use(cors());
 app.use(express.json());
 
-// Configure Nodemailer transporter
+// Nodemailer setup
 const transporter = nodemailer.createTransport({
-    service: 'gmail', // You can use other services like 'outlook', 'yahoo', etc.
+    service: 'gmail',
     auth: {
         user: emailUser,
         pass: emailPass,
     },
-    // Add logging for debugging
-    logger: true,
-    debug: true,
+    logger: true, // Set to false in production
+    debug: true,  // Set to false in production
 });
 
-// Endpoint to get all permits
-app.get('/api/permits', (req, res) => {
+// GET /api/permits
+app.get('/api/permits', async (req, res) => {
     const permitsPath = path.join(__dirname, 'permits.json');
-    fs.readFile(permitsPath, 'utf8', (err, data) => {
-        if (err) {
-            console.error('Error reading permits.json:', err);
-            return res.status(500).json({ message: 'Error reading permit data' });
-        }
-        try {
-            const permits = JSON.parse(data);
-            res.json(permits);
-        } catch (parseErr) {
-            console.error('Error parsing permits.json:', parseErr);
-            res.status(500).json({ message: 'Error parsing permit data' });
-        }
-    });
+    try {
+        const data = await fs.promises.readFile(permitsPath, 'utf8');
+        const permits = JSON.parse(data);
+        res.json(permits);
+    } catch (err) {
+        console.error('Error reading or parsing permits.json:', err);
+        res.status(500).json({ message: 'Error reading permit data' });
+    }
 });
 
-// Endpoint to generate objection letter using Gemini API
+// POST /api/generate-letter
 app.post('/api/generate-letter', async (req, res) => {
     try {
         const { permitDetails } = req.body;
-        
-        // Destructure personal details from permitDetails
-        const { yourName, yourAddress, yourCity, yourPostalCode, yourPhone, yourEmail, currentDate } = permitDetails;
+        const {
+            yourName, yourAddress, yourCity,
+            yourPostalCode, yourPhone, yourEmail, currentDate
+        } = permitDetails;
 
-        // Construct a more detailed prompt using all permit details and personal details
-        const prompt = `Generate a formal objection letter regarding the following permit application:
-          - Applicant: ${permitDetails.applicant || 'Unknown Applicant'}
-          - Address: ${permitDetails.address || 'Unknown Address'}
-          - Permit Type: ${permitDetails.type || 'Unknown Type'}
-          - Description: ${permitDetails.description || 'No Description Provided'}
-          - Permit ID: ${permitDetails.id || 'Not Available'}
-          - Additional Details from User: ${permitDetails.customDetails || 'None'}
+        // STEP 1: Policy Violation Checks
+        const violations = [];
 
-          Please include the following personal details in the letter where appropriate:
-          - Your Name: ${yourName || '[Your Name]'}
-          - Your Address: ${yourAddress || '[Your Address]'}
-          - Your City: ${yourCity || '[Your City]'}
-          - Your Postal Code: ${yourPostalCode || '[Your Postal Code]'}
-          - Your Phone Number: ${yourPhone || '[Your Phone Number]'}
-          - Your Email Address: ${yourEmail || '[Your Email Address]'}
-          - Date: ${currentDate || '[Current Date]'}
-          
-          The letter should be professional, cite relevant regulations, and clearly state the objections. Please ensure all fields like applicant name, address, permit type, description, permit ID, and your personal details are filled in from the provided details. Do not use placeholders like [Your Name] or [Applicant Name]. If a specific detail is not provided, state 'Not Available' or 'Unknown'.`;
-    
+        if (permitDetails.capacity && permitDetails.capacity.includes("1500")) {
+            violations.push("Exceeds sustainable bird processing threshold; requires impact assessment as per policy.");
+        }
+
+        const tradeEffluent = parseFloat(permitDetails.effluent_limit?.trade?.replace(/[^\d.]/g, '') || "0");
+        if (tradeEffluent > 5.0) {
+            violations.push("Trade effluent discharge exceeds eco-safe limits. Requires stricter effluent treatment and mitigation plan.");
+        }
+
+        if (!permitDetails.notes?.toLowerCase().includes("scientific")) {
+            violations.push("No mention of scientific disposal. Violates animal waste management standards.");
+        }
+
+        const policySummary = `
+🧾 Policy: Animal Factory Farming (Regulation) Bill, 2020
+
+Detected Violations:
+${violations.length ? "- " + violations.join("\n- ") : "None clearly stated, but further audit required."}
+`;
+
+        const prompt = `
+You are an expert public advocate and environmental lawyer.
+
+Write a strong, formal objection letter regarding this factory farm permit:
+
+📄 Permit Info:
+- Project: ${permitDetails.project_title}
+- Location: ${permitDetails.location}
+- Activity: ${permitDetails.activity}
+- Capacity: ${permitDetails.capacity}
+- Effluent (Trade/Sewage): ${permitDetails.effluent_limit?.trade} / ${permitDetails.effluent_limit?.sewage}
+- Notes: ${permitDetails.notes}
+
+📚 Legal Basis:
+${policySummary}
+
+🧍 Personal Info:
+Name: ${yourName}
+Address: ${yourAddress}, ${yourCity}, ${yourPostalCode}
+Phone: ${yourPhone}
+Email: ${yourEmail}
+Date: ${currentDate}
+
+Structure the letter as:
+- Professional tone
+- Based on real legal violations from policy
+- Cites Animal Factory Farming Bill 2020
+- Ends with a strong request to reject or review the permit
+`;
+
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
         const result = await model.generateContent(prompt);
         const response = await result.response;
-        const text = response.text();
-    
-        res.json({ letter: text });
+        const letter = response.text();
+
+        res.json({ letter, violations });
     } catch (error) {
         console.error('Error generating letter:', error);
         res.status(500).json({ error: 'Failed to generate letter' });
     }
 });
 
-// Endpoint to send email alert
+// POST /api/send-email
 app.post('/api/send-email', async (req, res) => {
     const { to, subject, text, html } = req.body;
 
@@ -108,7 +135,7 @@ app.post('/api/send-email', async (req, res) => {
         return res.status(400).json({ message: 'Recipient, subject, and either text or html content are required.' });
     }
 
-    if (!emailUser || !emailPass) {
+    if (!emailUser  || !emailPass) {
         return res.status(500).json({ message: 'Email credentials are not configured on the server.' });
     }
 
@@ -125,16 +152,16 @@ app.post('/api/send-email', async (req, res) => {
         res.status(200).json({ message: 'Email sent successfully!' });
     } catch (error) {
         console.error('Error sending email:', error);
-        // Log the full error object for more details
-        console.error('Nodemailer error details:', error);
         res.status(500).json({ message: 'Error sending email', error: error.message });
     }
 });
 
+// Root route
 app.get('/', (req, res) => {
     res.send('Backend server is running!');
 });
 
+// Start server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });

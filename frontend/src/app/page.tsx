@@ -113,7 +113,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           to: recipientEmail,
-          subject: `Objection Letter for Permit ID: ${selectedPermit.id}`,
+          subject: `Objection Letter for Permit: ${selectedPermit.project_title}`,
           text: generatedLetter,
         }),
       });
