@@ -52,6 +52,10 @@ export default function Home() {
 
   const handleGenerateLetter = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedPermit) {
+      setLetterError('Please select a permit first.');
+      return;
+    }
     setGeneratingLetter(true);
     setLetterError(null);
     setGeneratedLetter('');
