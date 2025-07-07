@@ -10,20 +10,20 @@ Build a minimal, clear, and impactful MVP that:
 ## ⏱️ Detailed Timeline (1-Day Hackathon, 8-Hour Version)
 
 ### ✅ Hour 1: Setup & Kickoff (Team Lead / All)
-*   **Task:** Confirm `Hackathon` directory contains `AFOG_Project/backend/` and `frontend/` subdirectories.
+*   **Task:** Confirm `Hackathon` directory contains `/backend/` and `frontend/` subdirectories.
 *   **Task:** Ensure `README.md` and `plan.txt` are in the `Hackathon` root.
-*   **Task:** Prepare mock `AFOG_Project/backend/permits.json` (3–5 sample permits).
+*   **Task:** Prepare mock `/backend/permits.json` (3–5 sample permits).
 *   **Task:** Agree on 2 Indian laws to reference for AI prompts:
     *   Environment Protection Act, 1986
     *   Prevention of Cruelty to Animals Act, 1960
 
 ### ✅ Hour 2-3: Backend & AI Core (Backend Dev / AI Prompt Engineer)
-*   **Backend Dev Task:** Implement Flask API endpoint `/detect_permits` in `AFOG_Project/backend/app.py` to read from `permits.json`. This endpoint will provide the frontend with mock permit data.
-*   **Backend Dev Task:** Implement Flask API endpoint `/generate_letter` in `AFOG_Project/backend/app.py`. Initially, this can return a placeholder string. This endpoint will eventually call the Gemini API.
+*   **Backend Dev Task:** Implement Flask API endpoint `/detect_permits` in `/backend/app.py` to read from `permits.json`. This endpoint will provide the frontend with mock permit data.
+*   **Backend Dev Task:** Implement Flask API endpoint `/generate_letter` in `/backend/app.py`. Initially, this can return a placeholder string. This endpoint will eventually call the Gemini API.
 *   **AI Prompt Engineer Task:** Start drafting 2-3 robust prompt templates for Gemini API based on farm type and legal references. Focus on making them clear and effective for generating persuasive letters.
     *   **Prompt Example:** "Write a formal objection letter to a poultry factory farm permit in Maharashtra, referencing the Environment Protection Act (1986) and animal cruelty concerns under the PCA Act (1960)."
-*   **Backend Dev Task:** Add `Flask` and `google-generativeai` to `AFOG_Project/backend/requirements.txt`.
-*   **Running Backend (for testing):** After setup, you can run the backend by navigating to `AFOG_Project/backend` and executing `python app.py`.
+*   **Backend Dev Task:** Add `Flask` and `google-generativeai` to `/backend/requirements.txt`.
+*   **Running Backend (for testing):** After setup, you can run the backend by navigating to `/backend` and executing `python app.py`.
 
 ### ✅ Hour 4: Frontend UI Development (Frontend Dev)
 *   **Frontend Dev Task:** The Next.js project is already initialized in the `frontend/` directory.
@@ -39,7 +39,7 @@ Build a minimal, clear, and impactful MVP that:
     *   Fetch permits from the backend's `/detect_permits` endpoint (`http://127.0.0.1:5000/detect_permits`).
     *   Send user input (selected permit, name, email) to the backend's `/generate_letter` endpoint (`http://127.0.0.1:5000/generate_letter`).
     *   Display the generated letter content (or placeholder) in the frontend UI.
-*   **Backend Dev Task:** Refine the mock email alert in `AFOG_Project/backend/app.py` to print a clear, formatted email content to the console when a letter is generated.
+*   **Backend Dev Task:** Refine the mock email alert in `/backend/app.py` to print a clear, formatted email content to the console when a letter is generated.
 
 ### ✅ Hour 6: Polish & Add Bonus Features (All)
 *   🎯 **Bonus:** Implement a “Quick Object” Button in the frontend that auto-fills data and directly triggers letter download.
