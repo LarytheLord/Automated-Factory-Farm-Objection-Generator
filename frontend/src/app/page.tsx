@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 export default function Home() {
   const [permits, setPermits] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [selectedPermit, setSelectedPermit] = useState(null); // Change: Store the full permit object
   const [customDetails, setCustomDetails] = useState('');
   const [generatedLetter, setGeneratedLetter] = useState('');
