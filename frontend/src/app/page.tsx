@@ -50,7 +50,7 @@ export default function Home() {
     fetchPermits();
   }, []);
 
-  const handleGenerateLetter = async (e) => {
+  const handleGenerateLetter = async (e: React.FormEvent) => {
     e.preventDefault();
     setGeneratingLetter(true);
     setLetterError(null);
