@@ -100,8 +100,12 @@ export default function Home() {
 
       const data = await response.json();
       setGeneratedLetter(data.letter);
-    } catch (e) {
-      setLetterError(e.message);
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        setLetterError(e.message);
+      } else {
+        setLetterError('An unknown error occurred');
+      }
     } finally {
       setGeneratingLetter(false);
     }
