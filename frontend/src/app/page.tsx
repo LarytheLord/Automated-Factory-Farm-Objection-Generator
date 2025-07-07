@@ -11,13 +11,14 @@ interface Permit {
   solid_waste: string;
   air_emission_standard: string;
   notes: string;
+  status: string;
 }
 
 export default function Home() {
   const [permits, setPermits] = useState<Permit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedPermit, setSelectedPermit] = useState<Permit | null>(null); // Change: Store the full permit object
+  const [selectedPermit, setSelectedPermit] = useState<Permit | null>(null);
   const [customDetails, setCustomDetails] = useState('');
   const [generatedLetter, setGeneratedLetter] = useState('');
   const [generatingLetter, setGeneratingLetter] = useState(false);
@@ -64,7 +65,8 @@ export default function Home() {
   const handleGenerateLetter = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPermit) {
-      setLetterError('Please select a permit first.');
+      setLetterError('No permit selected to generate letter for.');
+      setGeneratingLetter(false);
       return;
     }
     setGeneratingLetter(true);
@@ -183,17 +185,17 @@ export default function Home() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
         {permits.length > 0 ? (
           permits.map((permit) => (
-            <div key={permit.id} className="bg-white shadow-md rounded-lg p-6">
-              <h2 className="text-xl font-semibold mb-2">{permit.address}</h2>
-              <p className="text-gray-700">**Permit ID:** {permit.id}</p>
-              <p className="text-gray-700">**Description:** {permit.description}</p>
+            <div key={permit.project_title} className="bg-white shadow-md rounded-lg p-6">
+              <h2 className="text-xl font-semibold mb-2">{permit.project_title}</h2>
+              <p className="text-gray-700">**Permit ID:** {permit.project_title}</p>
+              <p className="text-gray-700">**Description:** {permit.notes}</p>
               <p className="text-gray-700">**Status:** {permit.status}</p>
-              <button
-                onClick={() => setSelectedPermit(permit)} // Change: Pass the full permit object
-                className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-              >
-                Select for Objection
-              </button>
+                <button
+                  onClick={() => setSelectedPermit(permit)}
+                  className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                >
+                  Generate Objection Letter
+                </button>
             </div>
           ))
         ) : (
@@ -203,7 +205,7 @@ export default function Home() {
 
       {selectedPermit && ( // Change: Check for selectedPermit object
         <section className="w-full max-w-2xl bg-white shadow-md rounded-lg p-8 mb-12">
-          <h2 className="text-2xl font-bold mb-4">Generate Objection Letter for Permit ID: {selectedPermit.id}</h2>
+          <h2 className="text-2xl font-bold mb-4">Generate Objection Letter for Permit: {selectedPermit.project_title}</h2>
           <form onSubmit={handleGenerateLetter} className="space-y-4">
             {/* New input fields for personal details */}
             <div>
@@ -290,7 +292,7 @@ export default function Home() {
                 id="customDetails"
                 value={customDetails}
                 onChange={(e) => setCustomDetails(e.target.value)}
-                rows="5"
+                rows={5}
                 className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                 placeholder="Enter any additional details or specific objections here..."
               ></textarea>
