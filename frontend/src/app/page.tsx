@@ -200,7 +200,7 @@ export default function Home() {
               />
             </div>
             <div>
-              <label htmlFor="yourCity" className="block text-gray-700 text-sm font-bold mb-2">City:</label>
+              <label htmlFor="yourCity" className="block text-gray-700 text-sm font-bold mb-2">Your City:</label>
               <input
                 type="text"
                 id="yourCity"
@@ -211,7 +211,7 @@ export default function Home() {
               />
             </div>
             <div>
-              <label htmlFor="yourPostalCode" className="block text-gray-700 text-sm font-bold mb-2">Postal Code:</label>
+              <label htmlFor="yourPostalCode" className="block text-gray-700 text-sm font-bold mb-2">Your Postal Code:</label>
               <input
                 type="text"
                 id="yourPostalCode"
@@ -222,7 +222,7 @@ export default function Home() {
               />
             </div>
             <div>
-              <label htmlFor="yourPhone" className="block text-gray-700 text-sm font-bold mb-2">Phone Number:</label>
+              <label htmlFor="yourPhone" className="block text-gray-700 text-sm font-bold mb-2">Your Phone Number:</label>
               <input
                 type="tel"
                 id="yourPhone"
@@ -233,7 +233,7 @@ export default function Home() {
               />
             </div>
             <div>
-              <label htmlFor="yourEmail" className="block text-gray-700 text-sm font-bold mb-2">Email Address:</label>
+              <label htmlFor="yourEmail" className="block text-gray-700 text-sm font-bold mb-2">Your Email Address:</label>
               <input
                 type="email"
                 id="yourEmail"
@@ -255,17 +255,15 @@ export default function Home() {
               />
             </div>
 
-            <div>
-              <label htmlFor="customDetails" className="block text-gray-700 text-sm font-bold mb-2">
-                Additional Details (optional):
-              </label>
+            <div className="mb-4">
+              <label htmlFor="customDetails" className="block text-gray-700 text-sm font-bold mb-2">Custom Details (e.g., specific objections):</label>
               <textarea
                 id="customDetails"
-                rows="5"
                 value={customDetails}
                 onChange={(e) => setCustomDetails(e.target.value)}
+                rows="5"
                 className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                placeholder="e.g., reasons for objection, specific concerns, etc."
+                placeholder="Enter any additional details or specific objections here..."
               ></textarea>
             </div>
             <button
@@ -273,7 +271,7 @@ export default function Home() {
               className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
               disabled={generatingLetter}
             >
-              {generatingLetter ? 'Generating...' : 'Generate Letter'}
+              {generatingLetter ? 'Generating...' : 'Generate Objection Letter'}
             </button>
           </form>
 
@@ -284,36 +282,31 @@ export default function Home() {
           {generatedLetter && (
             <div className="mt-8 p-6 bg-gray-100 rounded-lg">
               <h3 className="text-xl font-bold mb-4">Generated Objection Letter:</h3>
-              <pre className="whitespace-pre-wrap font-sans text-gray-800">{generatedLetter}</pre>
-
-              {/* New email sending section */}
-              <div className="mt-6 pt-4 border-t border-gray-300">
-                <h3 className="text-xl font-bold mb-4">Send Objection Letter via Email:</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="recipientEmail" className="block text-gray-700 text-sm font-bold mb-2">Recipient Email:</label>
-                    <input
-                      type="email"
-                      id="recipientEmail"
-                      value={recipientEmail}
-                      onChange={(e) => setRecipientEmail(e.target.value)}
-                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                      placeholder="e.g., authority@example.com"
-                    />
-                  </div>
-                  <button
-                    onClick={handleSendEmail}
-                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                    disabled={sendingEmail || !generatedLetter || !recipientEmail}
-                  >
-                    {sendingEmail ? 'Sending...' : 'Send Email'}
-                  </button>
-                </div>
+              <div className="whitespace-pre-wrap border p-4 rounded bg-white text-gray-800">
+                {generatedLetter}
+              </div>
+              <div className="mt-4">
+                <label htmlFor="recipientEmail" className="block text-gray-700 text-sm font-bold mb-2">Recipient Email:</label>
+                <input
+                  type="email"
+                  id="recipientEmail"
+                  value={recipientEmail}
+                  onChange={(e) => setRecipientEmail(e.target.value)}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  placeholder="Enter recipient email address"
+                />
+                <button
+                  onClick={handleSendEmail}
+                  className="mt-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                  disabled={sendingEmail}
+                >
+                  {sendingEmail ? 'Sending...' : 'Send Email'}
+                </button>
                 {emailSentMessage && (
-                  <p className="text-green-500 mt-4">{emailSentMessage}</p>
+                  <p className="text-green-500 mt-2">{emailSentMessage}</p>
                 )}
                 {emailError && (
-                  <p className="text-red-500 mt-4">Error sending email: {emailError}</p>
+                  <p className="text-red-500 mt-2">Error sending email: {emailError}</p>
                 )}
               </div>
             </div>
