@@ -66,9 +66,11 @@ Navigate to the `backend` directory:
 cd AFOG_Project/backend
 ```
 
-Install the required Python packages:
-```bash
-pip install -r requirements.txt
+Edit .env to include the following - you can set up a Gemini key here: https://aistudio.google.com/api-keys
+```
+GEMINI_API_KEY=<Set Up A Key on Gemini>
+USER_EMAIL=xxx
+USER_PASS=xxx
 ```
 
 ### 2. Frontend Setup
@@ -78,6 +80,11 @@ The Next.js frontend is located in the `frontend` directory. It has already been
 Navigate to the `frontend` directory:
 ```bash
 cd frontend
+```
+
+Copy the example .env file
+```
+cp .env.example .env
 ```
 
 Install the Node.js dependencies:
@@ -93,9 +100,10 @@ To run the full application, you need to start both the backend and the frontend
 **Start Backend:**
 Open a new terminal, navigate to `AFOG_Project/backend`, and run:
 ```bash
-python app.py
+npm start
 ```
-The backend server will typically run on `http://127.0.0.1:5000`.
+
+The backend server will typically run on `http://127.0.0.1:3001`.
 
 **Start Frontend:**
 Open another new terminal, navigate to `frontend`, and run:
@@ -107,11 +115,11 @@ The frontend development server will typically run on `http://localhost:3000`. O
 
 ### 4. AI API Key (Future Step)
 
-Once you start integrating the Gemini API, you will need an API key. This will be configured within the `AFOG_Project/backend/app.py` file. For now, the AI integration is a placeholder, but the structure is ready for it.
+Once you start integrating the Gemini API, you will need an API key. This will be configured within the `AFOG_Project/backend/.env` file. For now, the AI integration is a placeholder, but the structure is ready for it.
 
 ## 💡 How to Contribute
 
-*   **Backend Developers:** Your primary focus is `AFOG_Project/backend/app.py`. Implement the actual Gemini API integration for letter generation, refine the logic for reading `permits.json`, and ensure the API endpoints are robust.
+*   **Backend Developers:** Your primary focus is `AFOG_Project/backend/server.js`. Implement the actual Gemini API integration for letter generation, refine the logic for reading `permits.json`, and ensure the API endpoints are robust.
 *   **Frontend Developers:** Your work will be in the `frontend/` directory, primarily `pages/index.js`, `components/`, and `styles/`. Enhance the user interface, improve user experience, and handle dynamic content display using React and Next.js. Ensure smooth communication with the backend API.
 *   **AI Prompt Engineers:** Collaborate closely with the backend team to craft effective and legally sound prompts for the Gemini API. Your expertise will ensure the generated objection letters are persuasive and accurate.
 
