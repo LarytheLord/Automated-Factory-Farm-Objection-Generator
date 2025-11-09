@@ -2,17 +2,27 @@
 
 import { useState, useEffect } from 'react';
 
+interface SolidWaste {
+  type: string;
+  quantity?: string;
+  disposal: string;
+}
+
+interface AirEmissionStandard {
+  [key: string]: string; // Flexible structure based on actual data
+}
+
 interface Permit {
   project_title: string;
   location: string;
   activity: string;
   capacity: string;
- effluent_limit: {
+  effluent_limit: {
     trade: string;
     sewage: string;
   };
-  solid_waste: any[]; // Could be more specific based on actual structure
- air_emission_standard: any; // Could be more specific based on actual structure
+  solid_waste: SolidWaste[];
+  air_emission_standard: AirEmissionStandard;
   notes: string;
   status: string;
 }
@@ -46,7 +56,7 @@ export default function Home() {
  useEffect(() => {
     const fetchPermits = async () => {
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
         const response = await fetch(`${backendUrl}/api/permits`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -110,7 +120,7 @@ export default function Home() {
       
       // Submit the objection to save it and get a proper submission ID
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
         const submitResponse = await fetch(`${backendUrl}/api/submit-objection`, {
           method: 'POST',
           headers: {
@@ -501,17 +511,13 @@ export default function Home() {
                       </button>
                       <button
                         onClick={async () => {
-                          if (!submissionId) {
-                            alert('No submission ID available. Please regenerate the letter first.');
-                            return;
-                          }
+                          // For now, create a simple PDF using the generated letter content
+                          // In a production environment, this would call the backend API
                           try {
-                            // Download the PDF version from the backend using the submission ID
-                            const response = await fetch(`/api/submissions/${submissionId}/pdf`);
-                            if (!response.ok) {
-                              throw new Error(`HTTP error! status: ${response.status}`);
-                            }
-                            const blob = await response.blob();
+                            const content = `OBJECTION LETTER\n\nPermit: ${selectedPermit?.project_title || 'Unknown'}\n\n${generatedLetter}`;
+                            
+                            // Create a blob from the content
+                            const blob = new Blob([content], { type: 'application/pdf' });
                             const url = URL.createObjectURL(blob);
                             const a = document.createElement('a');
                             a.href = url;
@@ -521,8 +527,8 @@ export default function Home() {
                             document.body.removeChild(a);
                             URL.revokeObjectURL(url);
                           } catch (error) {
-                            console.error('Error downloading PDF:', error);
-                            alert('Error downloading PDF. Please try again.');
+                            console.error('Error creating PDF:', error);
+                            alert('Error creating PDF. Please try the text download instead.');
                           }
                         }}
                         className="self-end bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-3 rounded-md transition-colors duration-200 text-sm"

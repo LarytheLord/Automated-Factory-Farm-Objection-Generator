@@ -1,10 +1,8 @@
-import { NextRequest } from 'next/server';
-
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // In production, this will call the backend API
     // During development, we'll proxy to the backend
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
     const response = await fetch(`${backendUrl}/api/permits`, {
       headers: {
         'Content-Type': 'application/json',
@@ -12,10 +10,11 @@ export async function GET(request: NextRequest) {
     });
 
     if (!response.ok) {
-      return new Response(
-        JSON.stringify({ error: 'Failed to fetch permits' }),
-        { status: response.status, headers: { 'Content-Type': 'application/json' } }
-      );
+      const errorData = await response.json().catch(() => ({ error: 'Failed to fetch permits' }));
+      return new Response(JSON.stringify(errorData), {
+        status: response.status,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     const data = await response.json();
@@ -23,7 +22,8 @@ export async function GET(request: NextRequest) {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (error) {
+  } catch (error: unknown) {
+    console.error('Error in permits API route:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }

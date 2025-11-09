@@ -21,14 +21,13 @@ const emailPass = process.env.USER_PASS;
 
 // Validate environment variables
 if (!geminiApiKey) {
-    console.error('GEMINI_API_KEY environment variable is not set.');
-    process.exit(1);
+    console.warn('GEMINI_API_KEY environment variable is not set. Letter generation functionality will not work.');
 }
 if (!emailUser  || !emailPass) {
     console.warn('USER_EMAIL or USER_PASS environment variables are not set. Email functionality may not work.');
 }
 
-const genAI = new GoogleGenerativeAI(geminiApiKey);
+const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
 
 app.use(cors());
 app.use(express.json());
@@ -44,8 +43,8 @@ const transporter = nodemailer.createTransport({
     debug: true,  // Set to false in production
 });
 
-// GET /api/permits
-app.get('/api/permits', async (req, res) => {
+// GET /permits
+app.get('/permits', async (req, res) => {
     try {
         const permitsPath = path.join(__dirname, 'permits.json');
         if (!fs.existsSync(permitsPath)) {
@@ -79,8 +78,8 @@ app.get('/api/permits', async (req, res) => {
     }
 });
 
-// POST /api/generate-letter
-app.post('/api/generate-letter', async (req, res) => {
+// POST /generate-letter
+app.post('/generate-letter', async (req, res) => {
     try {
         const { permitDetails } = req.body;
         
@@ -191,6 +190,10 @@ Address: ${yourAddress}, ${yourCity}, ${yourPostalCode}
  - Ends with a strong request to reject or review the permit
  `;
 
+        if (!genAI) {
+            return res.status(500).json({ error: 'GEMINI_API_KEY environment variable is not set. Letter generation functionality is not available.' });
+        }
+        
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
         const result = await model.generateContent(prompt);
         const response = await result.response;
@@ -203,8 +206,8 @@ Address: ${yourAddress}, ${yourCity}, ${yourPostalCode}
     }
 });
 
-// POST /api/send-email
-app.post('/api/send-email', async (req, res) => {
+// POST /send-email
+app.post('/send-email', async (req, res) => {
     const { to, subject, text, html } = req.body;
 
     if (!to || !subject || (!text && !html)) {
@@ -232,8 +235,8 @@ app.post('/api/send-email', async (req, res) => {
     }
 });
 
-// POST /api/submit-objection - Create a new objection submission
-app.post('/api/submit-objection', async (req, res) => {
+// POST /submit-objection - Create a new objection submission
+app.post('/submit-objection', async (req, res) => {
     try {
         const { permitDetails, objectionLetter, submitterInfo } = req.body;
 
@@ -320,8 +323,8 @@ app.post('/api/submit-objection', async (req, res) => {
     }
 });
 
-// GET /api/submissions - Get all submissions (with optional filtering)
-app.get('/api/submissions', (req, res) => {
+// GET /submissions - Get all submissions (with optional filtering)
+app.get('/submissions', (req, res) => {
     try {
         const { status, email } = req.query;
         const filter = {};
@@ -336,8 +339,8 @@ app.get('/api/submissions', (req, res) => {
     }
 });
 
-// GET /api/submissions/:id - Get a specific submission
-app.get('/api/submissions/:id', (req, res) => {
+// GET /submissions/:id - Get a specific submission
+app.get('/submissions/:id', (req, res) => {
     try {
         const { id } = req.params;
         const submission = submissionTracker.getSubmission(id);
@@ -353,8 +356,8 @@ app.get('/api/submissions/:id', (req, res) => {
     }
 });
 
-// PUT /api/submissions/:id - Update a submission status
-app.put('/api/submissions/:id', async (req, res) => {
+// PUT /submissions/:id - Update a submission status
+app.put('/submissions/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const updateData = req.body;
@@ -407,8 +410,8 @@ app.put('/api/submissions/:id', async (req, res) => {
     }
 });
 
-// GET /api/submissions/:id/pdf - Generate and download PDF of objection letter
-app.get('/api/submissions/:id/pdf', async (req, res) => {
+// GET /submissions/:id/pdf - Generate and download PDF of objection letter
+app.get('/submissions/:id/pdf', async (req, res) => {
     try {
         const { id } = req.params;
         
