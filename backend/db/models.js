@@ -1,6 +1,9 @@
-import mongoose, { Schema, models, model } from 'mongoose';
 
-export const PermitApplication = new Schema({
+
+  const mongoose = require('mongoose');
+  const { Schema, model, models } = mongoose;
+
+  const PermitApplicationSchema = new Schema({
     _created_at: { type: Date, default: Date.now },
     application_date: { type: Date },
     application_number: { type: String }, 
@@ -15,9 +18,16 @@ export const PermitApplication = new Schema({
     activity: { type: String },
     capacity: { type: String },
     effluent_limit: { type: Object },
-    solid_waste: { type: Object[] },
+    solid_waste: { type: [Object] },
     air_emission_standard: { type: Object },
-    notes: { type: String | null },
+    notes: { type: String },
 
     status:{ type: String }, // "closed" | "open" | "public_comment" ?
   });
+
+  const PermitApplication = models.PermitApplication || model('PermitApplication', PermitApplicationSchema);
+
+  module.exports = {
+    PermitApplication,
+  };
+

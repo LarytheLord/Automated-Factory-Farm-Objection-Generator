@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const populators = require('./populator/populators.js');
 const policyData = require(path.join(__dirname, '..', 'policiesandlaws.json'));
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const nodemailer = require('nodemailer');
@@ -10,7 +11,7 @@ const submissionTracker = require('./submissionTracker');
 const { getRelevantCitations } = require('./legalCitationLibrary');
 const emailTemplates = require('./emailTemplates');
 const { generateObjectionLetterPDF } = require('./pdfGenerator');
-const { PermitApplication } = require('./db/models');
+const { connectToDatabase } = require('./db/mongodb.js');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -19,6 +20,17 @@ const PORT = process.env.PORT || 3001;
 const geminiApiKey = process.env.GEMINI_API_KEY;
 const emailUser  = process.env.USER_EMAIL;
 const emailPass = process.env.USER_PASS;
+
+// (async () => {
+//     try {
+//       await connectToDatabase();
+//       console.log("✅ MongoDB connected");
+//       app.listen(3000, () => console.log("🚀 Server running on port 3000"));
+//     } catch (err) {
+//       console.error("❌ MongoDB connection failed:", err);
+//       process.exit(1);
+//     }
+// })();
 
 // Validate environment variables
 if (!geminiApiKey) {
@@ -45,39 +57,104 @@ const transporter = nodemailer.createTransport({
     debug: true,  // Set to false in production
 });
 
+
+// GET /api/permits
+app.get('/api/get-permit-url', async (req, res) => {
+    try {
+
+        // const { country, region } = req.query;
+        const country = "usa";
+        const region = "north carolina";
+        const id = "ADS240005 Ver A";
+
+        const filter = {};
+        if (country) {
+            filter.country = country;
+        }
+        if (region) {
+            filter.region = region;
+        }
+
+        const openai = require('./ai/openai.js');
+        const model = "gpt-4o-search-preview"; // or whichever model you'd like to use
+        const state = "north carolina"; // matches region variable in the call
+        const completion = await openai.chat.completions.create({
+            model: model,
+            messages: [
+                { role: "system", content: "Search and return a plaintext URL for the most likely result for the given permit application number in the specific area of the USA. It should be a link to the original application that matches the application number."},
+                { role: "user", content: `For the application ID ${id} in the ${state} state of ${region}, return a link to the permit application that matches` }
+            ],
+        });
+
+        
+        
+        const message = completion.choices[0].message;
+        console.log(message);
+        
+        res.status(200).json("Found a URL?");
+            
+        
+    } catch (error) {
+        console.error('OpenAI API error:', error);
+        throw error;
+    }
+
+});
+
 // GET /api/permits
 app.get('/api/permits', async (req, res) => {
+
+    // Accept country and region as query parameters to filter the results
     try {
-        const permitsPath = path.join(__dirname, 'permits.json');
-        if (!fs.existsSync(permitsPath)) {
-            console.error('permits.json file not found');
-            return res.status(404).json({ error: 'Permit data not found' });
+        const { country, region } = req.query;
+        const filter = {};
+        if (country) {
+            filter.country = country;
         }
-        
-        const data = await fs.promises.readFile(permitsPath, 'utf8');
-        if (!data.trim()) {
-            console.error('permits.json file is empty');
-            return res.status(404).json({ error: 'Permit data is empty' });
+        if (region) {
+            filter.region = region;
         }
-        
-        let permits;
-        try {
-            permits = JSON.parse(data);
-        } catch (parseErr) {
-            console.error('Error parsing permits.json:', parseErr);
-            return res.status(400).json({ error: 'Invalid permit data format' });
-        }
-        
-        if (!Array.isArray(permits)) {
-            console.error('Permits data is not an array');
-            return res.status(500).json({ error: 'Permit data format is invalid' });
-        }
-        
-        res.json(permits);
+
+        const result = await populators[country][region]();
+
+        res.status(201).json(result);
+
     } catch (err) {
-        console.error('Error reading permits:', err);
-        res.status(500).json({ error: 'Internal server error while reading permits' });
+        console.error('Error fetching permits:', err);
+        res.status(500).json({ error: 'Internal server error while fetching permits' });
     }
+
+    // try {
+    //     const permitsPath = path.join(__dirname, 'permits.json');
+    //     if (!fs.existsSync(permitsPath)) {
+    //         console.error('permits.json file not found');
+    //         return res.status(404).json({ error: 'Permit data not found' });
+    //     }
+        
+    //     const data = await fs.promises.readFile(permitsPath, 'utf8');
+    //     if (!data.trim()) {
+    //         console.error('permits.json file is empty');
+    //         return res.status(404).json({ error: 'Permit data is empty' });
+    //     }
+        
+    //     let permits;
+    //     try {
+    //         permits = JSON.parse(data);
+    //     } catch (parseErr) {
+    //         console.error('Error parsing permits.json:', parseErr);
+    //         return res.status(400).json({ error: 'Invalid permit data format' });
+    //     }
+        
+    //     if (!Array.isArray(permits)) {
+    //         console.error('Permits data is not an array');
+    //         return res.status(500).json({ error: 'Permit data format is invalid' });
+    //     }
+        
+    //     res.json(permits);
+    // } catch (err) {
+    //     console.error('Error reading permits:', err);
+    //     res.status(500).json({ error: 'Internal server error while reading permits' });
+    // }
 });
 
 // POST /api/generate-letter
@@ -477,12 +554,12 @@ app.get('/api/submissions/:id/pdf', async (req, res) => {
 */
 
 
-api.post({
-    res.status(201).json({message: 'created new '})
-})
+// api.post({
+//     res.status(201).json({message: 'created new '})
+// })
 
 
-api.delete( '/api/permits', (req, res) => {
+app.delete( '/api/permits', async (req, res) => {
     try {
         // Remove all PermitApplication documents from the collection
         const result = await PermitApplication.deleteMany({});
