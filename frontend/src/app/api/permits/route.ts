@@ -1,3 +1,4 @@
+
 import { NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
@@ -12,6 +13,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!response.ok) {
+
       return new Response(
         JSON.stringify({ error: 'Failed to fetch permits' }),
         { status: response.status, headers: { 'Content-Type': 'application/json' } }
@@ -23,7 +25,8 @@ export async function GET(request: NextRequest) {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (error) {
+  } catch (error: unknown) {
+    console.error('Error in permits API route:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }

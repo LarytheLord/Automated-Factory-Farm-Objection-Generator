@@ -192,6 +192,10 @@ Address: ${yourAddress}, ${yourCity}, ${yourPostalCode}
  - Ends with a strong request to reject or review the permit
  `;
 
+        if (!genAI) {
+            return res.status(500).json({ error: 'GEMINI_API_KEY environment variable is not set. Letter generation functionality is not available.' });
+        }
+        
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
         const result = await model.generateContent(prompt);
         const response = await result.response;

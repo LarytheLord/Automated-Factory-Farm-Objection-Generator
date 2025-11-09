@@ -2,13 +2,16 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // NEXT_PUBLIC_* variables are automatically exposed by Next.js
-  // No need for the env block - Next.js reads them from .env files automatically
-  output: "export", // This ensures the app is built for static export
-  trailingSlash: true, // Add trailing slashes to all routes
+  // Environment variables
+  env: {
+    NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001',
+  },
+  // Handle static generation properly
+  trailingSlash: true,
   images: {
-    unoptimized: true // Required for static exports
-  }
+    unoptimized: true
+  },
+  output: "export", // This ensures the app is built for static export
 };
 
 export default nextConfig;

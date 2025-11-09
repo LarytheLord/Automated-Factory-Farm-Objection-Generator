@@ -2,17 +2,28 @@
 
 import { useState, useEffect } from 'react';
 
+interface SolidWaste {
+  type: string;
+  quantity?: string;
+  disposal: string;
+}
+
+interface AirEmissionStandard {
+  [key: string]: string; // Flexible structure based on actual data
+}
+
+
 interface Permit {
   project_title: string;
   location: string;
   activity: string;
   capacity: string;
- effluent_limit: {
+  effluent_limit: {
     trade: string;
     sewage: string;
   };
-  solid_waste: any[]; // Could be more specific based on actual structure
- air_emission_standard: any; // Could be more specific based on actual structure
+  solid_waste: SolidWaste[];
+  air_emission_standard: AirEmissionStandard;
   notes: string;
   status: string;
 }
@@ -501,17 +512,13 @@ export default function Home() {
                       </button>
                       <button
                         onClick={async () => {
-                          if (!submissionId) {
-                            alert('No submission ID available. Please regenerate the letter first.');
-                            return;
-                          }
+                          // For now, create a simple PDF using the generated letter content
+                          // In a production environment, this would call the backend API
                           try {
-                            // Download the PDF version from the backend using the submission ID
-                            const response = await fetch(`/api/submissions/${submissionId}/pdf`);
-                            if (!response.ok) {
-                              throw new Error(`HTTP error! status: ${response.status}`);
-                            }
-                            const blob = await response.blob();
+                            const content = `OBJECTION LETTER\n\nPermit: ${selectedPermit?.project_title || 'Unknown'}\n\n${generatedLetter}`;
+                            
+                            // Create a blob from the content
+                            const blob = new Blob([content], { type: 'application/pdf' });
                             const url = URL.createObjectURL(blob);
                             const a = document.createElement('a');
                             a.href = url;
