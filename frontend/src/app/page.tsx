@@ -1,6 +1,7 @@
-"use client";
 
+'use client';
 import { useState, useEffect } from 'react';
+import { Search, MapPin, Globe, ChevronRight, ArrowLeft, FileText, Mail, Download, Edit3, Check } from 'lucide-react';
 
 interface SolidWaste {
   type: string;
@@ -9,9 +10,12 @@ interface SolidWaste {
 }
 
 interface AirEmissionStandard {
-  [key: string]: string; // Flexible structure based on actual data
+  [key: string]: string;
 }
 
+
+const countries = ['usa'];
+const regions = ['north carolina'];
 
 interface Permit {
   project_title: string;
@@ -28,55 +32,180 @@ interface Permit {
   status: string;
 }
 
-export default function Home() {
+function App() {
+  const [step, setStep] = useState<'filter' | 'permits' | 'generate'>('filter');
+  const [country, setCountry] = useState('usa');
+  const [region, setRegion] = useState('north carolina');
+  const [keywords, setKeywords] = useState('');
+
   const [permits, setPermits] = useState<Permit[]>([]);
-  const [loading, setLoading] = useState(true);
- const [error, setError] = useState<string | null>(null);
+  const [filteredPermits, setFilteredPermits] = useState<Permit[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [selectedPermit, setSelectedPermit] = useState<Permit | null>(null);
+
+  const [yourName, setYourName] = useState('Quintan Neville');
+  const [yourAddress, setYourAddress] = useState('2 Medina Villas');
+  const [yourCity, setYourCity] = useState('Hove');
+  const [yourPostalCode, setYourPostalCode] = useState('BN32RJ');
+  const [yourPhone, setYourPhone] = useState('0778770830');
+  const [yourEmail, setYourEmail] = useState('quintan.neville@gmail.com');
+  const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
   const [customDetails, setCustomDetails] = useState('');
+
   const [generatedLetter, setGeneratedLetter] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedLetter, setEditedLetter] = useState('');
   const [generatingLetter, setGeneratingLetter] = useState(false);
   const [letterError, setLetterError] = useState<string | null>(null);
-  const [submissionId, setSubmissionId] = useState<string | null>(null);
 
-  // New state variables for personal details
-  const [yourName, setYourName] = useState('');
-  const [yourAddress, setYourAddress] = useState('');
-  const [yourCity, setYourCity] = useState('');
-  const [yourPostalCode, setYourPostalCode] = useState('');
-  const [yourPhone, setYourPhone] = useState('');
-  const [yourEmail, setYourEmail] = useState('');
-  const [currentDate, setCurrentDate] = useState('');
-
-  // New state for email sending
   const [recipientEmail, setRecipientEmail] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailSentMessage, setEmailSentMessage] = useState('');
+  
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+
   const [emailError, setEmailError] = useState<string | null>(null);
 
- useEffect(() => {
-    const fetchPermits = async () => {
-      try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
-        const response = await fetch(`${backendUrl}/api/permits`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        setPermits(data);
-      } catch (e: unknown) {
-        if (e instanceof Error) {
-          setError(e.message);
-        } else {
-          setError('An unknown error occurred');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
 
-    fetchPermits();
-  }, []);
+  useEffect(() => {
+    if (step === 'permits') {
+      fetchPermits();
+    }
+  }, [step]);
+
+  // useEffect(() => {
+  //   if (permits.length > 0) {
+      
+  //     const filtered = permits //.filter(permit => {
+  //     //   const matchesLocation = !region || permit.location.toLowerCase().includes(region.toLowerCase());
+  //     //   const matchesKeywords = !keywords ||
+  //     //     permit.project_title.toLowerCase().includes(keywords.toLowerCase()) ||
+  //     //     permit.activity.toLowerCase().includes(keywords.toLowerCase()) ||
+  //     //     permit.notes.toLowerCase().includes(keywords.toLowerCase());
+  //     //   return matchesLocation && matchesKeywords;
+  //     // });
+  //     setFilteredPermits(filtered);
+  //   }
+  // }, [permits, region, keywords]);
+
+
+  const fetchPermits = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001?region=north carolina&country=usa';
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`${backendUrl}/api/permits`);
+      const json = await response.json();
+      
+      console.log(">>>>> RESPOSE", json)
+
+      setPermits(json);
+      setFilteredPermits(json);
+
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        setError(e.message);
+      } else {
+        setError('An unknown error occurred');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFilterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setStep('permits');
+  };
+
+  const handleSelectPermit = (permit: Permit) => {
+    setSelectedPermit(permit);
+    setStep('generate');
+  };
+
+  const generateMockLetter = (): string => {
+    return `FORMAL OBJECTION TO PERMIT APPLICATION
+
+${currentDate}
+
+To Whom It May Concern:
+
+I am writing to formally object to the permit application for "${selectedPermit?.project_title}" located in ${selectedPermit?.location}.
+
+OBJECTOR INFORMATION:
+Name: ${yourName}
+Address: ${yourAddress}, ${yourCity}, ${yourPostalCode}
+Phone: ${yourPhone}
+Email: ${yourEmail}
+
+PROJECT DETAILS:
+Project Title: ${selectedPermit?.project_title}
+Location: ${selectedPermit?.location}
+Activity: ${selectedPermit?.activity}
+Proposed Capacity: ${selectedPermit?.capacity}
+
+GROUNDS FOR OBJECTION:
+
+1. ENVIRONMENTAL PROTECTION CONCERNS
+Under the Environment Protection Act, 1986, this facility's proposed effluent discharge presents significant environmental risks:
+- Trade effluent discharge: ${selectedPermit?.effluent_limit.trade}
+- Sewage discharge: ${selectedPermit?.effluent_limit.sewage}
+
+These discharge levels may contaminate local water resources and violate established environmental standards.
+
+2. ANIMAL WELFARE CONCERNS
+In accordance with the Prevention of Cruelty to Animals Act, 1960, the confinement practices described for ${selectedPermit?.capacity} animals raise serious animal welfare concerns. The proposed facility will cause suffering through:
+- Extreme crowding and restriction of natural behaviors
+- Inadequate space per animal as per industry standards
+- Chronic stress from intensive confinement conditions
+
+The Animal Factory Farming Regulation Bill, 2020 establishes standards that this facility fails to meet.
+
+3. WATER POLLUTION CONCERNS
+Under the Water (Prevention and Control of Pollution) Act, 1974:
+The facility's wastewater management system inadequately addresses nutrient runoff, which will contribute to:
+- Eutrophication of nearby water bodies
+- Contamination of groundwater resources
+- Violation of water quality standards
+
+4. AIR QUALITY AND EMISSION CONCERNS
+Per the Air (Prevention and Control of Pollution) Act, 1981:
+The facility will generate harmful air emissions including ammonia and hydrogen sulfide at levels that exceed acceptable standards for nearby communities, causing respiratory health problems and nuisance odors.
+
+5. PUBLIC HEALTH CONSIDERATIONS
+Large-scale concentrated animal operations increase risks of:
+- Zoonotic disease transmission to humans
+- Antibiotic resistance due to routine prophylactic use
+- Environmental pathogen contamination
+
+ADDITIONAL CONCERNS:
+${customDetails ? customDetails : 'No additional comments provided.'}
+
+CONCLUSION:
+
+For the reasons stated above, I respectfully urge the permitting authority to DENY this permit application. This facility would cause unacceptable environmental degradation, animal suffering, and public health risks.
+
+I request that:
+1. The permit application be rejected
+2. A comprehensive environmental and health impact assessment be conducted
+3. Public hearings be held to address community concerns
+4. Alternative, more humane agricultural practices be required
+
+Respectfully submitted,
+
+${yourName}
+${yourAddress}
+${yourCity}, ${yourPostalCode}
+${yourPhone}
+${yourEmail}
+
+---
+This objection letter was generated using the Factory Farm Objection Generator, citing relevant federal and state environmental and animal welfare legislation.`;
+  };
 
   const handleGenerateLetter = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -215,347 +344,486 @@ export default function Home() {
     }
  };
 
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
-        <div className="container mx-auto px-4 py-8">
-          <header className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-gray-800 mb-4">Automated Factory Farm Objection Generator</h1>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto">Helping NGOs and communities effectively oppose factory farm permits with AI-generated, legally-cited objection letters</p>
-          </header>
-          <div className="flex justify-center items-center min-h-[50vh]">
-            <p className="text-xl text-gray-600">Loading permits...</p>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  if (error) {
-    return (
-      <main className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
-        <div className="container mx-auto px-4 py-8">
-          <header className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-gray-800 mb-4">Automated Factory Farm Objection Generator</h1>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto">Helping NGOs and communities effectively oppose factory farm permits with AI-generated, legally-cited objection letters</p>
-          </header>
-          <div className="flex justify-center items-center min-h-[50vh]">
-            <p className="text-red-500 text-xl">Error: {error}</p>
-          </div>
-        </div>
-      </main>
-    );
-  }
+  const downloadLetter = (format: 'txt' | 'pdf') => {
+    const content = isEditing ? editedLetter : generatedLetter;
+    const blob = new Blob([content], { type: format === 'pdf' ? 'application/pdf' : 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `objection-letter-${selectedPermit?.project_title || 'permit'}.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
-      <div className="container mx-auto px-4 py-8">
-        <header className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-80 mb-4">Automated Factory Farm Objection Generator</h1>
-          <p className="text-lg text-gray-600 max-w-3xl mx-auto">Helping NGOs and communities effectively oppose factory farm permits with AI-generated, legally-cited objection letters</p>
-        </header>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-green-50">
+      {step === 'filter' && (
+        <div className="min-h-screen flex items-center justify-center p-4 animate-fade-in">
+          <div className="max-w-2xl w-full">
+            <div className="text-center mb-8 animate-slide-down">
+              <h1 className="text-5xl font-bold text-gray-900 mb-4">Factory Farm Objection Generator</h1>
+              <p className="text-lg text-gray-600">AI-powered legal objection letters to oppose factory farm permits</p>
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-          {permits.length > 0 ? (
-            permits.map((permit) => (
-              <div key={permit.project_title} className="bg-white shadow-md rounded-lg p-6 border border-gray-200 hover:shadow-lg transition-shadow">
-                <h2 className="text-xl font-semibold mb-3 text-gray-80">{permit.project_title}</h2>
-                <div className="space-y-2 text-sm">
-                  <p className="text-gray-600"><span className="font-medium">Location:</span> {permit.location}</p>
-                  <p className="text-gray-600"><span className="font-medium">Activity:</span> {permit.activity}</p>
-                  <p className="text-gray-600"><span className="font-medium">Capacity:</span> {permit.capacity}</p>
-                  <p className="text-gray-600"><span className="font-medium">Effluent Limits:</span> Trade: {permit.effluent_limit?.trade}, Sewage: {permit.effluent_limit?.sewage}</p>
-                  <p className="text-gray-600"><span className="font-medium">Notes:</span> {permit.notes}</p>
-                </div>
-                <button
-                  onClick={() => setSelectedPermit(permit)}
-                  className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200"
+            <form onSubmit={handleFilterSubmit} className="bg-white rounded-2xl shadow-xl p-8 space-y-6 animate-slide-up">
+              <div className="space-y-2">
+                <label className="flex items-center text-sm font-semibold text-gray-700 mb-2">
+                  <Globe className="w-5 h-5 mr-2 text-blue-600" />
+                  Country
+                </label>
+                <select
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-200 text-gray-700 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
+                  required
                 >
-                  Generate Objection Letter
-                </button>
-              </div>
-            ))
-          ) : (
-            <div className="col-span-full text-center py-12">
-              <p className="text-gray-500 text-lg">No permits found.</p>
-            </div>
-          )}
-        </div>
+                  {countries.map((c) => (
+                    <option key={c} value={c}>
+                      {c.charAt(0).toUpperCase() + c.slice(1)}
+                    </option>
+                  ))}
+                </select>
 
-        {selectedPermit && (
-          <section className="w-full max-w-4xl bg-white shadow-md rounded-lg p-8 mb-12">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Generate Objection Letter</h2>
-              <button 
-                onClick={() => setSelectedPermit(null)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                ← Back to permits
-              </button>
-            </div>
-            
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-              <h3 className="font-semibold text-lg mb-2">Selected Permit Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                <p><span className="font-medium">Project:</span> {selectedPermit.project_title}</p>
-                <p><span className="font-medium">Location:</span> {selectedPermit.location}</p>
-                <p><span className="font-medium">Activity:</span> {selectedPermit.activity}</p>
-                <p><span className="font-medium">Capacity:</span> {selectedPermit.capacity}</p>
               </div>
-            </div>
 
-            <form onSubmit={handleGenerateLetter} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Personal Information Section */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-700 border-b pb-2">Your Information</h3>
-                  
-                  <div>
-                    <label htmlFor="yourName" className="block text-gray-700 text-sm font-medium mb-1">Full Name *</label>
-                    <input
-                      type="text"
-                      id="yourName"
-                      value={yourName}
-                      onChange={(e) => setYourName(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="yourAddress" className="block text-gray-700 text-sm font-medium mb-1">Address *</label>
-                    <input
-                      type="text"
-                      id="yourAddress"
-                      value={yourAddress}
-                      onChange={(e) => setYourAddress(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="yourCity" className="block text-gray-700 text-sm font-medium mb-1">City *</label>
-                      <input
-                        type="text"
-                        id="yourCity"
-                        value={yourCity}
-                        onChange={(e) => setYourCity(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="yourPostalCode" className="block text-gray-70 text-sm font-medium mb-1">Postal Code *</label>
-                      <input
-                        type="text"
-                        id="yourPostalCode"
-                        value={yourPostalCode}
-                        onChange={(e) => setYourPostalCode(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-30 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        required
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="yourPhone" className="block text-gray-700 text-sm font-medium mb-1">Phone Number *</label>
-                    <input
-                      type="tel"
-                      id="yourPhone"
-                      value={yourPhone}
-                      onChange={(e) => setYourPhone(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-30 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="yourEmail" className="block text-gray-700 text-sm font-medium mb-1">Email Address *</label>
-                    <input
-                      type="email"
-                      id="yourEmail"
-                      value={yourEmail}
-                      onChange={(e) => setYourEmail(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-30 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="currentDate" className="block text-gray-700 text-sm font-medium mb-1">Date *</label>
-                    <input
-                      type="date"
-                      id="currentDate"
-                      value={currentDate}
-                      onChange={(e) => setCurrentDate(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-30 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Permit Details and Customization Section */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-70 border-b pb-2">Permit Details & Customization</h3>
-                  
-                  <div>
-                    <label htmlFor="customDetails" className="block text-gray-70 text-sm font-medium mb-1">Additional Objections</label>
-                    <textarea
-                      id="customDetails"
-                      value={customDetails}
-                      onChange={(e) => setCustomDetails(e.target.value)}
-                      rows={5}
-                      className="w-full px-4 py-2 border border-gray-30 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Enter any specific concerns or additional objections..."
-                    ></textarea>
-                  </div>
-                  
-                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                    <h4 className="font-medium text-yellow-800 mb-2">Legal References</h4>
-                    <p className="text-sm text-yellow-700">Your objection letter will automatically include citations from:</p>
-                    <ul className="text-sm text-yellow-700 mt-1 list-disc pl-5 space-y-1">
-                      <li>Environment Protection Act, 1986</li>
-                      <li>Prevention of Cruelty to Animals Act, 1960</li>
-                      <li>Animal Factory Farming (Regulation) Bill, 2020</li>
-                      <li>Water (Prevention and Control of Pollution) Act, 1974</li>
-                      <li>Air (Prevention and Control of Pollution) Act, 1981</li>
-                    </ul>
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <label className="flex items-center text-sm font-semibold text-gray-700 mb-2">
+                  <MapPin className="w-5 h-5 mr-2 text-green-600" />
+                  Region
+                </label>
+                <select
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-200 text-gray-700 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all outline-none"
+                  required
+                >
+                  {regions.map((r) => (
+                    <option key={r} value={r}>
+                      {r.charAt(0).toUpperCase() + r.slice(1)}
+                    </option>
+                  ))}
+                </select>
               </div>
-              
+
+              <div className="space-y-2">
+                <label className="flex items-center text-sm font-semibold text-gray-700 mb-2">
+                  <Search className="w-5 h-5 mr-2 text-orange-600" />
+                  Keywords
+                </label>
+                <input
+                  type="text"
+                  value={keywords}
+                  onChange={(e) => setKeywords(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-200 text-gray-700 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all outline-none"
+                  placeholder="Search permits by keywords"
+                />
+              </div>
+
               <button
                 type="submit"
-                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-md transition-colors duration-200 flex items-center justify-center"
-                disabled={generatingLetter}
+                className="w-full bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white font-semibold py-4 rounded-xl transition-all transform hover:scale-105 flex items-center justify-center shadow-lg"
               >
-                {generatingLetter ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Generating Letter...
-                  </>
-                ) : 'Generate Objection Letter'}
+                Search Permits
+                <ChevronRight className="w-5 h-5 ml-2" />
               </button>
             </form>
+          </div>
+        </div>
+      )}
 
-            {letterError && (
-              <div className="mt-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-                <p className="font-medium">Error generating letter:</p>
-                <p>{letterError}</p>
+      {step === 'permits' && (
+        <div className="min-h-screen p-6 animate-fade-in">
+          <div className="max-w-7xl mx-auto">
+            <div className="mb-8 flex items-center justify-between animate-slide-down">
+              <button
+                onClick={() => setStep('filter')}
+                className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5 mr-2" />
+                Back to Search
+              </button>
+              <div className="text-right">
+                <h2 className="text-3xl font-bold text-gray-900">Available Permits</h2>
+                <p className="text-gray-600">{filteredPermits.length} permits found</p>
+              </div>
+            </div>
+
+
+            {/* Search */}
+
+            {/* Optional second search bar above permits list for instant filtering */}
+            <div className="mb-6 flex justify-center">
+              <input
+                type="text"
+                placeholder="Quick filter permits..."
+                className="w-full md:w-1/2 px-4 py-2 border-2 border-blue-200 text-gray-700 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all outline-none shadow-sm"
+                value={keywords}
+                onChange={(e) => {
+                  setKeywords(e.target.value);
+                  const keyword = e.target.value.toLowerCase();
+                  if (!keyword) {
+                    setFilteredPermits(permits);
+                  } else {
+                    setFilteredPermits(
+                      permits.filter((permit) => 
+                        Object.values(permit).some((field) =>
+                          typeof field === 'string'
+                            ? field.toLowerCase().includes(keyword)
+                            : // If field is object (like effluent_limit or arrays), search their string props too
+                              (typeof field === 'object' &&
+                                field !== null &&
+                                (
+                                  // effluent_limit or air_emission_standard
+                                  (Object.values(field).some((sub) => typeof sub === 'string' && sub.toLowerCase().includes(keyword))) ||
+                                  // solid_waste: Array of objects
+                                  (Array.isArray(field) && field.some(obj =>
+                                    typeof obj === 'object' && obj !== null &&
+                                    Object.values(obj).some((val) =>
+                                      typeof val === 'string' && val.toLowerCase().includes(keyword)
+                                    )
+                                  ))
+                                )
+                              )
+                        )
+                      )
+                    );
+                  }
+                }}
+              />
+            </div>
+
+            {loading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent"></div>
+              </div>
+            ) : error ? (
+              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6 text-red-700 animate-slide-up">
+                <p className="font-semibold">Error: {error}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredPermits.map((permit, index) => (
+                  <div
+                    key={permit.project_title}
+                    className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all transform hover:-translate-y-1 p-6 border-2 border-gray-100 animate-slide-up"
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">{permit.project_title}</h3>
+                    <div className="space-y-2 text-sm mb-4">
+                      <p className="text-gray-600">
+                        <span className="font-semibold">Location:</span> {permit.location}
+                      </p>
+                      <p className="text-gray-600">
+                        <span className="font-semibold">Activity:</span> {permit.activity}
+                      </p>
+                      <p className="text-gray-600">
+                        <span className="font-semibold">Capacity:</span> {permit.capacity}
+                      </p>
+                      <p className="text-gray-600">
+                        <span className="font-semibold">Status:</span>{' '}
+                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
+                          {permit.status}
+                        </span>
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleSelectPermit(permit)}
+                      className="w-full bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white font-semibold py-3 rounded-lg transition-all transform hover:scale-105 flex items-center justify-center"
+                    >
+                      Generate Objection
+                      <ChevronRight className="w-5 h-5 ml-2" />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
 
-            {generatedLetter && (
-              <div className="mt-8">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-xl font-bold text-gray-800">Generated Objection Letter</h3>
-                  <button 
-                    onClick={() => navigator.clipboard.writeText(generatedLetter)}
-                    className="text-sm bg-gray-200 hover:bg-gray-300 text-gray-800 py-1 px-3 rounded"
-                  >
-                    Copy to Clipboard
-                  </button>
-                </div>
-                
-                <div className="whitespace-pre-wrap border border-gray-300 p-6 rounded-lg bg-white text-gray-800 max-h-96 overflow-y-auto">
-                  {generatedLetter}
-                </div>
-                
-                <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium text-blue-800 mb-2">Next Steps</h4>
-                  <p className="text-sm text-blue-700 mb-4">You can send this letter via email or download it for submission to the relevant authorities.</p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {step === 'generate' && selectedPermit && (
+        <div className="min-h-screen p-6 animate-fade-in">
+          <div className="max-w-5xl mx-auto">
+            <div className="mb-6 animate-slide-down">
+              <button
+                onClick={() => setStep('permits')}
+                className="flex items-center text-gray-600 hover:text-gray-900 transition-colors mb-4"
+              >
+                <ArrowLeft className="w-5 h-5 mr-2" />
+                Back to Permits
+              </button>
+              <h2 className="text-3xl font-bold text-gray-900">Generate Objection Letter</h2>
+            </div>
+
+            <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-xl p-6 mb-6 border-2 border-blue-100 animate-slide-up">
+              <h3 className="font-bold text-lg mb-3 text-gray-900">Selected Permit</h3>
+              <div className="grid grid-cols-1 text-gray-700 md:grid-cols-2 gap-3 text-sm">
+                <p><span className="font-semibold">Project:</span> {selectedPermit.project_title}</p>
+                <p><span className="font-semibold">Location:</span> {selectedPermit.location}</p>
+                <p><span className="font-semibold">Activity:</span> {selectedPermit.activity}</p>
+                <p><span className="font-semibold">Capacity:</span> {selectedPermit.capacity}</p>
+              </div>
+            </div>
+
+            {!generatedLetter ? (
+              <form onSubmit={handleGenerateLetter} className="bg-white rounded-xl shadow-xl p-8 space-y-6 animate-slide-up">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-bold text-gray-900 border-b-2 border-gray-200 text-gray-700 pb-2">Your Information</h3>
+
                     <div>
-                      <label htmlFor="recipientEmail" className="block text-gray-70 text-sm font-medium mb-1">Recipient Email</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name *</label>
                       <input
-                        type="email"
-                        id="recipientEmail"
-                        value={recipientEmail}
-                        onChange={(e) => setRecipientEmail(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Enter recipient email address"
+                        type="text"
+                        value={yourName}
+                        onChange={(e) => setYourName(e.target.value)}
+                        className="w-full px-4 py-2 border-2 border-gray-200 text-gray-700 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
+                        required
                       />
                     </div>
-                    
-                    <button
-                      onClick={handleSendEmail}
-                      className="self-end bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200"
-                      disabled={sendingEmail}
-                    >
-                      {sendingEmail ? 'Sending...' : 'Send via Email'}
-                    </button>
-                    
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Address *</label>
+                      <input
+                        type="text"
+                        value={yourAddress}
+                        onChange={(e) => setYourAddress(e.target.value)}
+                        className="w-full px-4 py-2 border-2 border-gray-200 text-gray-700 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">City *</label>
+                        <input
+                          type="text"
+                          value={yourCity}
+                          onChange={(e) => setYourCity(e.target.value)}
+                          className="w-full px-4 py-2 border-2 border-gray-200 text-gray-700 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">Postal Code *</label>
+                        <input
+                          type="text"
+                          value={yourPostalCode}
+                          onChange={(e) => setYourPostalCode(e.target.value)}
+                          className="w-full px-4 py-2 border-2 border-gray-200 text-gray-700 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Phone *</label>
+                      <input
+                        type="tel"
+                        value={yourPhone}
+                        onChange={(e) => setYourPhone(e.target.value)}
+                        className="w-full px-4 py-2 border-2 border-gray-200 text-gray-700 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Email *</label>
+                      <input
+                        type="email"
+                        value={yourEmail}
+                        onChange={(e) => setYourEmail(e.target.value)}
+                        className="w-full px-4 py-2 border-2 border-gray-200 text-gray-700 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Date *</label>
+                      <input
+                        type="date"
+                        value={currentDate}
+                        onChange={(e) => setCurrentDate(e.target.value)}
+                        className="w-full px-4 py-2 border-2 border-gray-200 text-gray-700 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-bold text-gray-900 border-b-2 border-gray-200 text-gray-700 pb-2">Additional Details</h3>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Custom Objections</label>
+                      <textarea
+                        value={customDetails}
+                        onChange={(e) => setCustomDetails(e.target.value)}
+                        rows={6}
+                        className="w-full px-4 py-2 border-2 border-gray-200 text-gray-700 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none resize-none"
+                        placeholder="Add any specific concerns or objections..."
+                      />
+                    </div>
+
+                    <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
+                      <h4 className="font-semibold text-amber-900 mb-2 flex items-center">
+                        <FileText className="w-5 h-5 mr-2" />
+                        Legal Citations Included
+                      </h4>
+                      <ul className="text-sm text-amber-800 space-y-1 list-disc pl-5">
+                        <li>Environment Protection Act, 1986</li>
+                        <li>Prevention of Cruelty to Animals Act, 1960</li>
+                        <li>Animal Factory Farming Regulation Bill, 2020</li>
+                        <li>Water Pollution Control Act, 1974</li>
+                        <li>Air Pollution Control Act, 1981</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={generatingLetter}
+                  className="w-full bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 flex items-center justify-center shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                >
+                  {generatingLetter ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
+                      Generating Letter...
+                    </>
+                  ) : (
+                    <>
+                      Generate Objection Letter
+                      <ChevronRight className="w-5 h-5 ml-2" />
+                    </>
+                  )}
+                </button>
+
+                {letterError && (
+                  <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4 text-red-700 animate-slide-up">
+                    <p className="font-semibold">Error: {letterError}</p>
+                  </div>
+                )}
+              </form>
+            ) : (
+              <div className="space-y-6 animate-slide-up">
+                <div className="bg-white rounded-xl shadow-xl p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-2xl font-bold text-gray-900 flex items-center">
+                      <FileText className="w-7 h-7 mr-3 text-blue-600" />
+                      Generated Letter
+                    </h3>
                     <div className="flex gap-2">
+                      {!isEditing ? (
+                        <button
+                          onClick={() => setIsEditing(true)}
+                          className="flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all"
+                        >
+                          <Edit3 className="w-4 h-4 mr-2" />
+                          Edit
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setIsEditing(false)}
+                          className="flex items-center px-4 py-2 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg transition-all"
+                        >
+                          <Check className="w-4 h-4 mr-2" />
+                          Done
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {isEditing ? (
+                    <textarea
+                      value={editedLetter}
+                      onChange={(e) => setEditedLetter(e.target.value)}
+                      className="w-full h-96 px-4 py-3 border-2 border-blue-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none font-mono text-sm resize-none"
+                    />
+                  ) : (
+                    <div className="bg-gray-50 rounded-lg p-6 border-2 border-gray-200 text-gray-700 max-h-96 overflow-y-auto">
+                      <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800 leading-relaxed">
+                        {editedLetter || generatedLetter}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-white rounded-xl shadow-xl p-8">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <Mail className="w-6 h-6 mr-3 text-green-600" />
+                    Send & Download
+                  </h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Recipient Email</label>
+                      <input
+                        type="email"
+                        value={recipientEmail}
+                        onChange={(e) => setRecipientEmail(e.target.value)}
+                        className="w-full px-4 py-3 border-2 border-gray-200 text-gray-700 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all outline-none"
+                        placeholder="authority@example.com"
+                      />
+                    </div>
+                    <div className="flex items-end">
                       <button
-                        onClick={() => {
-                          // Create a blob from the generated letter and trigger download as text
-                          const blob = new Blob([generatedLetter], { type: 'text/plain' });
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = `objection-letter-${selectedPermit?.project_title || 'permit'}.txt`;
-                          document.body.appendChild(a);
-                          a.click();
-                          document.body.removeChild(a);
-                          URL.revokeObjectURL(url);
-                        }}
-                        className="self-end bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-3 rounded-md transition-colors duration-200 text-sm"
+                        onClick={handleSendEmail}
+                        disabled={sendingEmail || !recipientEmail}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition-all transform hover:scale-105 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                       >
-                        Download Text
-                      </button>
-                      <button
-                        onClick={async () => {
-                          // For now, create a simple PDF using the generated letter content
-                          // In a production environment, this would call the backend API
-                          try {
-                            const content = `OBJECTION LETTER\n\nPermit: ${selectedPermit?.project_title || 'Unknown'}\n\n${generatedLetter}`;
-                            
-                            // Create a blob from the content
-                            const blob = new Blob([content], { type: 'application/pdf' });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = `objection-letter-${selectedPermit?.project_title || 'permit'}.pdf`;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(url);
-                          } catch (error) {
-                            console.error('Error downloading PDF:', error);
-                            alert('Error downloading PDF. Please try again.');
-                          }
-                        }}
-                        className="self-end bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-3 rounded-md transition-colors duration-200 text-sm"
-                      >
-                        Download PDF
+                        {sendingEmail ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Mail className="w-4 h-4 mr-2" />
+                            Send Email
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
-                  
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => downloadLetter('txt')}
+                      className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 rounded-lg transition-all transform hover:scale-105 flex items-center justify-center"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Download TXT
+                    </button>
+                    <button
+                      onClick={() => downloadLetter('pdf')}
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-lg transition-all transform hover:scale-105 flex items-center justify-center"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Download PDF
+                    </button>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(editedLetter || generatedLetter)}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-all transform hover:scale-105 flex items-center justify-center"
+                    >
+                      Copy to Clipboard
+                    </button>
+                  </div>
+
                   {emailSentMessage && (
-                    <div className="mt-3 p-3 bg-green-100 text-green-700 rounded">
-                      {emailSentMessage}
-                    </div>
-                  )}
-                  
-                  {emailError && (
-                    <div className="mt-3 p-3 bg-red-100 text-red-700 rounded">
-                      Error sending email: {emailError}
+                    <div className="mt-4 bg-green-50 border-2 border-green-200 rounded-lg p-4 text-green-700 animate-slide-up">
+                      <p className="font-semibold">{emailSentMessage}</p>
                     </div>
                   )}
                 </div>
               </div>
             )}
-          </section>
-        )}
-      </div>
-    </main>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
+
+export default App;
