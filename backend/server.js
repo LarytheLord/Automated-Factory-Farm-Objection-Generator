@@ -44,7 +44,7 @@ const transporter = nodemailer.createTransport({
 });
 
 // GET /permits
-app.get('/permits', async (req, res) => {
+app.get('/api/permits', async (req, res) => {
     try {
         const permitsPath = path.join(__dirname, 'permits.json');
         if (!fs.existsSync(permitsPath)) {
@@ -79,7 +79,7 @@ app.get('/permits', async (req, res) => {
 });
 
 // POST /generate-letter
-app.post('/generate-letter', async (req, res) => {
+app.post('/api/generate-letter', async (req, res) => {
     try {
         const { permitDetails } = req.body;
         
@@ -207,7 +207,7 @@ Address: ${yourAddress}, ${yourCity}, ${yourPostalCode}
 });
 
 // POST /send-email
-app.post('/send-email', async (req, res) => {
+app.post('/api/send-email', async (req, res) => {
     const { to, subject, text, html } = req.body;
 
     if (!to || !subject || (!text && !html)) {
@@ -236,7 +236,7 @@ app.post('/send-email', async (req, res) => {
 });
 
 // POST /submit-objection - Create a new objection submission
-app.post('/submit-objection', async (req, res) => {
+app.post('/api/submit-objection', async (req, res) => {
     try {
         const { permitDetails, objectionLetter, submitterInfo } = req.body;
 
@@ -324,7 +324,7 @@ app.post('/submit-objection', async (req, res) => {
 });
 
 // GET /submissions - Get all submissions (with optional filtering)
-app.get('/submissions', (req, res) => {
+app.get('/api/submissions', (req, res) => {
     try {
         const { status, email } = req.query;
         const filter = {};
@@ -340,7 +340,7 @@ app.get('/submissions', (req, res) => {
 });
 
 // GET /submissions/:id - Get a specific submission
-app.get('/submissions/:id', (req, res) => {
+app.get('/api/submissions/:id', (req, res) => {
     try {
         const { id } = req.params;
         const submission = submissionTracker.getSubmission(id);
@@ -411,7 +411,7 @@ app.put('/submissions/:id', async (req, res) => {
 });
 
 // GET /submissions/:id/pdf - Generate and download PDF of objection letter
-app.get('/submissions/:id/pdf', async (req, res) => {
+app.get('/api/submissions/:id/pdf', async (req, res) => {
     try {
         const { id } = req.params;
         
@@ -457,7 +457,7 @@ app.get('/submissions/:id/pdf', async (req, res) => {
 });
 
 // Root route
-app.get('/', (req, res) => {
+app.get('/api/', (req, res) => {
     res.send('Backend server is running!');
 });
 
