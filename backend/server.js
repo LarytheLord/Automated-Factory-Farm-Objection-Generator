@@ -196,17 +196,58 @@ app.post('/api/generate-letter', async (req, res) => {
         // STEP 1: Policy Violation Checks
         const violations = [];
 
-        if (permitDetails.capacity && permitDetails.capacity.includes("1500")) {
-            violations.push("Exceeds sustainable bird processing threshold; requires impact assessment as per policy.");
+        // Check capacity violations
+        if (permitDetails.capacity) {
+            const capacityNumber = parseInt(permitDetails.capacity.replace(/[^\d]/g, '')) || 0;
+            if (capacityNumber > 1000) {
+                violations.push(`Exceeds sustainable animal processing threshold of 1000 animals; requires comprehensive impact assessment as per policy. Current capacity: ${permitDetails.capacity}`);
+            } else if (capacityNumber > 500) {
+                violations.push(`Large-scale operation requiring enhanced environmental safeguards. Current capacity: ${permitDetails.capacity}`);
+            }
         }
 
+        // Check effluent violations
         const tradeEffluent = parseFloat(permitDetails.effluent_limit?.trade?.replace(/[^\d.]/g, '') || "0");
         if (tradeEffluent > 5.0) {
-            violations.push("Trade effluent discharge exceeds eco-safe limits. Requires stricter effluent treatment and mitigation plan.");
+            violations.push(`Trade effluent discharge (${permitDetails.effluent_limit?.trade}) exceeds eco-safe limits of 5.0 mg/L. Requires stricter effluent treatment and mitigation plan.`);
+        } else if (tradeEffluent > 0 && tradeEffluent <= 5.0) {
+            violations.push(`Effluent discharge present (${permitDetails.effluent_limit?.trade}) requires proper treatment and monitoring systems.`);
         }
 
-        if (!permitDetails.notes?.toLowerCase().includes("scientific")) {
-            violations.push("No mention of scientific disposal. Violates animal waste management standards.");
+        const sewageEffluent = parseFloat(permitDetails.effluent_limit?.sewage?.replace(/[^\d.]/g, '') || "0");
+        if (sewageEffluent > 10.0) {
+            violations.push(`Sewage effluent discharge (${permitDetails.effluent_limit?.sewage}) exceeds safe limits of 10.0 mg/Nm³.`);
+        }
+
+        // Check waste disposal violations
+        if (!permitDetails.notes?.toLowerCase().includes("scientific") && !permitDetails.notes?.toLowerCase().includes("proper")) {
+            violations.push("No mention of scientific disposal methods. Violates animal waste management standards.");
+        }
+
+        // Check for air emission violations
+        if (permitDetails.air_emission_standard) {
+            const spmValue = parseFloat(permitDetails.air_emission_standard.SPM ||
+                                        permitDetails.air_emission_standard['SPM/TPM'] ||
+                                        permitDetails.air_emission_standard['suspended particulate matter'] || "0");
+            if (spmValue > 200) {
+                violations.push(`Air emission standards for suspended particulate matter (${spmValue}) exceed acceptable limits of 200 mg/Nm³, posing health risks to surrounding communities.`);
+            }
+        }
+
+        // Check for location violations (if near sensitive areas)
+        if (permitDetails.location &&
+            (permitDetails.location.toLowerCase().includes("sanctuary") ||
+             permitDetails.location.toLowerCase().includes("reserve") ||
+             permitDetails.location.toLowerCase().includes("forest") ||
+             permitDetails.location.toLowerCase().includes("eco-sensitive"))) {
+            violations.push(`Proposed location in or near environmentally sensitive area (${permitDetails.location}) violates environmental protection regulations.`);
+        }
+
+        // Check for missing environmental impact assessment
+        if (!permitDetails.notes?.toLowerCase().includes("environmental impact") &&
+            !permitDetails.notes?.toLowerCase().includes("assessment") &&
+            !permitDetails.notes?.toLowerCase().includes("environmental clearance")) {
+            violations.push("No mention of Environmental Impact Assessment (EIA) or environmental clearance, which is mandatory for factory farming operations of this nature.");
         }
 
         // Get relevant legal citations based on violations
@@ -243,15 +284,15 @@ ${relevantCitations.length ? relevantCitations.map(c => `  - ${c.section}: ${c.t
 `;
 
         const prompt = `
- You are an expert public advocate and environmental lawyer.
+ You are an expert public advocate and environmental lawyer specializing in environmental and animal welfare laws.
 
- Write a strong, formal objection letter regarding this factory farm permit:
+Write a strong, formal objection letter regarding this factory farm permit application. The letter should be structured as a formal business letter with proper salutation, body paragraphs, and closing.
 
 📄 Permit Info:
- - Project: ${permitDetails.project_title}
+- Project: ${permitDetails.project_title}
  - Location: ${permitDetails.location}
  - Activity: ${permitDetails.activity}
- - Capacity: ${permitDetails.capacity}
+- Capacity: ${permitDetails.capacity}
  - Effluent (Trade/Sewage): ${permitDetails.effluent_limit?.trade} / ${permitDetails.effluent_limit?.sewage}
  - Notes: ${permitDetails.notes}
 
@@ -259,18 +300,36 @@ ${relevantCitations.length ? relevantCitations.map(c => `  - ${c.section}: ${c.t
  ${policySummary}
 
  🧍 Personal Info:
- Name: ${yourName}
-Address: ${yourAddress}, ${yourCity}, ${yourPostalCode}
+Name: ${yourName}
+ Address: ${yourAddress}, ${yourCity}, ${yourPostalCode}
  Phone: ${yourPhone}
  Email: ${yourEmail}
  Date: ${currentDate}
 
- Structure the letter as:
- - Professional tone
- - Based on real legal violations from policy
- - Cites specific sections of Indian environmental and animal welfare laws
- - Include specific legal citations from the provided list
- - Ends with a strong request to reject or review the permit
+ REQUIREMENTS FOR THE OBJECTION LETTER:
+ 1. FORMAT: Follow formal letter structure with:
+    - Proper date
+    - Recipient address (use generic "To: Competent Authority" if specific not provided)
+    - Subject line clearly stating "Objection to Factory Farm Permit Application"
+    - Salutation (e.g., "Dear Sir/Madam" or "To the Competent Authority,")
+    - Introduction paragraph stating your name, address, and grounds for objection
+    - Body paragraphs addressing specific violations with legal citations
+    - Conclusion with strong request for rejection of the permit
+    - Formal closing (e.g., "Yours sincerely," or "Respectfully submitted,")
+    - Signature line with your name and contact details
+ 
+ 2. CONTENT: Include specific details about:
+    - Environmental impact of the proposed facility
+    - Animal welfare concerns based on the capacity and type of operation
+    - Public health risks from effluent discharge and air emissions
+    - Violation of specific legal provisions with exact citations
+    - Impact on local communities and ecosystems
+ 
+ 3. TONE: Maintain professional, factual, and legally sound language throughout
+ 4. CITATIONS: Reference specific legal provisions and explain how the proposed facility violates them
+5. CONCLUSION: End with a clear, strong request to reject the permit application
+ 
+ The letter should be comprehensive, legally grounded, and persuasive in nature. Avoid generic statements and focus on specific violations and legal breaches.
  `;
 
         if (!genAI) {
