@@ -12,6 +12,7 @@ interface AirEmissionStandard {
   [key: string]: string; // Flexible structure based on actual data
 }
 
+
 interface Permit {
   project_title: string;
   location: string;
@@ -56,7 +57,7 @@ export default function Home() {
  useEffect(() => {
     const fetchPermits = async () => {
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
         const response = await fetch(`${backendUrl}/api/permits`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -120,7 +121,7 @@ export default function Home() {
       
       // Submit the objection to save it and get a proper submission ID
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
         const submitResponse = await fetch(`${backendUrl}/api/submit-objection`, {
           method: 'POST',
           headers: {
@@ -527,8 +528,8 @@ export default function Home() {
                             document.body.removeChild(a);
                             URL.revokeObjectURL(url);
                           } catch (error) {
-                            console.error('Error creating PDF:', error);
-                            alert('Error creating PDF. Please try the text download instead.');
+                            console.error('Error downloading PDF:', error);
+                            alert('Error downloading PDF. Please try again.');
                           }
                         }}
                         className="self-end bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-3 rounded-md transition-colors duration-200 text-sm"

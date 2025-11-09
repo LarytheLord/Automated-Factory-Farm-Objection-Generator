@@ -21,13 +21,14 @@ const emailPass = process.env.USER_PASS;
 
 // Validate environment variables
 if (!geminiApiKey) {
-    console.warn('GEMINI_API_KEY environment variable is not set. Letter generation functionality will not work.');
+    console.error('GEMINI_API_KEY environment variable is not set.');
+    process.exit(1);
 }
 if (!emailUser  || !emailPass) {
     console.warn('USER_EMAIL or USER_PASS environment variables are not set. Email functionality may not work.');
 }
 
-const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
+const genAI = new GoogleGenerativeAI(geminiApiKey);
 
 app.use(cors());
 app.use(express.json());
@@ -43,7 +44,7 @@ const transporter = nodemailer.createTransport({
     debug: true,  // Set to false in production
 });
 
-// GET /permits
+// GET /api/permits
 app.get('/api/permits', async (req, res) => {
     try {
         const permitsPath = path.join(__dirname, 'permits.json');
@@ -78,7 +79,7 @@ app.get('/api/permits', async (req, res) => {
     }
 });
 
-// POST /generate-letter
+// POST /api/generate-letter
 app.post('/api/generate-letter', async (req, res) => {
     try {
         const { permitDetails } = req.body;
@@ -206,7 +207,7 @@ Address: ${yourAddress}, ${yourCity}, ${yourPostalCode}
     }
 });
 
-// POST /send-email
+// POST /api/send-email
 app.post('/api/send-email', async (req, res) => {
     const { to, subject, text, html } = req.body;
 
@@ -235,7 +236,7 @@ app.post('/api/send-email', async (req, res) => {
     }
 });
 
-// POST /submit-objection - Create a new objection submission
+// POST /api/submit-objection - Create a new objection submission
 app.post('/api/submit-objection', async (req, res) => {
     try {
         const { permitDetails, objectionLetter, submitterInfo } = req.body;
@@ -323,7 +324,7 @@ app.post('/api/submit-objection', async (req, res) => {
     }
 });
 
-// GET /submissions - Get all submissions (with optional filtering)
+// GET /api/submissions - Get all submissions (with optional filtering)
 app.get('/api/submissions', (req, res) => {
     try {
         const { status, email } = req.query;
@@ -339,7 +340,7 @@ app.get('/api/submissions', (req, res) => {
     }
 });
 
-// GET /submissions/:id - Get a specific submission
+// GET /api/submissions/:id - Get a specific submission
 app.get('/api/submissions/:id', (req, res) => {
     try {
         const { id } = req.params;
@@ -356,8 +357,8 @@ app.get('/api/submissions/:id', (req, res) => {
     }
 });
 
-// PUT /submissions/:id - Update a submission status
-app.put('/submissions/:id', async (req, res) => {
+// PUT /api/submissions/:id - Update a submission status
+app.put('/api/submissions/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const updateData = req.body;
@@ -410,7 +411,7 @@ app.put('/submissions/:id', async (req, res) => {
     }
 });
 
-// GET /submissions/:id/pdf - Generate and download PDF of objection letter
+// GET /api/submissions/:id/pdf - Generate and download PDF of objection letter
 app.get('/api/submissions/:id/pdf', async (req, res) => {
     try {
         const { id } = req.params;
@@ -457,7 +458,7 @@ app.get('/api/submissions/:id/pdf', async (req, res) => {
 });
 
 // Root route
-app.get('/api/', (req, res) => {
+app.get('/', (req, res) => {
     res.send('Backend server is running!');
 });
 

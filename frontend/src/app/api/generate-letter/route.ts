@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
     
     // In production, this will call the backend API
     // During development, we'll proxy to the backend
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
     const response = await fetch(`${backendUrl}/api/generate-letter`, {
       method: 'POST',
       headers: {
