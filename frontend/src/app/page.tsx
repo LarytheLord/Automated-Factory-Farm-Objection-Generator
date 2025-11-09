@@ -46,7 +46,8 @@ export default function Home() {
  useEffect(() => {
     const fetchPermits = async () => {
       try {
-        const response = await fetch('/api/permits'); // Using relative path for unified deployment
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+        const response = await fetch(`${backendUrl}/api/permits`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -109,7 +110,8 @@ export default function Home() {
       
       // Submit the objection to save it and get a proper submission ID
       try {
-        const submitResponse = await fetch('/api/submit-objection', {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+        const submitResponse = await fetch(`${backendUrl}/api/submit-objection`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
