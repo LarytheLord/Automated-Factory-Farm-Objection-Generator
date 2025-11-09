@@ -124,6 +124,92 @@ The frontend development server will typically run on `http://localhost:3000`. O
 
 Refer to `hackathon_plan.md` for a detailed timeline and specific tasks for the upcoming hackathon.
 
+
 ---
 
 **"We help communities say NO to unethical farms, instantly."**
+
+## 🚀 Deployment Guide
+
+Follow these steps to deploy the platform for production use:
+
+### Prerequisites
+- Node.js (LTS version recommended)
+- Docker and Docker Compose (for containerized deployment)
+- Google Gemini API Key
+- Gmail account for email notifications (or SMTP configuration)
+
+### Environment Configuration
+
+1. Copy the example environment file:
+```
+cp .env.example .env
+```
+
+2. Update the `.env` file with your credentials:
+```
+GEMINI_API_KEY=your_google_gemini_api_key
+USER_EMAIL=your_gmail_address
+USER_PASS=your_gmail_app_password
+AUTHORITY_EMAIL=authority_email_for_notifications
+```
+
+### Option 1: Docker Deployment (Recommended)
+
+1. Build and start the containers:
+```bash
+docker-compose up --build -d
+```
+
+2. The application will be accessible at `http://localhost:3000`
+
+### Option 2: Direct Deployment
+
+1. Install dependencies:
+```bash
+npm run install:all
+```
+
+2. Build the frontend:
+```bash
+cd frontend && npm run build
+```
+
+3. Start the server:
+```bash
+npm start
+```
+
+4. The application will be accessible at `http://localhost:3000`
+
+### Option 3: Vercel Deployment
+
+1. Install the Vercel CLI:
+```bash
+npm install -g vercel
+```
+
+2. Deploy to Vercel:
+```bash
+vercel --prod
+```
+
+3. Configure environment variables in the Vercel dashboard
+
+### Post-Deployment Configuration
+
+1. Set up SSL certificate for HTTPS (recommended for production)
+2. Configure domain name if applicable
+3. Set up monitoring and logging
+4. Configure backup strategy for submission data
+
+### Health Checks
+
+The application exposes a health check endpoint at `/` which returns "Backend server is running!" when operational.
+
+### Scaling Recommendations
+
+- For increased traffic, consider load balancing multiple instances
+- Use external database instead of in-memory storage for production
+- Implement caching for frequently accessed data
+- Set up CDN for static assets

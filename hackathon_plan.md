@@ -16,9 +16,9 @@ The Automated Factory Farm Objection Generator (AFOG) is a platform that auto-de
 **Focus: Integrate backend and frontend into single deployable project**
 
 #### Lead Tasks:
-- Set up monorepo structure with proper configuration
+- Set up the project structure with proper configuration
 - Ensure frontend can communicate with backend APIs
-- Configure environment variables for both frontend and backend
+- Configure environment variables for both frontend and backend and try to make a single project (integrating frontend and backend into one)
 
 #### Ard & Alle Tasks:
 - Review current AI implementation and identify improvements
@@ -35,8 +35,8 @@ The Automated Factory Farm Objection Generator (AFOG) is a platform that auto-de
 ### Hour 2: Legal Citation Library & AI Enhancement (Ard & Alle)
 **Focus: Build comprehensive legal citation library and enhance AI**
 
-#### Ard & Alle Tasks:
-- Create structured legal citation library with Indian environmental and animal welfare laws
+#### Ard & Alle & Lead Tasks:
+- Create structured legal citation library with American and other environmental and animal welfare laws
 - Enhance objection letter generation with more accurate legal citations
 - Implement better NLP for legal text generation
 
