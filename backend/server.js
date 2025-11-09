@@ -10,6 +10,7 @@ const submissionTracker = require('./submissionTracker');
 const { getRelevantCitations } = require('./legalCitationLibrary');
 const emailTemplates = require('./emailTemplates');
 const { generateObjectionLetterPDF } = require('./pdfGenerator');
+const { PermitApplication } = require('./db/models');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -452,6 +453,45 @@ app.get('/api/submissions/:id/pdf', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
+
+
+/* 
+           ____  ____  __  __  ____ 
+          (_  _)( ___)(  \/  )(  _ \
+            )(   )__)  )    (  )___/
+           (__) (____)(_/\/\_)(__)  
+                _      
+               ( )     
+               /_\/    
+              (__/\()  
+  ___  ____  _  _  ____  ____    __   ____  ____  _____  _  _ 
+ / __)( ___)( \( )( ___)(  _ \  /__\ (_  _)(_  _)(  _  )( \( )
+( (_-. )__)  )  (  )__)  )   / /(__)\  )(   _)(_  )(_)(  )  ( 
+ \___/(____)(_)\_)(____)(_)\_)(__)(__)(__) (____)(_____)(_)\_)
+
+*/
+
+
+api.post({
+    res.status(201).json({message: 'created new '})
+})
+
+
+api.delete( '/api/permits', (req, res) => {
+    try {
+        // Remove all PermitApplication documents from the collection
+        const result = await PermitApplication.deleteMany({});
+        res.status(200).json({
+            message: `Deleted ${result.deletedCount} permit applications.`,
+            deletedCount: result.deletedCount
+        });
+    } catch (error) {
+        console.error('Error deleting permit applications:', error);
+        res.status(500).json({ error: 'Failed to delete permit applications' });
+    }
+})
+
 
 // Root route
 app.get('/', (req, res) => {
