@@ -4,14 +4,15 @@ const { PermitApplication } = require('../db/models');
 const populators = {
     'usa': {
         'north carolina': async () => {
-            const layer = [0,2,3,4,5]; //0-5
+            const layer = [2]//[0,2,3,4,5]; //0-5
             const res = [];
+
             for (const l of layer) {
                 const url = `https://maps.deq.nc.gov/arcgis/rest/services/DEQ/ApplicationTracker/MapServer/${l}/query?where=1%3D1&outFields=*&f=json&returnGeometry=false&resultOffset=0&resultRecordCount=1000`;
                 const response = await fetch(url);
                 const jsonData = await response.json();
 
-                const mappedPermits = (jsonData.features || []).map(item => {
+                const permits = (jsonData.features || []).map(item => {
                     const attr = item.attributes || {};
                     return {
                         application_number: attr.APP_ID || null,
@@ -34,7 +35,7 @@ const populators = {
                         status: attr.STATUS ? attr.STATUS.replace(/\s+/g, '_').toLowerCase() : null
                     };
                 });
-                res.push(...mappedPermits);
+                res.push(...permits);
             }
 
             // Example: log first mapped permit application
@@ -54,7 +55,7 @@ const populators = {
             // }
 
             console.log("Attempting to insert several records")
-            return mappedPermits
+            return res
 
         }
     }

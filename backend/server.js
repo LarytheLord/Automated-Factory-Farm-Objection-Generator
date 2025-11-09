@@ -106,7 +106,9 @@ app.get('/api/permits', async (req, res) => {
 
     // Accept country and region as query parameters to filter the results
     try {
-        const { country, region } = req.query;
+        // const { country, region } = req.query;
+        const country = "usa";
+        const region = "north carolina"
         const filter = {};
         if (country) {
             filter.country = country;
@@ -114,6 +116,8 @@ app.get('/api/permits', async (req, res) => {
         if (region) {
             filter.region = region;
         }
+
+        console.log(">>>>>>", country, region)
 
         const result = await populators[country][region]();
 
