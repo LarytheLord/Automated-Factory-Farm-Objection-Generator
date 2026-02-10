@@ -1,94 +1,416 @@
 [
     {
+        "country": "India",
         "project_title": "Miki Exports International",
         "location": "MIDC Taloja, Panvel, Raigad",
-        "activity": "Slaughtering of chicken and processing of meat/fish/vegetables/fruits",
-        "capacity": "1500 Birds/Hr, 2000 MT/M processing",
-        "effluent_limit": {
-            "trade": "7.0 m3/day",
-            "sewage": "3.6 m3/day"
-        },
-        "solid_waste": [
-            {
-                "type": "Chicken/Fish waste",
-                "quantity": "520 Kg/day",
-                "disposal": "Rendering Plant Ambernath"
-            },
-            {
-                "type": "Bones",
-                "quantity": "3 MT/M",
-                "disposal": "Rendering Plant"
-            },
-            {
-                "type": "ETP Sludge",
-                "quantity": "5 Kg/day",
-                "disposal": "Used as manure"
-            }
-        ],
-        "air_emission_standard": {
-            "SPM/TPM": "\u2264150 mg/Nm3",
-            "SO2": "\u22649.76 Kg/day"
-        },
-        "notes": "No hazardous waste generated; strong focus on reuse, effluent treatment, and noise control."
+        "coordinates": { "lat": 19.0645, "lng": 73.1078 },
+        "category": "Red",
+        "activity": "Slaughtering of chicken and processing",
+        "status": "In Process",
+        "details": {
+            "capacity": "1500 Birds/Hr",
+            "trade_effluent_limit": "7.0 m3/day",
+            "sewage_effluent_limit": "3.6 m3/day",
+            "solid_waste": [
+                {
+                    "type": "Chicken waste",
+                    "quantity": "520 Kg/day",
+                    "disposal": "Rendering"
+                }
+            ],
+            "air_emission_standard": "SPM < 150 mg/Nm3",
+            "notes": "No hazardous waste generated; focus on reuse."
+        }
     },
     {
-        "project_title": "Kusum Jadhav Poultry Farm",
-        "location": "Behvaldi (Bk), Shrigonda, Ahmednagar",
-        "activity": "Growing of Chicken Birds (No slaughtering)",
-        "capacity": "Not mentioned (Small scale - birds/month)",
-        "effluent_limit": {
-            "trade": "0.001 CMD",
-            "sewage": "0.10 CMD"
-        },
-        "solid_waste": [
-            {
-                "type": "Dead birds & excreta",
-                "disposal": "To CHWTSDF or Fish farm"
-            }
-        ],
-        "air_emission_standard": {
-            "SPM": "\u2264110 mg/Nm3",
-            "SO2": "\u22641.5 Kg/day"
-        },
-        "notes": "Scientific disposal of manure and dead birds required; deep burial and no public access allowed."
+        "country": "India",
+        "project_title": "Green Valley Poultry",
+        "location": "Pune, Maharashtra",
+        "coordinates": { "lat": 18.5204, "lng": 73.8567 },
+        "category": "Orange",
+        "activity": "Layer Farming",
+        "status": "Approved",
+        "details": {
+            "capacity": "50,000 Layers",
+            "trade_effluent_limit": "Zero Liquid Discharge",
+            "sewage_effluent_limit": "Septic Tank",
+            "solid_waste": [
+                {
+                    "type": "Manure",
+                    "quantity": "2 Tonnes/day",
+                    "disposal": "Composting"
+                }
+            ],
+            "air_emission_standard": "NA",
+            "notes": "Fully operational since 2023."
+        }
     },
     {
-        "project_title": "Priyanka Poultry Farm",
-        "location": "Kangoan Phata, Tal. Nandgaon, Dist. Nashik",
-        "activity": "Poultry rearing (without slaughtering)",
-        "capacity": "Not specified (standard scale)",
-        "effluent_limit": {
-            "trade": "Nil",
-            "sewage": "0.50 CMD"
-        },
-        "solid_waste": [
-            {
-                "type": "Manure and dead birds",
-                "disposal": "Scientific disposal recommended"
-            }
-        ],
-        "air_emission_standard": {
-            "SPM": "\u2264150 mg/Nm3"
-        },
-        "notes": "Consent valid for 5 years; poultry farms doing slaughtering are categorized as RED industries."
+        "country": "India",
+        "project_title": "NTPC Thermal Power Station",
+        "location": "Ramagundam, Telangana",
+        "coordinates": { "lat": 18.7554, "lng": 79.5134 },
+        "category": "Red",
+        "activity": "Thermal Power Plant",
+        "status": "In Process",
+        "details": {
+            "capacity": "2600 MW",
+            "trade_effluent_limit": "Ash Pond Overflow",
+            "sewage_effluent_limit": "STP",
+            "solid_waste": [
+                {
+                    "type": "Fly Ash",
+                    "quantity": "10,000 T/Day",
+                    "disposal": "Brick Manufacturing"
+                }
+            ],
+            "air_emission_standard": "SOx, NOx limits",
+            "notes": "Major source of thermal pollution."
+        }
     },
     {
-        "project_title": "Clean E-Waste Recycling (Non-animal husbandry)",
-        "location": "Vasai (East), Palghar",
-        "activity": "E-waste refurbishing and cable peeling",
-        "capacity": "100 MT/A refurbishing, 500 MT/A cable processing",
-        "effluent_limit": {
-            "trade": "0.0 CMD",
-            "sewage": "0.1 CMD"
-        },
-        "solid_waste": [
-            {
-                "type": "Plastic/metal scrap",
-                "quantity": "0.5 MT/A",
-                "disposal": "Authorized party"
-            }
-        ],
-        "air_emission_standard": "NA",
-        "notes": "Not an animal husbandry project. Detailed hazardous and e-waste compliance required."
+        "country": "India",
+        "project_title": "Kanpur Leather Tannery Cluster",
+        "location": "Jajmau, Kanpur, UP",
+        "coordinates": { "lat": 26.4390, "lng": 80.3980 },
+        "category": "Red",
+        "activity": "Tannery",
+        "status": "Pending",
+        "details": {
+            "capacity": "5000 Hides/Day",
+            "trade_effluent_limit": "CETP Inlet Norms",
+            "sewage_effluent_limit": "CETP",
+            "solid_waste": [
+                {
+                    "type": "Chrome Sludge",
+                    "quantity": "500 Kg/Day",
+                    "disposal": "TSDF"
+                }
+            ],
+            "air_emission_standard": "VOC limits",
+            "notes": "Critical pollution zone. Ganga river impact."
+        }
+    },
+    {
+        "country": "Sri Lanka",
+        "project_title": "Lanka Poultry Processors",
+        "location": "Kurunegala",
+        "coordinates": { "lat": 7.4818, "lng": 80.3609 },
+        "category": "Orange",
+        "activity": "Broiler Production",
+        "status": "In Process",
+        "details": {
+            "capacity": "5000 Birds/Day",
+            "trade_effluent_limit": "15 m3/day",
+            "sewage_effluent_limit": "5 m3/day",
+            "solid_waste": [
+                {
+                    "type": "Litter",
+                    "quantity": "200 Kg/day",
+                    "disposal": "Composting"
+                }
+            ],
+            "air_emission_standard": "SPM < 100",
+            "notes": "Strict CEA guidelines apply."
+        }
+    },
+    {
+        "country": "Sri Lanka",
+        "project_title": "Norochcholai Coal Power Plant",
+        "location": "Puttalam",
+        "coordinates": { "lat": 8.0167, "lng": 79.7167 },
+        "category": "Red",
+        "activity": "Coal Power Generation",
+        "status": "Approved",
+        "details": {
+            "capacity": "900 MW",
+            "trade_effluent_limit": "Cooling Water Discharge",
+            "sewage_effluent_limit": "STP",
+            "solid_waste": [
+                {
+                    "type": "Coal Ash",
+                    "quantity": "Variable",
+                    "disposal": "Cement Industry"
+                }
+            ],
+            "air_emission_standard": "Stack Monitoring",
+            "notes": "Coastal impact assessment required."
+        }
+    },
+    {
+        "country": "Nepal",
+        "project_title": "Himalayan Layer Farm",
+        "location": "Chitwan",
+        "coordinates": { "lat": 27.5291, "lng": 84.3542 },
+        "category": "Green",
+        "activity": "Egg Production",
+        "status": "Pending",
+        "details": {
+            "capacity": "10,000 Layers",
+            "trade_effluent_limit": "Nil",
+            "sewage_effluent_limit": "2 m3/day",
+            "solid_waste": [
+                {
+                    "type": "Manure",
+                    "quantity": "500 Kg/day",
+                    "disposal": "Biogas"
+                }
+            ],
+            "air_emission_standard": "NA",
+            "notes": "Biogas mandatory."
+        }
+    },
+    {
+        "country": "Nepal",
+        "project_title": "Hetauda Cement Industries",
+        "location": "Hetauda",
+        "coordinates": { "lat": 27.4282, "lng": 85.0324 },
+        "category": "Red",
+        "activity": "Cement Manufacturing",
+        "status": "Approved",
+        "details": {
+            "capacity": "750 TPD",
+            "trade_effluent_limit": "Zero Discharge",
+            "sewage_effluent_limit": "Septic",
+            "solid_waste": [
+                {
+                    "type": "Dust",
+                    "quantity": "Recycled",
+                    "disposal": "Process"
+                }
+            ],
+            "air_emission_standard": "PM < 50",
+            "notes": "Oldest cement factory in Nepal."
+        }
+    },
+    {
+        "country": "Bangladesh",
+        "project_title": "Bengal Feeds & Chicks",
+        "location": "Gazipur",
+        "coordinates": { "lat": 23.9999, "lng": 90.4203 },
+        "category": "Orange",
+        "activity": "Feed Mill & Hatchery",
+        "status": "In Process",
+        "details": {
+            "capacity": "50,000 Chicks/Week",
+            "trade_effluent_limit": "10 m3/day",
+            "sewage_effluent_limit": "4 m3/day",
+            "solid_waste": [
+                {
+                    "type": "Hatchery Waste",
+                    "quantity": "100 Kg/day",
+                    "disposal": "Incineration"
+                }
+            ],
+            "air_emission_standard": "SPM < 200",
+            "notes": "Animal Welfare Act compliance check."
+        }
+    },
+    {
+        "country": "Bangladesh",
+        "project_title": "Savar Tannery Estate",
+        "location": "Hemayetpur, Savar",
+        "coordinates": { "lat": 23.7806, "lng": 90.2793 },
+        "category": "Red",
+        "activity": "Leather Tanning",
+        "status": "Rejected",
+        "details": {
+            "capacity": "150 Tanneries",
+            "trade_effluent_limit": "CETP Mandatory",
+            "sewage_effluent_limit": "CETP",
+            "solid_waste": [
+                {
+                    "type": "Solid Waste",
+                    "quantity": "High",
+                    "disposal": "Landfill (Issues)"
+                }
+            ],
+            "air_emission_standard": "H2S, Ammonia",
+            "notes": "Relocated from Hazaribagh. CETP efficiency issues."
+        }
+    },
+    {
+        "country": "Bangladesh",
+        "project_title": "Karnaphuli Paper Mills",
+        "location": "Chandraghona, Chittagong",
+        "coordinates": { "lat": 22.4833, "lng": 92.1333 },
+        "category": "Red",
+        "activity": "Pulp and Paper",
+        "status": "Approved",
+        "details": {
+            "capacity": "30,000 TPA",
+            "trade_effluent_limit": "River Discharge",
+            "sewage_effluent_limit": "STP",
+            "solid_waste": [
+                {
+                    "type": "Sludge",
+                    "quantity": "Variable",
+                    "disposal": "Landfill"
+                }
+            ],
+            "air_emission_standard": "Chlorine",
+            "notes": "Major river polluter historically."
+        }
+    },
+    {
+        "country": "Bangladesh",
+        "project_title": "Rampal Coal Power Plant",
+        "location": "Rampal, Khulna",
+        "coordinates": { "lat": 22.5833, "lng": 89.5167 },
+        "category": "Red",
+        "activity": "Thermal Power",
+        "status": "Pending",
+        "details": {
+            "capacity": "1320 MW",
+            "trade_effluent_limit": "Zero Discharge",
+            "sewage_effluent_limit": "STP",
+            "solid_waste": [
+                {
+                    "type": "Fly Ash",
+                    "quantity": "High",
+                    "disposal": "Export/Cement"
+                }
+            ],
+            "air_emission_standard": "Strict Limits",
+            "notes": "Near Sundarbans Mangrove Forest. Highly controversial."
+        }
+    },
+    {
+        "country": "India",
+        "project_title": "Sterlite Copper Smelter",
+        "location": "Thoothukudi, Tamil Nadu",
+        "coordinates": { "lat": 8.7642, "lng": 78.1348 },
+        "category": "Red",
+        "activity": "Copper Smelting",
+        "status": "Rejected",
+        "details": {
+            "capacity": "400,000 TPA",
+            "trade_effluent_limit": "Zero Liquid Discharge",
+            "sewage_effluent_limit": "STP",
+            "solid_waste": [
+                {
+                    "type": "Copper Slag",
+                    "quantity": "High",
+                    "disposal": "Landfill"
+                }
+            ],
+            "air_emission_standard": "SO2",
+            "notes": "Closed due to environmental protests."
+        }
+    },
+    {
+        "country": "United States",
+        "project_title": "Mega Dairy CAFO",
+        "location": "Kewaunee County, Wisconsin",
+        "coordinates": { "lat": 44.4583, "lng": -87.5000 },
+        "category": "Red",
+        "activity": "Large CAFO (Dairy)",
+        "status": "Pending",
+        "details": {
+            "capacity": "5,000 Head of Cattle",
+            "trade_effluent_limit": "Zero Discharge (Land App)",
+            "sewage_effluent_limit": "Septic System",
+            "solid_waste": [
+                {
+                    "type": "Manure",
+                    "quantity": "50,000 Gal/Day",
+                    "disposal": "Land Application"
+                }
+            ],
+            "air_emission_standard": "Reporting required",
+            "notes": "Public hearing scheduled for next month."
+        }
+    },
+    {
+        "country": "United States",
+        "project_title": "Smithfield Hog Farm #42",
+        "location": "Duplin County, North Carolina",
+        "coordinates": { "lat": 34.9667, "lng": -77.9333 },
+        "category": "Red",
+        "activity": "Swine CAFO",
+        "status": "In Process",
+        "details": {
+            "capacity": "10,000 Swine",
+            "trade_effluent_limit": "Lagoon Sprayfield",
+            "sewage_effluent_limit": "Septic",
+            "solid_waste": [
+                {
+                    "type": "Sludge",
+                    "quantity": "Variable",
+                    "disposal": "Lagoon"
+                }
+            ],
+            "air_emission_standard": "Odor Management Plan",
+            "notes": "Renewal of NPDES permit. Community concerns about odor."
+        }
+    },
+    {
+        "country": "United Kingdom",
+        "project_title": "Wye Valley Poultry Unit",
+        "location": "Herefordshire, England",
+        "coordinates": { "lat": 52.0567, "lng": -2.7167 },
+        "category": "Orange",
+        "activity": "Intensive Poultry Rearing",
+        "status": "In Process",
+        "details": {
+            "capacity": "200,000 Broilers",
+            "trade_effluent_limit": "Dirty water tank",
+            "sewage_effluent_limit": "Treatment plant",
+            "solid_waste": [
+                {
+                    "type": "Manure",
+                    "quantity": "2000 T/Yr",
+                    "disposal": "Anaerobic Digestion"
+                }
+            ],
+            "air_emission_standard": "BAT AELs Ammonia",
+            "notes": "Located in NVZ. Scrubber proposed."
+        }
+    },
+    {
+        "country": "Canada",
+        "project_title": "Prairie Feedlot Operations",
+        "location": "Lethbridge, Alberta",
+        "coordinates": { "lat": 49.6935, "lng": -112.8418 },
+        "category": "Orange",
+        "activity": "Intensive Livestock Operation",
+        "status": "Approved",
+        "details": {
+            "capacity": "25,000 Head",
+            "trade_effluent_limit": "Catch Basin",
+            "sewage_effluent_limit": "Lagoon",
+            "solid_waste": [
+                {
+                    "type": "Manure Pack",
+                    "quantity": "100k T/Yr",
+                    "disposal": "Composting"
+                }
+            ],
+            "air_emission_standard": "NA",
+            "notes": "NRCB approved in 2022."
+        }
+    },
+    {
+        "country": "Australia",
+        "project_title": "Riverina Piggery Expansion",
+        "location": "New South Wales",
+        "coordinates": { "lat": -31.8402, "lng": 145.6128 },
+        "category": "Red",
+        "activity": "Intensive Piggery",
+        "status": "Rejected",
+        "details": {
+            "capacity": "5,000 Sows",
+            "trade_effluent_limit": "Evaporation Ponds",
+            "sewage_effluent_limit": "Septic",
+            "solid_waste": [
+                {
+                    "type": "Sludge",
+                    "quantity": "Variable",
+                    "disposal": "On-farm"
+                }
+            ],
+            "air_emission_standard": "Odour Impact Assessment",
+            "notes": "Rejected due to proximity to watercourse."
+        }
     }
 ]

@@ -3,16 +3,19 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
-const policyData = require(path.join(__dirname, '..', 'policiesandlaws.json'));
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const nodemailer = require('nodemailer');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const port = process.env.PORT || 3001;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
 
 // Environment variables
 const geminiApiKey = process.env.GEMINI_API_KEY;
-const emailUser  = process.env.USER_EMAIL;
+const emailUser = process.env.USER_EMAIL;
 const emailPass = process.env.USER_PASS;
 
 // Validate environment variables
@@ -20,14 +23,11 @@ if (!geminiApiKey) {
     console.error('GEMINI_API_KEY environment variable is not set.');
     process.exit(1);
 }
-if (!emailUser  || !emailPass) {
+if (!emailUser || !emailPass) {
     console.warn('USER_EMAIL or USER_PASS environment variables are not set. Email functionality may not work.');
 }
 
 const genAI = new GoogleGenerativeAI(geminiApiKey);
-
-app.use(cors());
-app.use(express.json());
 
 // Nodemailer setup
 const transporter = nodemailer.createTransport({
@@ -40,13 +40,53 @@ const transporter = nodemailer.createTransport({
     debug: true,  // Set to false in production
 });
 
-// GET /api/permits
+// Rate Limiting Setup
+const rateLimit = new Map();
+const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
+const MAX_REQUESTS = 5;
+
+// Middleware for rate limiting
+const rateLimiter = (req, res, next) => {
+    const ip = req.ip || req.connection.remoteAddress;
+    const now = Date.now();
+
+    if (!rateLimit.has(ip)) {
+        rateLimit.set(ip, []);
+    }
+
+    const timestamps = rateLimit.get(ip);
+    // Filter out timestamps older than the window
+    const recentTimestamps = timestamps.filter(timestamp => now - timestamp < RATE_LIMIT_WINDOW);
+    rateLimit.set(ip, recentTimestamps);
+
+    if (recentTimestamps.length >= MAX_REQUESTS) {
+        return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+    }
+
+    recentTimestamps.push(now);
+    next();
+};
+
+// GET /api/permits - Fetch permits from JSON file
 app.get('/api/permits', async (req, res) => {
     const permitsPath = path.join(__dirname, 'permits.json');
     try {
         const data = await fs.promises.readFile(permitsPath, 'utf8');
         const permits = JSON.parse(data);
-        res.json(permits);
+
+        // Transform data to match frontend expectations if needed
+        // The new structure is already quite flat but let's ensure consistency
+        const transformedPermits = permits.map(p => ({
+            ...p,
+            // Ensure details are merged up if frontend expects flat structure
+            // Or keep them nested if frontend is updated. 
+            // Based on previous code, frontend expects flat fields like 'capacity', 'effluent_limit'
+            // So we flatten 'details' back into the root object for the API response
+            ...p.details,
+            details: undefined // Remove nested object to avoid confusion
+        }));
+
+        res.json(transformedPermits);
     } catch (err) {
         console.error('Error reading or parsing permits.json:', err);
         res.status(500).json({ message: 'Error reading permit data' });
@@ -54,13 +94,27 @@ app.get('/api/permits', async (req, res) => {
 });
 
 // POST /api/generate-letter
-app.post('/api/generate-letter', async (req, res) => {
+app.post('/api/generate-letter', rateLimiter, async (req, res) => {
     try {
         const { permitDetails } = req.body;
         const {
             yourName, yourAddress, yourCity,
-            yourPostalCode, yourPhone, yourEmail, currentDate
+            yourPostalCode, yourPhone, yourEmail, currentDate, country
         } = permitDetails;
+
+        // Default to India if country is not specified
+        const targetCountry = country || "India";
+
+        // Fetch Laws from JSON file
+        const policiesPath = path.join(__dirname, '..', 'policiesandlaws.json');
+        const policiesData = await fs.promises.readFile(policiesPath, 'utf8');
+        const policies = JSON.parse(policiesData);
+
+        const countryLaws = policies[targetCountry] || policies["India"];
+
+        if (!countryLaws) {
+            return res.status(404).json({ error: `Laws for ${targetCountry} not found.` });
+        }
 
         // STEP 1: Policy Violation Checks
         const violations = [];
@@ -79,14 +133,14 @@ app.post('/api/generate-letter', async (req, res) => {
         }
 
         const policySummary = `
-🧾 Policy: Animal Factory Farming (Regulation) Bill, 2020
+🧾 Policy: ${countryLaws.law}
 
 Detected Violations:
 ${violations.length ? "- " + violations.join("\n- ") : "None clearly stated, but further audit required."}
 `;
 
         const prompt = `
-You are an expert public advocate and environmental lawyer.
+You are an expert public advocate and environmental lawyer in ${targetCountry}.
 
 Write a strong, formal objection letter regarding this factory farm permit:
 
@@ -98,8 +152,11 @@ Write a strong, formal objection letter regarding this factory farm permit:
 - Effluent (Trade/Sewage): ${permitDetails.effluent_limit?.trade} / ${permitDetails.effluent_limit?.sewage}
 - Notes: ${permitDetails.notes}
 
-📚 Legal Basis:
+📚 Legal Basis (${targetCountry}):
 ${policySummary}
+
+Key Objectives:
+${countryLaws.objectives.map(obj => `- ${obj}`).join('\n')}
 
 🧍 Personal Info:
 Name: ${yourName}
@@ -111,16 +168,17 @@ Date: ${currentDate}
 Structure the letter as:
 - Professional tone
 - Based on real legal violations from policy
-- Cites Animal Factory Farming Bill 2020
+- Cites ${countryLaws.law}
 - Ends with a strong request to reject or review the permit
 `;
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const letter = response.text();
 
         res.json({ letter, violations });
+
     } catch (error) {
         console.error('Error generating letter:', error);
         res.status(500).json({ error: 'Failed to generate letter' });
@@ -135,7 +193,7 @@ app.post('/api/send-email', async (req, res) => {
         return res.status(400).json({ message: 'Recipient, subject, and either text or html content are required.' });
     }
 
-    if (!emailUser  || !emailPass) {
+    if (!emailUser || !emailPass) {
         return res.status(500).json({ message: 'Email credentials are not configured on the server.' });
     }
 
@@ -162,6 +220,7 @@ app.get('/', (req, res) => {
 });
 
 // Start server
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });

@@ -1,116 +1,274 @@
 {
-  "law": "Animal Factory Farming (Regulation) Bill, 2020",
-  "objectives": [
-    "Regulate and monitor animal factory farming practices in India",
-    "Ensure consumer and environmental safety",
-    "Enforce animal welfare protections",
-    "Promote sustainable agricultural practices"
-  ],
-  "key_obligations": {
-    "antibiotics_and_medicines": {
-      "prohibited_items": [
-        "Antibiotics not approved by the board",
-        "Any harmful, non-therapeutic drugs or hormones"
-      ],
-      "permitted_use": [
-        "Only board-specified antibiotics",
-        "Medicines with proven non-harmful residues",
-        "Regular review of drug safety and resistance patterns"
-      ]
-    },
-    "transportation": {
-      "description": "Transport of animals and animal products must comply with board-specified rules.",
-      "must_ensure": [
-        "Animal welfare during transport",
-        "Avoidance of injury and overcrowding",
-        "Cleanliness and disease control"
-      ]
-    },
-    "animal_welfare": {
-      "compliance_required": [
-        "Prevention of Cruelty to Animals Act, 1960",
-        "Humane housing, feeding, and veterinary care",
-        "No mutilation or confinement beyond humane limits"
-      ]
-    }
-  },
-  "transparency_and_audits": {
-    "impact_assessment": {
-      "required": true,
-      "applicable_if": [
-        "Introduction of new technologies or antibiotics",
-        "Large-scale production exceeding thresholds",
-        "Risks identified to consumer health or local ecology"
-      ],
-      "report_contents": [
-        "Detailed project purpose and methods",
-        "Expected outcomes on animal health",
-        "Consumer health impact estimates",
-        "Mitigation strategies and timelines",
-        "Alternate sustainable practices considered"
-      ]
-    },
-    "annual_audits": {
-      "required": true,
-      "must_be_conducted_by": [
-        "Veterinary experts",
-        "Medical doctors",
-        "Biotechnologists or pharmacists"
-      ],
-      "reporting_to": "Animal Factory Farming Regulatory Board of India"
-    },
-    "factory_farming_officer": {
-      "required": true,
-      "responsibilities": [
-        "Recordkeeping of inputs, outputs, and antibiotics used",
-        "Monitoring daily practices",
-        "Interfacing with state and central authorities"
-      ]
-    }
-  },
-  "sustainability_and_ethics": {
-    "requirements": [
-      "Reduce greenhouse gas emissions",
-      "Minimize water consumption and reuse resources",
-      "Implement proper animal waste management",
-      "Ensure worker health, safety and fair wages",
-      "Monitor and reduce drug-resistant pathogens",
-      "Improve animal welfare with space, care and diet standards"
-    ]
-  },
-  "regulatory_board": {
-    "name": "Animal Factory Farming Regulatory Board of India",
-    "established_by": "Central Government of India",
-    "powers_and_duties": [
-      "Register all factory farms across India",
-      "Review impact and audit reports",
-      "Issue, renew, and cancel permits",
-      "Impose penalties and publish violators",
-      "Promote awareness on factory farming alternatives",
-      "Regulate product labeling regarding antibiotic use"
+  "India": {
+    "law": "Animal Factory Farming (Regulation) Bill, 2020",
+    "objectives": [
+      "Regulate and monitor animal factory farming practices in India",
+      "Ensure consumer and environmental safety",
+      "Enforce animal welfare protections",
+      "Promote sustainable agricultural practices"
     ],
-    "membership": {
-      "appointed_by": "Central Government",
-      "must_include": [
-        "Experts in animal welfare",
-        "Environmental scientists",
-        "Medical professionals",
-        "Consumer rights advocates"
+    "key_obligations": {
+      "antibiotics_and_medicines": {
+        "prohibited_items": [
+          "Antibiotics not approved by the board",
+          "Any harmful, non-therapeutic drugs or hormones"
+        ],
+        "permitted_use": [
+          "Only board-specified antibiotics",
+          "Medicines with proven non-harmful residues",
+          "Regular review of drug safety and resistance patterns"
+        ]
+      },
+      "transportation": {
+        "description": "Transport of animals and animal products must comply with board-specified rules.",
+        "must_ensure": [
+          "Animal welfare during transport",
+          "Avoidance of injury and overcrowding",
+          "Cleanliness and disease control"
+        ]
+      },
+      "animal_welfare": {
+        "compliance_required": [
+          "Prevention of Cruelty to Animals Act, 1960",
+          "Humane housing, feeding, and veterinary care",
+          "No mutilation or confinement beyond humane limits"
+        ]
+      }
+    },
+    "transparency_and_audits": {
+      "impact_assessment": {
+        "required": true,
+        "applicable_if": [
+          "Introduction of new technologies or antibiotics",
+          "Large-scale production exceeding thresholds",
+          "Risks identified to consumer health or local ecology"
+        ],
+        "report_contents": [
+          "Detailed project purpose and methods",
+          "Expected outcomes on animal health",
+          "Consumer health impact estimates",
+          "Mitigation strategies and timelines",
+          "Alternate sustainable practices considered"
+        ]
+      },
+      "annual_audits": {
+        "required": true,
+        "must_be_conducted_by": [
+          "Veterinary experts",
+          "Medical doctors",
+          "Biotechnologists or pharmacists"
+        ],
+        "reporting_to": "Animal Factory Farming Regulatory Board of India"
+      },
+      "factory_farming_officer": {
+        "required": true,
+        "responsibilities": [
+          "Recordkeeping of inputs, outputs, and antibiotics used",
+          "Monitoring daily practices",
+          "Interfacing with state and central authorities"
+        ]
+      }
+    },
+    "sustainability_and_ethics": {
+      "requirements": [
+        "Reduce greenhouse gas emissions",
+        "Minimize water consumption and reuse resources",
+        "Implement proper animal waste management",
+        "Ensure worker health, safety and fair wages",
+        "Monitor and reduce drug-resistant pathogens",
+        "Improve animal welfare with space, care and diet standards"
       ]
+    },
+    "regulatory_board": {
+      "name": "Animal Factory Farming Regulatory Board of India",
+      "established_by": "Central Government of India",
+      "powers_and_duties": [
+        "Register all factory farms across India",
+        "Review impact and audit reports",
+        "Issue, renew, and cancel permits",
+        "Impose penalties and publish violators",
+        "Promote awareness on factory farming alternatives",
+        "Regulate product labeling regarding antibiotic use"
+      ],
+      "membership": {
+        "appointed_by": "Central Government",
+        "must_include": [
+          "Experts in animal welfare",
+          "Environmental scientists",
+          "Medical professionals",
+          "Consumer rights advocates"
+        ]
+      }
+    },
+    "penalties": {
+      "non_compliance": {
+        "description": "Operating without license or violating prescribed standards",
+        "fine": "Up to ₹50 lakh or 2% of annual turnover"
+      },
+      "failure_to_report": {
+        "description": "Failure to report audits, assessments or incidents",
+        "fine": "₹10,000 per day up to ₹20 lakh"
+      },
+      "general_violations": {
+        "description": "Any breach of the rules",
+        "fine": "Up to ₹50 lakh"
+      }
     }
   },
-  "penalties": {
-    "non_compliance": {
-      "description": "Operating without license or violating prescribed standards",
-      "fine": "Up to ₹50 lakh or 2% of annual turnover"
-    },
-    "failure_to_report": {
-      "description": "Failure to report audits, assessments or incidents",
-      "fine": "₹10,000 per day up to ₹20 lakh"
-    },
-    "general_violations": {
-      "description": "Any breach of the rules",
-      "fine": "Up to ₹50 lakh"
+  "Sri Lanka": {
+    "law": "Animal Diseases Act No. 59 of 1992 & National Environmental Act",
+    "objectives": [
+      "Control and prevention of animal diseases",
+      "Regulation of animal movement and quarantine",
+      "Environmental protection from industrial pollution"
+    ],
+    "key_obligations": {
+      "animal_welfare": {
+        "compliance_required": [
+          "Prevention of Cruelty to Animals Ordinance",
+          "Proper sanitation and hygiene in farms"
+        ]
+      },
+      "environmental_protection": {
+        "compliance_required": [
+          "Central Environmental Authority (CEA) guidelines",
+          "Wastewater discharge standards"
+        ]
+      }
+    }
+  },
+  "Nepal": {
+    "law": "Animal Health and Livestock Services Act, 2055 (1999)",
+    "objectives": [
+      "Healthy production of animals and animal products",
+      "Control of contagious animal diseases",
+      "Regulation of animal quarantine"
+    ],
+    "key_obligations": {
+      "animal_welfare": {
+        "compliance_required": [
+          "Animal Welfare Directive",
+          "Humane treatment standards"
+        ]
+      },
+      "environmental_protection": {
+        "compliance_required": [
+          "Environment Protection Act, 2019",
+          "Pollution control measures"
+        ]
+      }
+    }
+  },
+  "Bangladesh": {
+    "law": "Animal Welfare Act, 2019",
+    "objectives": [
+      "Ensure welfare of animals",
+      "Prevent cruelty to animals",
+      "Regulate commercial farming practices"
+    ],
+    "key_obligations": {
+      "animal_welfare": {
+        "compliance_required": [
+          "Prohibition of unnecessary pain or suffering",
+          "Proper housing and feeding standards"
+        ]
+      },
+      "environmental_protection": {
+        "compliance_required": [
+          "Bangladesh Environment Conservation Act, 1995",
+          "Waste management rules"
+        ]
+      }
+    }
+  },
+  "United States": {
+    "law": "Clean Water Act (CWA) & Animal Welfare Act (AWA)",
+    "objectives": [
+      "Regulate discharge of pollutants into US waters",
+      "Ensure humane treatment of animals (limited scope for farm animals)",
+      "Manage manure and wastewater from CAFOs"
+    ],
+    "key_obligations": {
+      "environmental_protection": {
+        "compliance_required": [
+          "NPDES Permit for discharge",
+          "Nutrient Management Plan (NMP)",
+          "Prohibition of discharge except in 25-year, 24-hour storm events"
+        ]
+      },
+      "animal_welfare": {
+        "compliance_required": [
+          "Humane Methods of Slaughter Act (for mammals)",
+          "State-specific anti-cruelty laws (often with agricultural exemptions)"
+        ]
+      }
+    }
+  },
+  "United Kingdom": {
+    "law": "Environmental Permitting (England and Wales) Regulations 2016",
+    "objectives": [
+      "Prevent or minimize pollution from industrial activities",
+      "Ensure high standards of animal welfare",
+      "Control ammonia emissions"
+    ],
+    "key_obligations": {
+      "environmental_protection": {
+        "compliance_required": [
+          "Best Available Techniques (BAT) for pollution control",
+          "Manure Management Plan",
+          "Odor and noise management plans"
+        ]
+      },
+      "animal_welfare": {
+        "compliance_required": [
+          "Animal Welfare Act 2006",
+          "Welfare of Farmed Animals (England) Regulations 2007"
+        ]
+      }
+    }
+  },
+  "Canada": {
+    "law": "Health of Animals Act & Provincial Nutrient Management Acts",
+    "objectives": [
+      "Control diseases affecting animals",
+      "Manage nutrients to protect water quality",
+      "Ensure humane transport and slaughter"
+    ],
+    "key_obligations": {
+      "environmental_protection": {
+        "compliance_required": [
+          "Nutrient Management Strategy (NMS)",
+          "Minimum Distance Separation (MDS) formulae"
+        ]
+      },
+      "animal_welfare": {
+        "compliance_required": [
+          "NFACC Codes of Practice (voluntary but industry standard)",
+          "Provincial Animal Protection Acts"
+        ]
+      }
+    }
+  },
+  "Australia": {
+    "law": "Environment Protection Acts (State-based) & Animal Welfare Standards",
+    "objectives": [
+      "Protect environment from pollution and waste",
+      "Ensure welfare of livestock",
+      "Sustainable land use"
+    ],
+    "key_obligations": {
+      "environmental_protection": {
+        "compliance_required": [
+          "EPA License for intensive animal industries",
+          "Effluent management guidelines"
+        ]
+      },
+      "animal_welfare": {
+        "compliance_required": [
+          "Australian Animal Welfare Standards and Guidelines",
+          "Prevention of Cruelty to Animals Acts (State-based)"
+        ]
+      }
     }
   }
 }
