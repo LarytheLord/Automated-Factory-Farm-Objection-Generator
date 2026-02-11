@@ -1,20 +1,14 @@
 {
   "name": "automated-factory-farm-objection-generator",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "A platform that auto-detects permit filings, generates compelling objection letters with legal citations, and scales objection capacity for NGOs and communities.",
-  "main": "server.js",
   "scripts": {
-    "dev": "concurrently \"npm run server\" \"npm run frontend-dev\"",
-    "dev:separate": "echo \"Run 'npm run server' in one terminal and 'npm run frontend-dev' in another\"",
-    "server": "node server.js",
+    "dev": "echo 'Run backend and frontend in separate terminals:\n  Terminal 1: cd backend && node server.js\n  Terminal 2: cd frontend && npm run dev'",
+    "server": "cd backend && node --max-old-space-size=512 server.js",
     "frontend-dev": "cd frontend && npm run dev",
     "build": "cd frontend && npm run build",
-    "build:all": "npm run build && npm install",
-    "start": "node server.js",
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
-    "deploy:docker": "docker-compose up --build -d",
-    "deploy:vercel": "cd frontend && vercel --prod",
-    "test": "npm run test --workspaces --if-present"
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "start": "cd backend && node --max-old-space-size=512 server.js"
   },
   "keywords": [
     "factory-farm",
@@ -26,21 +20,6 @@
   ],
   "author": "AFOG Team",
   "license": "ISC",
-  "devDependencies": {
-    "concurrently": "^8.2.0"
-  },
-  "dependencies": {
-    "@google/generative-ai": "^0.24.1",
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
-    "express": "^4.21.2",
-    "nodemailer": "^7.0.10",
-    "puppeteer": "^24.29.1"
-  },
-  "workspaces": [
-    "frontend",
-    "backend"
-  ],
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"

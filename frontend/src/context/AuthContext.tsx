@@ -26,13 +26,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Check for saved token on mount
-        const savedToken = localStorage.getItem("token");
-        const savedUser = localStorage.getItem("user");
-
-        if (savedToken && savedUser) {
-            setToken(savedToken);
-            setUser(JSON.parse(savedUser));
+        try {
+            const savedToken = localStorage.getItem("token");
+            const savedUser = localStorage.getItem("user");
+            if (savedToken && savedUser) {
+                setToken(savedToken);
+                setUser(JSON.parse(savedUser));
+            }
+        } catch {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
         }
         setIsLoading(false);
     }, []);
