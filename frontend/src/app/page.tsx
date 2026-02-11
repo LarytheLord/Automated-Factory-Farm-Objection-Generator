@@ -19,8 +19,14 @@ import {
   Mail,
   BarChart3,
   Sparkles,
+  User,
+  LogOut,
+  LayoutDashboard,
+  Save,
 } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "../context/AuthContext";
+import AuthModal from "../components/AuthModal";
 
 /* ─── Types ─── */
 interface Permit {
@@ -93,12 +99,25 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [currentDate, setCurrentDate] = useState("");
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const { user, token, isAuthenticated, logout } = useAuth();
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
 
   useEffect(() => {
     setCurrentDate(new Date().toISOString().split("T")[0]);
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        yourName: user.name || "",
+        yourEmail: user.email || "",
+      }));
+    }
+  }, [user]);
 
+  useEffect(() => {
     Promise.all([
       fetch(`${BACKEND}/api/permits`).then((r) => r.json()),
       fetch(`${BACKEND}/api/stats`).then((r) => r.json()).catch(() => null),
@@ -141,8 +160,44 @@ export default function Home() {
       setGeneratedLetter(data.letter);
     } catch (err) {
       setLetterError(err instanceof Error ? err.message : "Unknown error");
-    } finally {
       setGeneratingLetter(false);
+    }
+  };
+
+  const handleSaveObjection = async () => {
+    if (!isAuthenticated) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    if (!selectedPermit || !generatedLetter) return;
+
+    setSaving(true);
+    setSaveMessage(null);
+
+    try {
+      const res = await fetch(`${BACKEND}/api/objections`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          project_title: selectedPermit.project_title,
+          location: selectedPermit.location,
+          country: selectedPermit.country,
+          generated_text: generatedLetter,
+          status: 'generated'
+        })
+      });
+
+      if (!res.ok) throw new Error('Failed to save objection');
+      setSaveMessage("Saved to dashboard!");
+      setTimeout(() => setSaveMessage(null), 3000);
+    } catch (err) {
+      console.error(err);
+      setSaveMessage("Failed to save.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -222,7 +277,56 @@ export default function Home() {
 
   /* ─── RENDER ─── */
   return (
-    <main className="min-h-screen bg-[#0a0a0f] text-white hero-gradient">
+    <main className="min-h-screen bg-[#0a0a0f] text-white hero-gradient relative">
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+
+      {/* ════════════ HEADER ════════════ */}
+      <nav className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-40">
+        <div className="flex items-center gap-2">
+          <Shield className="w-8 h-8 text-emerald-500" />
+          <span className="font-bold text-xl tracking-tight">AFFOG</span>
+        </div>
+
+        <div className="flex items-center gap-4">
+          {isAuthenticated ? (
+            <>
+              <div className="hidden md:flex flex-col items-end mr-2">
+                <span className="text-sm font-medium text-white">{user?.name}</span>
+                <span className="text-xs text-gray-400 capitalize">{user?.role}</span>
+              </div>
+              <Link
+                href="/my-objections"
+                className="p-2 hover:bg-white/10 rounded-lg text-gray-300 hover:text-white transition-colors"
+                title="My Objections"
+              >
+                <FileText className="w-5 h-5" />
+              </Link>
+              <Link
+                href="/dashboard"
+                className="p-2 hover:bg-white/10 rounded-lg text-gray-300 hover:text-white transition-colors"
+                title="Dashboard"
+              >
+                <LayoutDashboard className="w-5 h-5" />
+              </Link>
+              <button
+                onClick={logout}
+                className="p-2 hover:bg-white/10 rounded-lg text-red-400 hover:text-red-300 transition-colors"
+                title="Sign Out"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 rounded-lg transition-all text-sm font-medium"
+            >
+              <User className="w-4 h-4" />
+              Sign In
+            </button>
+          )}
+        </div>
+      </nav>
       {/* ════════════ HERO SECTION ════════════ */}
       <section className="pt-16 pb-12 px-4">
         <div className="max-w-5xl mx-auto text-center">
@@ -514,13 +618,25 @@ export default function Home() {
                       <FileText className="w-5 h-5 text-emerald-400" />
                       Generated Objection Letter
                     </h3>
-                    <button
-                      onClick={copyLetter}
-                      className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-800"
-                    >
-                      {copied ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                      {copied ? "Copied!" : "Copy"}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {saveMessage && <span className="text-xs text-emerald-400 animate-fade-in">{saveMessage}</span>}
+                      <button
+                        onClick={handleSaveObjection}
+                        disabled={saving}
+                        className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-800"
+                        title="Save to Dashboard"
+                      >
+                        {saving ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Save className="w-4 h-4" />}
+                        Save
+                      </button>
+                      <button
+                        onClick={copyLetter}
+                        className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-800"
+                      >
+                        {copied ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                        {copied ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="bg-gray-950/60 rounded-xl p-6 text-sm leading-relaxed whitespace-pre-wrap text-gray-300 max-h-96 overflow-y-auto border border-gray-800/50">

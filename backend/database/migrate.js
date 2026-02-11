@@ -6,7 +6,10 @@ require('dotenv').config();
 const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://localhost:5432/affog_development';
 
 async function migrate() {
-    const client = new Client({ connectionString: DATABASE_URL });
+    const client = new Client({
+        connectionString: DATABASE_URL,
+        ssl: DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false }
+    });
 
     try {
         console.log('🔌 Connecting to database...');
