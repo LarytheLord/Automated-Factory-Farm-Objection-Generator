@@ -58,16 +58,17 @@ function useAnimatedCounter(target: number, duration = 2000) {
   useEffect(() => {
     if (target <= 0 || started.current) return;
     started.current = true;
+    let rafId: number;
     const startTime = Date.now();
     const tick = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      // Ease-out cubic
       const eased = 1 - Math.pow(1 - progress, 3);
       setCount(Math.floor(eased * target));
-      if (progress < 1) requestAnimationFrame(tick);
+      if (progress < 1) rafId = requestAnimationFrame(tick);
     };
-    requestAnimationFrame(tick);
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
   }, [target, duration]);
 
   return count;

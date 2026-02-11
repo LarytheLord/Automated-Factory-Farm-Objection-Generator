@@ -10,7 +10,7 @@ const port = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 // ─── Environment variables (graceful handling) ───
 const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -81,10 +81,20 @@ function loadPermits() {
 }
 loadPermits();
 
-// ─── Rate Limiting ───
+// ─── Rate Limiting (with automatic stale-IP cleanup) ───
 const rateLimit = new Map();
 const RATE_LIMIT_WINDOW = 60 * 60 * 1000;
 const MAX_REQUESTS = 20;
+
+// Sweep stale IPs every 10 min so the Map doesn't grow forever
+setInterval(() => {
+    const now = Date.now();
+    for (const [ip, timestamps] of rateLimit) {
+        const active = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW);
+        if (active.length === 0) rateLimit.delete(ip);
+        else rateLimit.set(ip, active);
+    }
+}, 10 * 60 * 1000).unref();
 
 const rateLimiter = (req, res, next) => {
     const ip = req.ip || req.connection?.remoteAddress || 'unknown';
@@ -373,6 +383,8 @@ app.post('/api/objections', authenticateToken, async (req, res) => {
             created_at: new Date().toISOString(),
         };
         objectionsData.push(objection);
+        // Cap in-memory arrays to prevent unbounded growth
+        if (objectionsData.length > 500) objectionsData = objectionsData.slice(-500);
         activityLog.push({
             action: 'objection_generated',
             target: objection.project_title,
@@ -380,6 +392,7 @@ app.post('/api/objections', authenticateToken, async (req, res) => {
             user_id: req.user.id,
             created_at: new Date().toISOString()
         });
+        if (activityLog.length > 100) activityLog = activityLog.slice(-100);
         res.status(201).json(objection);
     } catch (error) {
         console.error('Create objection error:', error);
