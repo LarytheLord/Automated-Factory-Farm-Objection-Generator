@@ -1,0 +1,259 @@
+[
+  {
+    "project_title": "Miki Exports International",
+    "location": "MIDC Taloja, Panvel, Raigad",
+    "activity": "Slaughtering of chicken and processing of meat/fish/vegetables/fruits",
+    "capacity": "1500 Birds/Hr, 2000 MT/M processing",
+    "effluent_limit": {
+      "trade": "7.0 m3/day",
+      "sewage": "3.6 m3/day"
+    },
+    "solid_waste": [
+      {
+        "type": "Chicken/Fish waste",
+        "quantity": "520 Kg/day",
+        "disposal": "Rendering Plant Ambernath"
+      },
+      {
+        "type": "Bones",
+        "quantity": "3 MT/M",
+        "disposal": "Rendering Plant"
+      },
+      {
+        "type": "ETP Sludge",
+        "quantity": "5 Kg/day",
+        "disposal": "Used as manure"
+      }
+    ],
+    "air_emission_standard": {
+      "SPM/TPM": "≤150 mg/Nm3",
+      "SO2": "≤9.76 Kg/day"
+    },
+    "notes": "No hazardous waste generated; strong focus on reuse, effluent treatment, and noise control."
+  },
+  {
+    "project_title": "Kusum Jadhav Poultry Farm",
+    "location": "Behvaldi (Bk), Shrigonda, Ahmednagar",
+    "activity": "Growing of Chicken Birds (No slaughtering)",
+    "capacity": "Not mentioned (Small scale - birds/month)",
+    "effluent_limit": {
+      "trade": "0.001 CMD",
+      "sewage": "0.10 CMD"
+    },
+    "solid_waste": [
+      {
+        "type": "Dead birds & excreta",
+        "disposal": "To CHWTSDF or Fish farm"
+      }
+    ],
+    "air_emission_standard": {
+      "SPM": "≤110 mg/Nm3",
+      "SO2": "≤1.5 Kg/day"
+    },
+    "notes": "Scientific disposal of manure and dead birds required; deep burial and no public access allowed."
+  },
+  {
+    "project_title": "Priyanka Poultry Farm",
+    "location": "Kangoan Phata, Tal. Nandgaon, Dist. Nashik",
+    "activity": "Poultry rearing (without slaughtering)",
+    "capacity": "Not specified (standard scale)",
+    "effluent_limit": {
+      "trade": "Nil",
+      "sewage": "0.50 CMD"
+    },
+    "solid_waste": [
+      {
+        "type": "Manure and dead birds",
+        "disposal": "Scientific disposal recommended"
+      }
+    ],
+    "air_emission_standard": {
+      "SPM": "≤150 mg/Nm3"
+    },
+    "notes": "Consent valid for 5 years; poultry farms doing slaughtering are categorized as RED industries."
+  },
+  {
+    "project_title": "Clean E-Waste Recycling (Non-animal husbandry)",
+    "location": "Vasai (East), Palghar",
+    "activity": "E-waste refurbishing and cable peeling",
+    "capacity": "100 MT/A refurbishing, 500 MT/A cable processing",
+    "effluent_limit": {
+      "trade": "0.0 CMD",
+      "sewage": "0.1 CMD"
+    },
+    "solid_waste": [
+      {
+        "type": "Plastic/metal scrap",
+        "quantity": "0.5 MT/A",
+        "disposal": "Authorized party"
+      }
+    ],
+    "air_emission_standard": "NA",
+    "notes": "Not an animal husbandry project. Detailed hazardous and e-waste compliance required."
+  },
+  {
+    "project_title": "Shree Krishna Poultry Industries",
+    "location": "Chakan MIDC, Pune",
+    "activity": "Broiler farming and processing",
+    "capacity": "2000 Birds/Hr capacity",
+    "effluent_limit": {
+      "trade": "5.5 m3/day",
+      "sewage": "2.8 m3/day"
+    },
+    "solid_waste": [
+      {
+        "type": "Poultry manure",
+        "quantity": "1200 Kg/day",
+        "disposal": "Organic fertilizer unit"
+      },
+      {
+        "type": "Dead birds",
+        "quantity": "20 birds/day",
+        "disposal": "Incinerator"
+      }
+    ],
+    "air_emission_standard": {
+      "SPM": "≤200 mg/Nm3",
+      "NH3": "≤5.0 Kg/day"
+    },
+    "notes": "High-density poultry farming with potential environmental and health impacts."
+  },
+  {
+    "project_title": "Modern Dairy Complex",
+    "location": "Nagpur Road, Aurangabad",
+    "activity": "Dairy farming and milk processing",
+    "capacity": "500 Cattle capacity",
+    "effluent_limit": {
+      "trade": "12.0 m3/day",
+      "sewage": "8.0 m3/day"
+    },
+    "solid_waste": [
+      {
+        "type": "Cattle dung",
+        "quantity": "2500 Kg/day",
+        "disposal": "Biogas plant"
+      },
+      {
+        "type": "Urine",
+        "quantity": "1500 Ltrs/day",
+        "disposal": "Treatment facility"
+      }
+    ],
+    "air_emission_standard": {
+      "SPM": "≤100 mg/Nm3",
+      "H2S": "≤2.5 Kg/day"
+    },
+    "notes": "Large-scale dairy operation with significant waste generation."
+  },
+  {
+    "project_title": "Green Farms Piggery Unit",
+    "location": "Shirur Taluka, Pune",
+    "activity": "Pig farming and breeding",
+    "capacity": "1000 Pigs capacity",
+    "effluent_limit": {
+      "trade": "8.5 m3/day",
+      "sewage": "4.5 m3/day"
+    },
+    "solid_waste": [
+      {
+        "type": "Pig manure",
+        "quantity": "3000 Kg/day",
+        "disposal": "Composting unit"
+      },
+      {
+        "type": "Waste feed",
+        "quantity": "10 Kg/day",
+        "disposal": "Organic waste processor"
+      }
+    ],
+    "air_emission_standard": {
+      "SPM": "≤180 mg/Nm3",
+      "NH3": "≤8.0 Kg/day",
+      "H2S": "≤3.0 Kg/day"
+    },
+    "notes": "Intensive piggery with potential odor and water contamination issues."
+  },
+  {
+    "project_title": "AgroTech Broiler Complex",
+    "location": "Manchar, Pune",
+    "activity": "Integrated poultry farming",
+    "capacity": "3000 Birds/Hr capacity",
+    "effluent_limit": {
+      "trade": "10.0 m3/day",
+      "sewage": "6.0 m3/day"
+    },
+    "solid_waste": [
+      {
+        "type": "Poultry litter",
+        "quantity": "2000 Kg/day",
+        "disposal": "Organic fertilizer unit"
+      },
+      {
+        "type": "Dead birds",
+        "quantity": "30 birds/day",
+        "disposal": "Autoclave & deep burial"
+      },
+      {
+        "type": "Packaging waste",
+        "quantity": "50 Kg/day",
+        "disposal": "Recycling unit"
+      }
+    ],
+    "air_emission_standard": {
+      "SPM": "≤220 mg/Nm3",
+      "NH3": "≤10.0 Kg/day",
+      "CH4": "≤5.0 Kg/day"
+    },
+    "notes": "Large-scale industrial poultry farming with significant environmental impact potential."
+  },
+  {
+    "project_title": "Heritage Farms Organic",
+    "location": "Baramati, Pune",
+    "activity": "Organic poultry and egg production",
+    "capacity": "500 Birds capacity",
+    "effluent_limit": {
+      "trade": "1.5 m3/day",
+      "sewage": "1.0 m3/day"
+    },
+    "solid_waste": [
+      {
+        "type": "Organic manure",
+        "quantity": "300 Kg/day",
+        "disposal": "On-site composting"
+      }
+    ],
+    "air_emission_standard": {
+      "SPM": "≤80 mg/Nm3"
+    },
+    "notes": "Certified organic farming operation with better environmental practices."
+  },
+  {
+    "project_title": "Integrated Livestock Complex",
+    "location": "Daund, Pune",
+    "activity": "Multi-species livestock farming",
+    "capacity": "1000 Cattle + 500 Pigs + 2000 Birds",
+    "effluent_limit": {
+      "trade": "15.0 m3/day",
+      "sewage": "10.0 m3/day"
+    },
+    "solid_waste": [
+      {
+        "type": "Mixed animal waste",
+        "quantity": "4000 Kg/day",
+        "disposal": "Biogas and composting plant"
+      },
+      {
+        "type": "Dead animals",
+        "quantity": "5/day",
+        "disposal": "Incinerator"
+      }
+    ],
+    "air_emission_standard": {
+      "SPM": "≤250 mg/Nm3",
+      "NH3": "≤15.0 Kg/day",
+      "H2S": "≤5.0 Kg/day",
+      "CH4": "≤8.0 Kg/day"
+    },
+    "notes": "Large integrated livestock operation with multiple environmental concerns."
+  }
+]

@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - USER_EMAIL=${USER_EMAIL}
+      - USER_PASS=${USER_PASS}
+      - AUTHORITY_EMAIL=${AUTHORITY_EMAIL}
+    volumes:
+      - .:/app
+      - /app/node_modules
+    restart: unless-stopped
