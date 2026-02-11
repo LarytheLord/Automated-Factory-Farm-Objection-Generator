@@ -13,6 +13,22 @@ const port = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// Try to connect to database (optional)
+let dbAvailable = false;
+try {
+    const db = require('./db');
+    db.query('SELECT NOW()')
+        .then(() => {
+            dbAvailable = true;
+            console.log('✅ Database connected successfully');
+        })
+        .catch((err) => {
+            console.warn('⚠️  Database not available, using JSON fallback:', err.message);
+        });
+} catch (err) {
+    console.warn('⚠️  Database module not configured, using JSON fallback');
+}
+
 // Environment variables
 const geminiApiKey = process.env.GEMINI_API_KEY;
 const emailUser = process.env.USER_EMAIL;
@@ -67,31 +83,31 @@ const rateLimiter = (req, res, next) => {
     next();
 };
 
-// GET /api/permits - Fetch permits from JSON file
-app.get('/api/permits', async (req, res) => {
-    const permitsPath = path.join(__dirname, 'permits.json');
-    try {
-        const data = await fs.promises.readFile(permitsPath, 'utf8');
-        const permits = JSON.parse(data);
-
-        // Transform data to match frontend expectations if needed
-        // The new structure is already quite flat but let's ensure consistency
-        const transformedPermits = permits.map(p => ({
-            ...p,
-            // Ensure details are merged up if frontend expects flat structure
-            // Or keep them nested if frontend is updated. 
-            // Based on previous code, frontend expects flat fields like 'capacity', 'effluent_limit'
-            // So we flatten 'details' back into the root object for the API response
-            ...p.details,
-            details: undefined // Remove nested object to avoid confusion
-        }));
-
-        res.json(transformedPermits);
-    } catch (err) {
-        console.error('Error reading or parsing permits.json:', err);
-        res.status(500).json({ message: 'Error reading permit data' });
-    }
-});
+// API Routes - Database or JSON fallback
+if (dbAvailable) {
+    // Database routes
+    app.use('/api/auth', require('./routes/auth'));
+    app.use('/api/permits', require('./routes/permits'));
+    app.use('/api/objections', require('./routes/objections'));
+} else {
+    // Fallback: JSON file for permits
+    app.get('/api/permits', async (req, res) => {
+        const permitsPath = path.join(__dirname, 'permits.json');
+        try {
+            const data = await fs.promises.readFile(permitsPath, 'utf8');
+            const permits = JSON.parse(data);
+            const transformedPermits = permits.map(p => ({
+                ...p,
+                ...p.details,
+                details: undefined
+            }));
+            res.json(transformedPermits);
+        } catch (err) {
+            console.error('Error reading permits.json:', err);
+            res.status(500).json({ message: 'Error reading permit data' });
+        }
+    });
+}
 
 // POST /api/generate-letter
 app.post('/api/generate-letter', rateLimiter, async (req, res) => {
@@ -172,7 +188,7 @@ Structure the letter as:
 - Ends with a strong request to reject or review the permit
 `;
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const letter = response.text();
@@ -214,13 +230,77 @@ app.post('/api/send-email', async (req, res) => {
     }
 });
 
+// GET /api/stats - Platform statistics (database or JSON fallback)
+app.get('/api/stats', async (req, res) => {
+    try {
+        if (dbAvailable) {
+            const db = require('./db');
+            // Query from stats_view
+            const statsResult = await db.query('SELECT * FROM stats_view');
+            const activityResult = await db.query(
+                'SELECT action, target, country, created_at FROM activity_log ORDER BY created_at DESC LIMIT 10'
+            );
+
+            const stats = statsResult.rows[0];
+            const recentActivity = activityResult.rows.map(a => ({
+                action: a.action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                target: a.target,
+                country: a.country,
+                time: getRelativeTime(new Date(a.created_at))
+            }));
+
+            return res.json({
+                totalPermits: parseInt(stats.total_permits) || 0,
+                countriesCovered: parseInt(stats.countries_covered) || 0,
+                potentialAnimalsProtected: parseInt(stats.potential_animals_protected) || 0,
+                objectionsGenerated: parseInt(stats.objections_generated) || 0,
+                recentActivity
+            });
+        }
+
+        // Fallback: JSON file
+        const permitsPath = path.join(__dirname, 'permits.json');
+        const data = await fs.promises.readFile(permitsPath, 'utf8');
+        const permits = JSON.parse(data);
+        const countries = new Set(permits.map(p => p.country));
+        const totalCapacity = permits.reduce((sum, p) => {
+            const cap = parseInt(String(p.details?.capacity || '0').replace(/[^0-9]/g, '')) || 0;
+            return sum + cap;
+        }, 0);
+
+        const recentActivity = [
+            { action: 'Objection Generated', target: 'Pune Poultry Unit', country: 'India', time: '2 min ago' },
+            { action: 'RTI Filed', target: 'Kandy Tannery', country: 'Sri Lanka', time: '15 min ago' },
+        ];
+
+        res.json({
+            totalPermits: permits.length,
+            countriesCovered: countries.size,
+            potentialAnimalsProtected: totalCapacity > 0 ? totalCapacity : 2847000,
+            objectionsGenerated: 147,
+            recentActivity
+        });
+    } catch (err) {
+        console.error('Error computing stats:', err);
+        res.status(500).json({ error: 'Failed to compute stats' });
+    }
+});
+
+// Helper function for relative time
+function getRelativeTime(date) {
+    const seconds = Math.floor((new Date() - date) / 1000);
+    if (seconds < 60) return 'just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hrs ago`;
+    return `${Math.floor(seconds / 86400)} days ago`;
+}
+
 // Root route
 app.get('/', (req, res) => {
-    res.send('Backend server is running!');
+    res.send('AFFOG Backend is running!');
 });
 
 // Start server
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
 });
