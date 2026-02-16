@@ -23,7 +23,6 @@ import {
   Save,
 } from "lucide-react";
 import Link from "next/link";
-import { useAuth, AuthProvider } from "../context/AuthContext";
 import AuthModal from "../components/AuthModal";
 
 // Force dynamic rendering
@@ -51,6 +50,13 @@ interface Stats {
   recentActivity: { action: string; target: string; country: string; time: string }[];
 }
 
+interface User {
+  id: number;
+  email: string;
+  name: string;
+  role: string;
+}
+
 /* ─── Animated Counter Hook ─── */
 function useAnimatedCounter(target: number, duration = 2000) {
   const [count, setCount] = useState(0);
@@ -75,8 +81,24 @@ function useAnimatedCounter(target: number, duration = 2000) {
   return count;
 }
 
+/* ─── Helper Functions ─── */
+function getUserFromStorage(): User | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const user = localStorage.getItem("user");
+    return user ? JSON.parse(user) : null;
+  } catch {
+    return null;
+  }
+}
+
+function getTokenFromStorage(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem("token");
+}
+
 /* ─── Main Component ─── */
-function HomeContent() {
+export default function Home() {
   const [permits, setPermits] = useState<Permit[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [selectedPermit, setSelectedPermit] = useState<Permit | null>(null);
@@ -102,16 +124,28 @@ function HomeContent() {
   const [copied, setCopied] = useState(false);
   const [currentDate, setCurrentDate] = useState("");
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const { user, token, isAuthenticated, logout } = useAuth();
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
 
   const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
 
+  // Check authentication status
+  const isAuthenticated = !!user;
+
   useEffect(() => {
     setIsMounted(true);
+    // Load user from localStorage
+    const storedUser = getUserFromStorage();
+    const storedToken = getTokenFromStorage();
+    if (storedUser && storedToken) {
+      setUser(storedUser);
+      setToken(storedToken);
+    }
+    
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
@@ -207,6 +241,24 @@ function HomeContent() {
       setSaveMessage("Failed to save.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setToken(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+    }
+  };
+
+  const handleLogin = (newToken: string, newUser: User) => {
+    setToken(newToken);
+    setUser(newUser);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem("token", newToken);
+      localStorage.setItem("user", JSON.stringify(newUser));
     }
   };
 
