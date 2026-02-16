@@ -1,25 +1,47 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText, Clock, CheckCircle } from "lucide-react";
 
+interface User {
+    id: number;
+    email: string;
+    name: string;
+    role: string;
+}
+
 export default function MyObjections() {
-    const { user, token, isAuthenticated, isLoading } = useAuth();
     const router = useRouter();
+    const [user, setUser] = useState<User | null>(null);
+    const [token, setToken] = useState<string | null>(null);
     const [objections, setObjections] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
 
     useEffect(() => {
-        if (!isLoading && !isAuthenticated) {
+        // Check authentication on mount
+        const storedUser = localStorage.getItem("user");
+        const storedToken = localStorage.getItem("token");
+        
+        if (storedUser && storedToken) {
+            try {
+                setUser(JSON.parse(storedUser));
+                setToken(storedToken);
+                setIsAuthenticated(true);
+            } catch (e) {
+                localStorage.removeItem("user");
+                localStorage.removeItem("token");
+                router.push("/");
+            }
+        } else {
             router.push("/");
         }
-    }, [isLoading, isAuthenticated, router]);
+    }, [router]);
 
     useEffect(() => {
-        if (token) {
+        if (token && isAuthenticated) {
             const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
             fetch(`${BACKEND_URL}/api/objections`, {
                 headers: { Authorization: `Bearer ${token}` },
@@ -37,13 +59,12 @@ export default function MyObjections() {
                     setLoading(false);
                 });
         }
-    }, [token]);
+    }, [token, isAuthenticated]);
 
-    if (isLoading || loading) {
+    if (loading) {
         return (
             <div className="min-h-screen bg-black text-white flex items-center justify-center">
-                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mr-3"></div>
-                Loading...
+                <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
         );
     }
@@ -69,7 +90,7 @@ export default function MyObjections() {
                     {objections.map((obj) => (
                         <div key={obj.id} className="bg-white/5 backdrop-blur-sm p-6 rounded-xl border border-white/10 hover:border-white/20 transition-all flex justify-between items-center group">
                             <div>
-                                <h3 className="font-semibold text-lg mb-1 group-hover:text-blue-400 transition-colors">
+                                <h3 className="font-semibold text-lg mb-1 group-hover:text-emerald-400 transition-colors">
                                     {obj.project_title}
                                 </h3>
                                 <p className="text-sm text-gray-400 flex items-center gap-2">

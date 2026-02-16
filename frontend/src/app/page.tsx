@@ -337,7 +337,7 @@ export default function Home() {
   /* ═══ RENDER ═══ */
   return (
     <main className="min-h-screen bg-black text-white overflow-x-hidden">
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={handleLogin} />
 
       {/* Background Gradient Orbs */}
       <div className="fixed inset-0 pointer-events-none z-0">
@@ -369,7 +369,7 @@ export default function Home() {
                 <Link href="/my-objections" className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-white transition-colors" title="My Objections">
                   <FileText className="w-4 h-4" />
                 </Link>
-                <button onClick={logout} className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-red-400 transition-colors" title="Sign Out">
+                <button onClick={handleLogout} className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-red-400 transition-colors" title="Sign Out">
                   <LogOut className="w-4 h-4" />
                 </button>
               </>
@@ -806,14 +806,5 @@ function FormInput({ name, label, value, onChange, full }: {
         className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-emerald-500/30 transition-colors"
       />
     </div>
-  );
-}
-
-// Default export wrapped with AuthProvider
-export default function Home() {
-  return (
-    <AuthProvider>
-      <HomeContent />
-    </AuthProvider>
   );
 }

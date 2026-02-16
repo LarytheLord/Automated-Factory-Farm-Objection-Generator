@@ -4,11 +4,12 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Save, AlertCircle, CheckCircle, MapPin, FileText, Activity } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
 
 export default function SubmitPermit() {
-    const { token, isAuthenticated, isLoading } = useAuth();
     const router = useRouter();
+    const [token, setToken] = useState<string | null>(null);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
@@ -24,10 +25,15 @@ export default function SubmitPermit() {
     });
 
     useEffect(() => {
-        if (!isLoading && !isAuthenticated) {
+        const storedToken = localStorage.getItem("token");
+        if (storedToken) {
+            setToken(storedToken);
+            setIsAuthenticated(true);
+        } else {
             router.push("/");
         }
-    }, [isLoading, isAuthenticated, router]);
+        setIsLoading(false);
+    }, [router]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -64,7 +70,11 @@ export default function SubmitPermit() {
         }
     };
 
-    if (isLoading) return <div className="min-h-screen bg-black text-white flex items-center justify-center">Loading...</div>;
+    if (isLoading) {
+        return <div className="min-h-screen bg-black text-white flex items-center justify-center">
+            <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>;
+    }
 
     return (
         <div className="min-h-screen bg-black text-white p-8 hero-gradient">
@@ -101,7 +111,7 @@ export default function SubmitPermit() {
                                     name="project_title"
                                     value={formData.project_title}
                                     onChange={handleChange}
-                                    className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                                    className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-emerald-500 transition-colors"
                                     placeholder="e.g. Mega Dairy Farm Expansion"
                                     required
                                 />
@@ -117,7 +127,7 @@ export default function SubmitPermit() {
                                         name="country"
                                         value={formData.country}
                                         onChange={handleChange}
-                                        className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500 transition-colors appearance-none"
+                                        className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-emerald-500 transition-colors appearance-none"
                                         required
                                     >
                                         <option value="">Select Country</option>
@@ -139,7 +149,7 @@ export default function SubmitPermit() {
                                         name="location"
                                         value={formData.location}
                                         onChange={handleChange}
-                                        className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                                        className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-emerald-500 transition-colors"
                                         placeholder="City, Region"
                                         required
                                     />
@@ -155,7 +165,7 @@ export default function SubmitPermit() {
                                     name="activity"
                                     value={formData.activity}
                                     onChange={handleChange}
-                                    className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500 transition-colors min-h-[100px]"
+                                    className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-emerald-500 transition-colors min-h-[100px]"
                                     placeholder="Describe the facility operations..."
                                     required
                                 />
@@ -169,7 +179,7 @@ export default function SubmitPermit() {
                                     name="category"
                                     value={formData.category}
                                     onChange={handleChange}
-                                    className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                                    className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:border-emerald-500 transition-colors"
                                 >
                                     <option value="Red">Red (High Risk)</option>
                                     <option value="Orange">Orange (Medium Risk)</option>
@@ -190,7 +200,7 @@ export default function SubmitPermit() {
                         <button
                             type="submit"
                             disabled={submitting}
-                            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 mt-8 disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 mt-8 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {submitting ? (
                                 <>

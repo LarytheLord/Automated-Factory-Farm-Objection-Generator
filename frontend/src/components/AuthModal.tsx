@@ -2,21 +2,20 @@
 
 import { useState } from "react";
 import { X, AlertCircle, Shield } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
 
 interface AuthModalProps {
     isOpen: boolean;
     onClose: () => void;
+    onLogin?: (token: string, user: User) => void;
 }
 
-export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
+export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) {
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [name, setName] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const { login } = useAuth();
 
     const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
 
@@ -40,7 +39,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Authentication failed");
 
-            login(data.token, data.user);
+            // Use onLogin callback if provided, otherwise use context
+            if (onLogin) {
+                onLogin(data.token, data.user);
+            }
             onClose();
         } catch (err: any) {
             setError(err.message);
