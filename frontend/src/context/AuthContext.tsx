@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 
 interface User {
     id: number;
@@ -26,17 +26,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Check if we're in the browser before accessing localStorage
-        if (typeof window !== 'undefined') {
+        // Only access localStorage on the client side
+        const savedToken = localStorage.getItem("token");
+        const savedUser = localStorage.getItem("user");
+        if (savedToken && savedUser) {
             try {
-                const savedToken = localStorage.getItem("token");
-                const savedUser = localStorage.getItem("user");
-                if (savedToken && savedUser) {
-                    setToken(savedToken);
-                    setUser(JSON.parse(savedUser));
-                }
+                setToken(savedToken);
+                setUser(JSON.parse(savedUser));
             } catch (error) {
-                console.error("Error loading auth data from localStorage:", error);
+                console.error("Error parsing user data:", error);
                 localStorage.removeItem("token");
                 localStorage.removeItem("user");
             }
@@ -44,25 +42,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
     }, []);
 
-    const login = (newToken: string, newUser: User) => {
+    const login = useCallback((newToken: string, newUser: User) => {
         setToken(newToken);
         setUser(newUser);
-        // Check if we're in the browser before accessing localStorage
-        if (typeof window !== 'undefined') {
-            localStorage.setItem("token", newToken);
-            localStorage.setItem("user", JSON.stringify(newUser));
-        }
-    };
+        localStorage.setItem("token", newToken);
+        localStorage.setItem("user", JSON.stringify(newUser));
+    }, []);
 
-    const logout = () => {
+    const logout = useCallback(() => {
         setToken(null);
         setUser(null);
-        // Check if we're in the browser before accessing localStorage
-        if (typeof window !== 'undefined') {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-        }
-    };
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+    }, []);
 
     return (
         <AuthContext.Provider

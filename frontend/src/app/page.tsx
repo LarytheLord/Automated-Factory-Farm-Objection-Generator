@@ -23,8 +23,11 @@ import {
   Save,
 } from "lucide-react";
 import Link from "next/link";
-import { useAuth } from "../context/AuthContext";
+import { useAuth, AuthProvider } from "../context/AuthContext";
 import AuthModal from "../components/AuthModal";
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
 
 /* ─── Types ─── */
 interface Permit {
@@ -73,7 +76,7 @@ function useAnimatedCounter(target: number, duration = 2000) {
 }
 
 /* ─── Main Component ─── */
-export default function Home() {
+function HomeContent() {
   const [permits, setPermits] = useState<Permit[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [selectedPermit, setSelectedPermit] = useState<Permit | null>(null);
@@ -304,6 +307,7 @@ export default function Home() {
             <a href="#permits" className="hover:text-white transition-colors">Permits</a>
             <Link href="/dashboard" className="hover:text-white transition-colors">Analytics</Link>
             <Link href="/impact" className="hover:text-white transition-colors">Impact</Link>
+            <Link href="/survey" className="hover:text-white transition-colors">Feedback</Link>
           </div>
 
           <div className="flex items-center gap-3">
@@ -674,6 +678,7 @@ export default function Home() {
                 <Link href="/dashboard" className="block text-gray-500 hover:text-white transition-colors">Analytics</Link>
                 <Link href="/impact" className="block text-gray-500 hover:text-white transition-colors">Impact</Link>
                 <Link href="/submit-permit" className="block text-gray-500 hover:text-white transition-colors">Submit Permit</Link>
+            <Link href="/survey" className="block text-gray-500 hover:text-white transition-colors">Share Feedback</Link>
               </div>
             </div>
             <div>
@@ -749,5 +754,14 @@ function FormInput({ name, label, value, onChange, full }: {
         className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-emerald-500/30 transition-colors"
       />
     </div>
+  );
+}
+
+// Default export wrapped with AuthProvider
+export default function Home() {
+  return (
+    <AuthProvider>
+      <HomeContent />
+    </AuthProvider>
   );
 }
