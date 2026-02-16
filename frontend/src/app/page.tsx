@@ -17,11 +17,9 @@ import {
   Copy,
   CheckCircle,
   Mail,
-  BarChart3,
   Sparkles,
   User,
   LogOut,
-  LayoutDashboard,
   Save,
 } from "lucide-react";
 import Link from "next/link";
@@ -104,13 +102,20 @@ export default function Home() {
   const { user, token, isAuthenticated, logout } = useAuth();
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [scrolled, setScrolled] = useState(false);
 
   const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
 
   useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
     setCurrentDate(new Date().toISOString().split("T")[0]);
     if (user) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         yourName: user.name || "",
         yourEmail: user.email || "",
@@ -144,7 +149,6 @@ export default function Home() {
     setGeneratingLetter(true);
     setLetterError(null);
     setGeneratedLetter("");
-
     try {
       const res = await fetch(`${BACKEND}/api/generate-letter`, {
         method: "POST",
@@ -159,9 +163,9 @@ export default function Home() {
       }
       const data = await res.json();
       setGeneratedLetter(data.letter);
-      setGeneratingLetter(false);
     } catch (err) {
       setLetterError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
       setGeneratingLetter(false);
     }
   };
@@ -172,27 +176,25 @@ export default function Home() {
       return;
     }
     if (!selectedPermit || !generatedLetter) return;
-
     setSaving(true);
     setSaveMessage(null);
-
     try {
       const res = await fetch(`${BACKEND}/api/objections`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
+          permit_id: selectedPermit.id,
           project_title: selectedPermit.project_title,
           location: selectedPermit.location,
           country: selectedPermit.country,
           generated_text: generatedLetter,
-          status: 'generated'
-        })
+          status: "draft",
+        }),
       });
-
-      if (!res.ok) throw new Error('Failed to save objection');
+      if (!res.ok) throw new Error("Failed to save objection");
       setSaveMessage("Saved to dashboard!");
       setTimeout(() => setSaveMessage(null), 3000);
     } catch (err) {
@@ -211,7 +213,6 @@ export default function Home() {
     setSendingEmail(true);
     setEmailError(null);
     setEmailSentMessage("");
-
     try {
       const res = await fetch(`${BACKEND}/api/send-email`, {
         method: "POST",
@@ -247,19 +248,18 @@ export default function Home() {
     return matchSearch && matchCountry;
   });
 
-  /* ─── Animated counters ─── */
   const animPermits = useAnimatedCounter(stats?.totalPermits || 0);
   const animCountries = useAnimatedCounter(stats?.countriesCovered || 0);
   const animAnimals = useAnimatedCounter(stats?.potentialAnimalsProtected || 0, 2500);
   const animObjections = useAnimatedCounter(stats?.objectionsGenerated || 0);
 
-  /* ─── Loading / Error States ─── */
+  /* ─── Loading ─── */
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0f]">
+      <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-400 text-sm">Loading platform data...</p>
+          <div className="w-10 h-10 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500 text-sm">Loading platform...</p>
         </div>
       </div>
     );
@@ -267,221 +267,198 @@ export default function Home() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0f] px-4">
+      <div className="min-h-screen flex items-center justify-center bg-black px-4">
         <div className="glass-card p-8 max-w-md text-center">
-          <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2">Connection Error</h2>
-          <p className="text-gray-400 text-sm">{error}</p>
+          <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto mb-4" />
+          <h2 className="text-lg font-semibold mb-2">Connection Error</h2>
+          <p className="text-gray-500 text-sm">{error}</p>
         </div>
       </div>
     );
   }
 
-  /* ─── RENDER ─── */
+  /* ═══ RENDER ═══ */
   return (
-    <main className="min-h-screen bg-[#0a0a0f] text-white hero-gradient relative">
+    <main className="min-h-screen bg-black text-white overflow-x-hidden">
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
 
-      {/* ════════════ HEADER ════════════ */}
-      <nav className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-40">
-        <div className="flex items-center gap-2">
-          <Shield className="w-8 h-8 text-emerald-500" />
-          <span className="font-bold text-xl tracking-tight">AFFOG</span>
-        </div>
+      {/* Background Gradient Orbs */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-emerald-500/[0.07] blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-blue-500/[0.05] blur-[120px]" />
+        <div className="absolute top-[40%] right-[20%] w-[300px] h-[300px] rounded-full bg-purple-500/[0.04] blur-[100px]" />
+      </div>
 
-        <div className="flex items-center gap-4">
-          {isAuthenticated ? (
-            <>
-              <div className="hidden md:flex flex-col items-end mr-2">
-                <span className="text-sm font-medium text-white">{user?.name}</span>
-                <span className="text-xs text-gray-400 capitalize">{user?.role}</span>
-              </div>
-              <Link
-                href="/my-objections"
-                className="p-2 hover:bg-white/10 rounded-lg text-gray-300 hover:text-white transition-colors"
-                title="My Objections"
-              >
-                <FileText className="w-5 h-5" />
-              </Link>
-              <Link
-                href="/dashboard"
-                className="p-2 hover:bg-white/10 rounded-lg text-gray-300 hover:text-white transition-colors"
-                title="Dashboard"
-              >
-                <LayoutDashboard className="w-5 h-5" />
-              </Link>
-              <button
-                onClick={logout}
-                className="p-2 hover:bg-white/10 rounded-lg text-red-400 hover:text-red-300 transition-colors"
-                title="Sign Out"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => setIsAuthModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 rounded-lg transition-all text-sm font-medium"
-            >
-              <User className="w-4 h-4" />
-              Sign In
-            </button>
-          )}
-        </div>
-      </nav>
-      {/* ════════════ HERO SECTION ════════════ */}
-      <section className="pt-16 pb-12 px-4">
-        <div className="max-w-5xl mx-auto text-center">
-          {/* Live badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-medium mb-8">
-            <span className="live-dot" />
-            Platform Active — {stats?.objectionsGenerated || 0} objections generated
+      {/* ════════════ NAV ════════════ */}
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? "nav-glass" : ""}`}>
+        <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+          <Link href="/" className="flex items-center gap-2.5">
+            <Shield className="w-6 h-6 text-emerald-400" />
+            <span className="font-bold text-lg tracking-tight">AFFOG</span>
+          </Link>
+
+          <div className="hidden md:flex items-center gap-8 text-sm text-gray-500">
+            <a href="#how-it-works" className="hover:text-white transition-colors">How it works</a>
+            <a href="#permits" className="hover:text-white transition-colors">Permits</a>
+            <Link href="/dashboard" className="hover:text-white transition-colors">Analytics</Link>
+            <Link href="/impact" className="hover:text-white transition-colors">Impact</Link>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 leading-tight">
+          <div className="flex items-center gap-3">
+            {isAuthenticated ? (
+              <>
+                <span className="hidden md:block text-sm text-gray-500">{user?.name}</span>
+                <Link href="/my-objections" className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-white transition-colors" title="My Objections">
+                  <FileText className="w-4 h-4" />
+                </Link>
+                <button onClick={logout} className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-red-400 transition-colors" title="Sign Out">
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </>
+            ) : (
+              <button onClick={() => setIsAuthModalOpen(true)} className="px-4 py-2 text-sm font-medium text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all">
+                Sign In
+              </button>
+            )}
+          </div>
+        </div>
+      </nav>
+
+      {/* ════════════ HERO ════════════ */}
+      <section className="relative z-10 pt-36 pb-24 px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="animate-fade-in-up inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-xs font-medium mb-8">
+            <span className="live-dot" />
+            Live — {stats?.objectionsGenerated || 0} objections generated
+          </div>
+
+          <h1 className="animate-fade-in-up text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.1] mb-6" style={{ animationDelay: "100ms" }}>
             Fight Factory Farming
             <br />
             <span className="gradient-text">With AI-Powered Law</span>
           </h1>
 
-          <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            AFFOG empowers citizens, NGOs, and legal advocates to generate legally grounded objections
-            against factory farming violations — in under 2 minutes.
+          <p className="animate-fade-in-up text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed" style={{ animationDelay: "200ms" }}>
+            Generate legally grounded objection letters against factory farming violations — in under 2 minutes. Backed by 37+ laws across 8 countries.
           </p>
 
-          {/* CTA Buttons */}
-          <div className="flex flex-wrap justify-center gap-4 mb-14">
-            <a
-              href="#permits"
-              className="px-8 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-emerald-500/25"
-            >
-              Generate Objection →
+          <div className="animate-fade-in-up flex flex-wrap justify-center gap-4 mb-16" style={{ animationDelay: "300ms" }}>
+            <a href="#permits" className="group px-8 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-emerald-500/20 inline-flex items-center gap-2">
+              Generate Objection
+              <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </a>
-            <Link
-              href="/dashboard"
-              className="px-8 py-3.5 glass-card hover:border-blue-500/40 font-medium rounded-xl flex items-center gap-2"
-            >
-              <BarChart3 className="w-4 h-4" /> Analytics
-            </Link>
-            <Link
-              href="/impact"
-              className="px-8 py-3.5 glass-card hover:border-purple-500/40 font-medium rounded-xl flex items-center gap-2"
-            >
-              <Shield className="w-4 h-4" /> Impact
+            <Link href="/impact" className="px-8 py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 font-medium rounded-xl transition-all inline-flex items-center gap-2 text-sm">
+              See the Impact
             </Link>
           </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
-            <StatCard icon={<FileText className="w-5 h-5" />} value={animPermits} label="Permits Monitored" />
-            <StatCard icon={<Globe className="w-5 h-5" />} value={animCountries} label="Countries Covered" />
-            <StatCard icon={<Shield className="w-5 h-5" />} value={animAnimals.toLocaleString()} label="Animals at Risk" />
-            <StatCard icon={<Zap className="w-5 h-5" />} value={animObjections} label="Objections Filed" />
+          <div className="animate-fade-in-up grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto" style={{ animationDelay: "400ms" }}>
+            <StatCard icon={<FileText className="w-4 h-4" />} value={animPermits} label="Permits Monitored" />
+            <StatCard icon={<Globe className="w-4 h-4" />} value={animCountries} label="Countries" />
+            <StatCard icon={<Shield className="w-4 h-4" />} value={animAnimals.toLocaleString()} label="Animals at Risk" />
+            <StatCard icon={<Zap className="w-4 h-4" />} value={animObjections} label="Objections Filed" />
           </div>
         </div>
       </section>
+
+      {/* ════════════ TRUST BAR ════════════ */}
+      <div className="section-divider" />
+      <section className="relative z-10 py-12 px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-gray-600 mb-6">Monitoring factory farms across</p>
+          <div className="flex flex-wrap justify-center gap-x-8 gap-y-3 text-sm text-gray-500">
+            {["United States", "United Kingdom", "India", "Australia", "Canada", "European Union", "Brazil", "New Zealand"].map((c) => (
+              <span key={c} className="hover:text-gray-300 transition-colors">{c}</span>
+            ))}
+          </div>
+        </div>
+      </section>
+      <div className="section-divider" />
 
       {/* ════════════ HOW IT WORKS ════════════ */}
-      <section className="py-16 px-4 border-t border-gray-800/50">
+      <section id="how-it-works" className="relative z-10 py-24 px-6">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">
-            How It <span className="gradient-text">Works</span>
-          </h2>
+          <div className="text-center mb-14">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-400/80 mb-3">How it works</p>
+            <h2 className="text-3xl md:text-4xl font-bold">Three steps to real impact</h2>
+          </div>
           <div className="grid md:grid-cols-3 gap-6">
-            <StepCard step="01" title="Search Violations" desc="Browse our database of factory farm permits across 8+ countries. Filter by country, location, or activity type." icon={<Search className="w-6 h-6" />} />
-            <StepCard step="02" title="AI Generates Objection" desc="Our AI analyzes relevant laws and regulations, then drafts a legally grounded objection letter in seconds." icon={<Sparkles className="w-6 h-6" />} />
-            <StepCard step="03" title="Submit to Authorities" desc="Send the generated objection directly to the relevant authorities via email — one click, real impact." icon={<Send className="w-6 h-6" />} />
+            <StepCard num="01" title="Find a Violation" desc="Browse our database of factory farm permits across 8+ countries. Filter by country, location, or activity." icon={<Search className="w-5 h-5" />} />
+            <StepCard num="02" title="AI Drafts Your Letter" desc="Our AI analyzes relevant laws, then writes a legally grounded objection — personalized to the specific permit." icon={<Sparkles className="w-5 h-5" />} />
+            <StepCard num="03" title="Send to Authorities" desc="Submit the objection directly to relevant authorities via email. One click, real legal impact." icon={<Send className="w-5 h-5" />} />
           </div>
         </div>
       </section>
 
-      {/* ════════════ LIVE ACTIVITY FEED ════════════ */}
+      {/* ════════════ LIVE ACTIVITY ════════════ */}
       {stats?.recentActivity && (
-        <section className="py-12 px-4 border-t border-gray-800/50">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex items-center gap-3 mb-8">
-              <Activity className="w-5 h-5 text-emerald-400" />
-              <h2 className="text-2xl font-bold">Live Activity</h2>
-              <span className="live-dot" />
-            </div>
-            <div className="space-y-3">
-              {stats.recentActivity.map((item, i) => (
-                <div
-                  key={i}
-                  className="activity-item glass-card px-5 py-3.5 flex items-center justify-between"
-                  style={{ animationDelay: `${i * 0.1}s` }}
-                >
-                  <div className="flex items-center gap-4">
-                    <span
-                      className={`w-2 h-2 rounded-full ${item.action.includes("Objection")
-                        ? "bg-emerald-400"
-                        : item.action.includes("RTI")
-                          ? "bg-blue-400"
-                          : item.action.includes("Violation")
-                            ? "bg-amber-400"
-                            : "bg-purple-400"
-                        }`}
-                    />
-                    <div>
+        <>
+          <div className="section-divider" />
+          <section className="relative z-10 py-16 px-6">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex items-center gap-3 mb-8">
+                <Activity className="w-4 h-4 text-emerald-400" />
+                <h2 className="text-lg font-semibold">Live Activity</h2>
+                <span className="live-dot" />
+              </div>
+              <div className="space-y-2">
+                {stats.recentActivity.map((item, i) => (
+                  <div key={i} className="activity-item glass-card px-5 py-3 flex items-center justify-between" style={{ animationDelay: `${i * 0.08}s` }}>
+                    <div className="flex items-center gap-3">
+                      <span className={`w-1.5 h-1.5 rounded-full ${item.action.includes("Objection") ? "bg-emerald-400" : item.action.includes("RTI") ? "bg-blue-400" : item.action.includes("Violation") ? "bg-amber-400" : "bg-purple-400"}`} />
                       <span className="font-medium text-sm">{item.action}</span>
-                      <span className="text-gray-500 mx-2">•</span>
-                      <span className="text-gray-400 text-sm">{item.target}</span>
+                      <span className="text-gray-700">·</span>
+                      <span className="text-gray-500 text-sm">{item.target}</span>
+                    </div>
+                    <div className="hidden sm:flex items-center gap-3 text-xs text-gray-600">
+                      <span>{item.country}</span>
+                      <span>{item.time}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-gray-500">
-                    <span>{item.country}</span>
-                    <span>{item.time}</span>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </>
       )}
 
       {/* ════════════ PERMIT BROWSER ════════════ */}
-      <section id="permits" className="py-16 px-4 border-t border-gray-800/50">
+      <div className="section-divider" />
+      <section id="permits" className="relative z-10 py-24 px-6">
         <div className="max-w-6xl mx-auto">
           {!selectedPermit ? (
             <>
-              {/* Header + Search */}
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10">
                 <div>
-                  <h2 className="text-3xl font-bold">
-                    Permit <span className="gradient-text">Database</span>
-                  </h2>
-                  <p className="text-gray-400 mt-1 text-sm">
-                    {filteredPermits.length} of {permits.length} permits shown
-                  </p>
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-400/80 mb-2">Permit database</p>
+                  <h2 className="text-3xl font-bold">Browse Violations</h2>
+                  <p className="text-gray-500 mt-1 text-sm">{filteredPermits.length} of {permits.length} permits</p>
                 </div>
                 <div className="flex gap-3 w-full md:w-auto">
                   <div className="relative flex-1 md:w-72">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-600 w-4 h-4" />
                     <input
                       type="text"
                       placeholder="Search permits..."
-                      className="w-full bg-gray-900/80 border border-gray-700/50 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-emerald-500/50 transition-colors"
+                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-emerald-500/30 transition-colors placeholder:text-gray-600"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
                   <select
-                    className="bg-gray-900/80 border border-gray-700/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500/50"
+                    className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500/30 text-gray-300"
                     value={selectedCountry}
                     onChange={(e) => setSelectedCountry(e.target.value)}
                   >
                     <option value="All">All Countries</option>
                     {uniqueCountries.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
+                      <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              {/* Permit Cards Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredPermits.map((permit, idx) => (
                   <div
                     key={idx}
@@ -495,72 +472,44 @@ export default function Home() {
                     }}
                   >
                     <div className="flex justify-between items-start mb-3">
-                      <span
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider ${permit.status === "Approved"
-                          ? "badge-approved"
-                          : permit.status === "Pending"
-                            ? "badge-pending"
-                            : permit.status === "Rejected"
-                              ? "badge-rejected"
-                              : "badge-under-review"
-                          }`}
-                      >
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${permit.status === "Approved" ? "badge-approved" : permit.status === "Pending" ? "badge-pending" : permit.status === "Rejected" ? "badge-rejected" : "badge-under-review"}`}>
                         {permit.status}
                       </span>
-                      <span className="text-gray-500 text-xs flex items-center gap-1">
+                      <span className="text-gray-600 text-xs flex items-center gap-1">
                         <MapPin className="w-3 h-3" />
                         {permit.country}
                       </span>
                     </div>
-                    <h3 className="text-lg font-bold mb-2 group-hover:text-emerald-400 transition-colors leading-snug">
-                      {permit.project_title}
-                    </h3>
-                    <p className="text-gray-500 text-sm mb-4 line-clamp-2">{permit.activity}</p>
+                    <h3 className="text-base font-semibold mb-2 group-hover:text-emerald-400 transition-colors leading-snug">{permit.project_title}</h3>
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">{permit.activity}</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-600 text-xs flex items-center gap-1.5">
+                      <span className="text-gray-700 text-xs flex items-center gap-1.5">
                         <Clock className="w-3 h-3" />
                         {permit.location}
                       </span>
-                      <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" />
+                      <ChevronRight className="w-4 h-4 text-gray-700 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
                     </div>
                   </div>
                 ))}
               </div>
             </>
           ) : (
-            /* ════════════ PERMIT DETAIL + FORM ════════════ */
             <div>
-              {/* Back button */}
               <button
-                onClick={() => {
-                  setSelectedPermit(null);
-                  setGeneratedLetter("");
-                  setLetterError(null);
-                }}
-                className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors text-sm"
+                onClick={() => { setSelectedPermit(null); setGeneratedLetter(""); setLetterError(null); }}
+                className="flex items-center gap-2 text-gray-500 hover:text-white mb-8 transition-colors text-sm"
               >
                 <ArrowLeft className="w-4 h-4" /> Back to all permits
               </button>
 
-              <div className="grid lg:grid-cols-2 gap-8">
-                {/* Left: Permit Details */}
+              <div className="grid lg:grid-cols-2 gap-6">
                 <div className="glass-card p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <h2 className="text-2xl font-bold leading-snug">{selectedPermit.project_title}</h2>
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider flex-shrink-0 ml-3 ${selectedPermit.status === "Approved"
-                        ? "badge-approved"
-                        : selectedPermit.status === "Pending"
-                          ? "badge-pending"
-                          : selectedPermit.status === "Rejected"
-                            ? "badge-rejected"
-                            : "badge-under-review"
-                        }`}
-                    >
+                  <div className="flex items-start justify-between mb-5">
+                    <h2 className="text-xl font-bold leading-snug pr-4">{selectedPermit.project_title}</h2>
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider flex-shrink-0 ${selectedPermit.status === "Approved" ? "badge-approved" : selectedPermit.status === "Pending" ? "badge-pending" : selectedPermit.status === "Rejected" ? "badge-rejected" : "badge-under-review"}`}>
                       {selectedPermit.status}
                     </span>
                   </div>
-
                   <div className="space-y-3 text-sm">
                     <DetailRow label="Location" value={selectedPermit.location} />
                     <DetailRow label="Country" value={selectedPermit.country} />
@@ -571,10 +520,9 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Right: Form */}
                 <div className="glass-card p-6">
-                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-emerald-400" />
+                  <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
+                    <User className="w-4 h-4 text-emerald-400" />
                     Your Information
                   </h3>
                   <div className="grid grid-cols-2 gap-3">
@@ -585,7 +533,6 @@ export default function Home() {
                     <FormInput name="yourPostalCode" label="Postal Code" value={formData.yourPostalCode} onChange={handleInputChange} />
                     <FormInput name="yourPhone" label="Phone" value={formData.yourPhone} onChange={handleInputChange} />
                   </div>
-
                   <button
                     onClick={generateLetter}
                     disabled={generatingLetter}
@@ -594,7 +541,7 @@ export default function Home() {
                     {generatingLetter ? (
                       <>
                         <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                        AI is generating your objection...
+                        Generating with AI...
                       </>
                     ) : (
                       <>
@@ -603,51 +550,36 @@ export default function Home() {
                       </>
                     )}
                   </button>
-
                   {letterError && (
-                    <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-                      {letterError}
-                    </div>
+                    <div className="mt-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{letterError}</div>
                   )}
                 </div>
               </div>
 
-              {/* Generated Letter */}
               {generatedLetter && (
-                <div className="glass-card p-6 mt-8">
+                <div className="glass-card p-6 mt-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-bold flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-emerald-400" />
+                    <h3 className="text-base font-semibold flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-emerald-400" />
                       Generated Objection Letter
                     </h3>
                     <div className="flex items-center gap-2">
                       {saveMessage && <span className="text-xs text-emerald-400 animate-fade-in">{saveMessage}</span>}
-                      <button
-                        onClick={handleSaveObjection}
-                        disabled={saving}
-                        className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-800"
-                        title="Save to Dashboard"
-                      >
-                        {saving ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Save className="w-4 h-4" />}
+                      <button onClick={handleSaveObjection} disabled={saving} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5" title="Save">
+                        {saving ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                         Save
                       </button>
-                      <button
-                        onClick={copyLetter}
-                        className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-800"
-                      >
-                        {copied ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                      <button onClick={copyLetter} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5">
+                        {copied ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                         {copied ? "Copied!" : "Copy"}
                       </button>
                     </div>
                   </div>
-
-                  <div className="bg-gray-950/60 rounded-xl p-6 text-sm leading-relaxed whitespace-pre-wrap text-gray-300 max-h-96 overflow-y-auto border border-gray-800/50">
+                  <div className="bg-white/[0.02] rounded-xl p-6 text-sm leading-relaxed whitespace-pre-wrap text-gray-300 max-h-96 overflow-y-auto border border-white/[0.04]">
                     {generatedLetter}
                   </div>
-
-                  {/* Email Section */}
-                  <div className="mt-6 pt-6 border-t border-gray-800/50">
-                    <h4 className="font-semibold mb-3 flex items-center gap-2">
+                  <div className="mt-6 pt-6 border-t border-white/[0.06]">
+                    <h4 className="font-medium mb-3 flex items-center gap-2 text-sm">
                       <Mail className="w-4 h-4 text-blue-400" />
                       Send to Authorities
                     </h4>
@@ -657,26 +589,14 @@ export default function Home() {
                         value={recipientEmail}
                         onChange={(e) => setRecipientEmail(e.target.value)}
                         placeholder="authority@example.gov"
-                        className="flex-1 bg-gray-900/80 border border-gray-700/50 rounded-xl py-2.5 px-4 text-sm focus:outline-none focus:border-blue-500/50 transition-colors"
+                        className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl py-2.5 px-4 text-sm focus:outline-none focus:border-blue-500/30 transition-colors placeholder:text-gray-600"
                       />
-                      <button
-                        onClick={sendEmail}
-                        disabled={sendingEmail}
-                        className="px-6 py-2.5 bg-blue-500 hover:bg-blue-400 text-white font-semibold rounded-xl transition-all disabled:opacity-50 flex items-center gap-2"
-                      >
-                        {sendingEmail ? (
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <Send className="w-4 h-4" />
-                        )}
+                      <button onClick={sendEmail} disabled={sendingEmail} className="px-6 py-2.5 bg-blue-500 hover:bg-blue-400 text-white font-semibold rounded-xl transition-all disabled:opacity-50 flex items-center gap-2 text-sm">
+                        {sendingEmail ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
                         Send
                       </button>
                     </div>
-                    {emailSentMessage && (
-                      <p className="mt-2 text-emerald-400 text-sm flex items-center gap-1">
-                        <CheckCircle className="w-4 h-4" /> {emailSentMessage}
-                      </p>
-                    )}
+                    {emailSentMessage && <p className="mt-2 text-emerald-400 text-sm flex items-center gap-1"><CheckCircle className="w-4 h-4" /> {emailSentMessage}</p>}
                     {emailError && <p className="mt-2 text-red-400 text-sm">{emailError}</p>}
                   </div>
                 </div>
@@ -686,20 +606,92 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ════════════ REAL IMPACT ════════════ */}
+      <div className="section-divider" />
+      <section className="relative z-10 py-24 px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-400/80 mb-3">Real impact</p>
+          <h2 className="text-3xl md:text-4xl font-bold mb-12">Communities are already winning</h2>
+          <div className="grid md:grid-cols-3 gap-6 text-left">
+            <div className="glass-card p-6">
+              <div className="text-3xl font-bold text-emerald-400 mb-2">15,000</div>
+              <div className="text-sm font-medium mb-1">objections blocked a UK megafarm</div>
+              <p className="text-gray-600 text-xs">Cranswick poultry facility, April 2025</p>
+            </div>
+            <div className="glass-card p-6">
+              <div className="text-3xl font-bold text-blue-400 mb-2">$574M</div>
+              <div className="text-sm font-medium mb-1">in verdicts against factory farms</div>
+              <p className="text-gray-600 text-xs">North Carolina, 5 jury cases</p>
+            </div>
+            <div className="glass-card p-6">
+              <div className="text-3xl font-bold text-purple-400 mb-2">30</div>
+              <div className="text-sm font-medium mb-1">voices blocked an Indiana CAFO</div>
+              <p className="text-gray-600 text-xs">8,000-head facility denied unanimously</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════ CTA ════════════ */}
+      <div className="section-divider" />
+      <section className="relative z-10 py-24 px-6">
+        <div className="max-w-3xl mx-auto">
+          <div className="relative rounded-2xl overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.08] via-transparent to-blue-500/[0.06]" />
+            <div className="glass-card p-12 text-center relative">
+              <h2 className="text-3xl font-bold mb-4">Your objection could tip the balance</h2>
+              <p className="text-gray-400 mb-8 max-w-lg mx-auto leading-relaxed">
+                Every legally grounded objection forces authorities to respond. Join advocates in 8 countries fighting factory farming through law.
+              </p>
+              <a href="#permits" className="group inline-flex items-center gap-2 px-8 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-emerald-500/20">
+                Generate Your First Objection
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ════════════ FOOTER ════════════ */}
-      <footer className="border-t border-gray-800/50 py-10 px-4 mt-8">
-        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div>
-            <span className="font-bold text-lg gradient-text">AFFOG</span>
-            <span className="text-gray-600 text-sm ml-2">Automated Factory Farm Objection Generator</span>
+      <footer className="relative z-10 border-t border-white/[0.06] py-12 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
+            <div className="col-span-2 md:col-span-1">
+              <div className="flex items-center gap-2 mb-3">
+                <Shield className="w-5 h-5 text-emerald-400" />
+                <span className="font-bold">AFFOG</span>
+              </div>
+              <p className="text-gray-600 text-sm leading-relaxed">AI-powered legal objections against factory farming.</p>
+            </div>
+            <div>
+              <h4 className="text-[11px] uppercase tracking-wider text-gray-600 mb-3 font-medium">Platform</h4>
+              <div className="space-y-2 text-sm">
+                <a href="#permits" className="block text-gray-500 hover:text-white transition-colors">Permits</a>
+                <Link href="/dashboard" className="block text-gray-500 hover:text-white transition-colors">Analytics</Link>
+                <Link href="/impact" className="block text-gray-500 hover:text-white transition-colors">Impact</Link>
+                <Link href="/submit-permit" className="block text-gray-500 hover:text-white transition-colors">Submit Permit</Link>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-[11px] uppercase tracking-wider text-gray-600 mb-3 font-medium">Legal</h4>
+              <div className="space-y-2 text-sm text-gray-500">
+                <span className="block">37+ Laws Integrated</span>
+                <span className="block">8 Countries</span>
+                <span className="block">6 Jurisdictions</span>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-[11px] uppercase tracking-wider text-gray-600 mb-3 font-medium">About</h4>
+              <div className="space-y-2 text-sm text-gray-500">
+                <span className="block">Built for AARC 2026</span>
+                <span className="block">Code for Compassion</span>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-6 text-sm text-gray-500">
-            <Link href="/dashboard" className="hover:text-white transition-colors">Analytics</Link>
-            <Link href="/impact" className="hover:text-white transition-colors">Impact</Link>
+          <div className="pt-8 border-t border-white/[0.06] flex flex-col md:flex-row items-center justify-between gap-4">
+            <span className="text-xs text-gray-700">&copy; 2026 AFFOG. All rights reserved.</span>
+            <span className="text-xs text-gray-700">Automated Factory Farm Objection Generator</span>
           </div>
-          <span className="text-xs text-gray-600">
-            Built for AARC 2026 • Code for Compassion
-          </span>
         </div>
       </footer>
     </main>
@@ -709,21 +701,23 @@ export default function Home() {
 /* ─── Sub-components ─── */
 function StatCard({ icon, value, label }: { icon: React.ReactNode; value: string | number; label: string }) {
   return (
-    <div className="glass-card p-4 text-center">
-      <div className="text-emerald-400 mb-2 flex justify-center">{icon}</div>
-      <div className="text-2xl font-bold">{typeof value === "number" ? value.toLocaleString() : value}</div>
-      <div className="text-gray-500 text-xs mt-1">{label}</div>
+    <div className="glass-card p-4 text-center group">
+      <div className="text-gray-600 group-hover:text-emerald-400 mb-2 flex justify-center transition-colors">{icon}</div>
+      <div className="text-2xl font-bold tracking-tight">{typeof value === "number" ? value.toLocaleString() : value}</div>
+      <div className="text-gray-600 text-xs mt-1">{label}</div>
     </div>
   );
 }
 
-function StepCard({ step, title, desc, icon }: { step: string; title: string; desc: string; icon: React.ReactNode }) {
+function StepCard({ num, title, desc, icon }: { num: string; title: string; desc: string; icon: React.ReactNode }) {
   return (
-    <div className="glass-card p-6 text-center">
-      <div className="text-emerald-400 mb-4 flex justify-center">{icon}</div>
-      <div className="text-emerald-500/40 text-xs font-bold mb-2 tracking-widest">STEP {step}</div>
-      <h3 className="text-lg font-bold mb-2">{title}</h3>
-      <p className="text-gray-400 text-sm leading-relaxed">{desc}</p>
+    <div className="glass-card p-6 group">
+      <div className="flex items-center gap-3 mb-4">
+        <span className="text-emerald-500/30 text-xs font-mono font-bold">{num}</span>
+        <div className="text-emerald-400">{icon}</div>
+      </div>
+      <h3 className="text-lg font-semibold mb-2">{title}</h3>
+      <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
     </div>
   );
 }
@@ -731,33 +725,24 @@ function StepCard({ step, title, desc, icon }: { step: string; title: string; de
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex gap-3">
-      <span className="text-gray-500 w-24 flex-shrink-0">{label}</span>
+      <span className="text-gray-600 w-24 flex-shrink-0 text-xs uppercase tracking-wider">{label}</span>
       <span className="text-gray-300">{value}</span>
     </div>
   );
 }
 
-function FormInput({
-  name,
-  label,
-  value,
-  onChange,
-  full,
-}: {
-  name: string;
-  label: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  full?: boolean;
+function FormInput({ name, label, value, onChange, full }: {
+  name: string; label: string; value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; full?: boolean;
 }) {
   return (
     <div className={full ? "col-span-2 sm:col-span-1" : ""}>
-      <label className="text-[11px] uppercase tracking-wider text-gray-500 mb-1 block">{label}</label>
+      <label className="text-[10px] uppercase tracking-wider text-gray-600 mb-1 block">{label}</label>
       <input
         name={name}
         value={value}
         onChange={onChange}
-        className="w-full bg-gray-900/80 border border-gray-700/50 rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-emerald-500/50 transition-colors"
+        className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-emerald-500/30 transition-colors"
       />
     </div>
   );

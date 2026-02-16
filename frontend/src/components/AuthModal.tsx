@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Mail, Lock, User, CheckCircle, AlertCircle } from "lucide-react";
+import { X, AlertCircle, Shield } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 interface AuthModalProps {
@@ -29,9 +29,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
         try {
             const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
-            const body = isLogin
-                ? { email, password }
-                : { email, password, name };
+            const body = isLogin ? { email, password } : { email, password, name };
 
             const res = await fetch(`${BACKEND_URL}${endpoint}`, {
                 method: "POST",
@@ -40,10 +38,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             });
 
             const data = await res.json();
-
-            if (!res.ok) {
-                throw new Error(data.error || "Authentication failed");
-            }
+            if (!res.ok) throw new Error(data.error || "Authentication failed");
 
             login(data.token, data.user);
             onClose();
@@ -55,105 +50,98 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative animate-slide-up">
-                {/* Close Button */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
+            <div className="glass-card w-full max-w-md overflow-hidden relative animate-slide-up">
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="absolute top-4 right-4 text-gray-600 hover:text-white transition-colors z-10"
                 >
-                    <X className="w-6 h-6" />
+                    <X className="w-5 h-5" />
                 </button>
 
-                {/* Header */}
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-center text-white">
-                    <h2 className="text-3xl font-bold mb-2">{isLogin ? "Welcome Back" : "Join AFFOG"}</h2>
-                    <p className="text-blue-100">
-                        {isLogin ? "Sign in to access your account" : "Create an account to start submitting objections"}
+                <div className="p-8 pb-2 text-center">
+                    <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
+                        <Shield className="w-6 h-6 text-emerald-400" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-1">
+                        {isLogin ? "Welcome back" : "Join AFFOG"}
+                    </h2>
+                    <p className="text-gray-500 text-sm">
+                        {isLogin ? "Sign in to your account" : "Create an account to start filing objections"}
                     </p>
                 </div>
 
-                {/* Form */}
-                <form onSubmit={handleSubmit} className="p-8 space-y-5">
+                <form onSubmit={handleSubmit} className="p-8 space-y-4">
                     {error && (
-                        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r flex items-start">
-                            <AlertCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
-                            <p className="text-red-700 text-sm">{error}</p>
+                        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-start gap-2">
+                            <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                            <p className="text-red-400 text-sm">{error}</p>
                         </div>
                     )}
 
                     {!isLogin && (
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700">Full Name</label>
-                            <div className="relative">
-                                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                                <input
-                                    type="text"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                                    placeholder="John Doe"
-                                    required
-                                />
-                            </div>
+                        <div>
+                            <label className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1.5 block">
+                                Full Name
+                            </label>
+                            <input
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:border-emerald-500/30 transition-colors placeholder:text-gray-700"
+                                placeholder="John Doe"
+                                required
+                            />
                         </div>
                     )}
 
-                    <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">Email Address</label>
-                        <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                                placeholder="you@example.com"
-                                required
-                            />
-                        </div>
+                    <div>
+                        <label className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1.5 block">
+                            Email
+                        </label>
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:border-emerald-500/30 transition-colors placeholder:text-gray-700"
+                            placeholder="you@example.com"
+                            required
+                        />
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">Password</label>
-                        <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                                placeholder="••••••••"
-                                required
-                            />
-                        </div>
+                    <div>
+                        <label className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1.5 block">
+                            Password
+                        </label>
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:border-emerald-500/30 transition-colors placeholder:text-gray-700"
+                            placeholder="••••••••"
+                            required
+                        />
                     </div>
 
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
+                        className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading ? (
-                            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
                         ) : (
-                            <>
-                                {isLogin ? "Sign In" : "Create Account"}
-                                <CheckCircle className="w-5 h-5 ml-2" />
-                            </>
+                            isLogin ? "Sign In" : "Create Account"
                         )}
                     </button>
 
-                    <div className="text-center pt-2">
+                    <div className="text-center pt-1">
                         <button
                             type="button"
-                            onClick={() => {
-                                setIsLogin(!isLogin);
-                                setError(null);
-                            }}
-                            className="text-sm text-gray-600 hover:text-blue-600 font-medium transition-colors"
+                            onClick={() => { setIsLogin(!isLogin); setError(null); }}
+                            className="text-sm text-gray-500 hover:text-white transition-colors"
                         >
-                            {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+                            {isLogin ? "Don\u2019t have an account? Sign up" : "Already have an account? Sign in"}
                         </button>
                     </div>
                 </form>

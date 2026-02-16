@@ -1,13 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0f;
+  --background: #000000;
   --foreground: #ededed;
   --accent-green: #10b981;
   --accent-blue: #3b82f6;
   --accent-purple: #8b5cf6;
-  --card-bg: rgba(17, 24, 39, 0.7);
-  --card-border: rgba(55, 65, 81, 0.5);
 }
 
 @theme inline {
@@ -22,31 +20,57 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* Glassmorphism Card */
+::selection {
+  background: rgba(16, 185, 129, 0.3);
+  color: white;
+}
+
+/* ── Glass Card ── */
 .glass-card {
-  background: rgba(17, 24, 39, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(55, 65, 81, 0.5);
-  border-radius: 1rem;
-  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-card:hover {
-  border-color: rgba(16, 185, 129, 0.4);
-  box-shadow: 0 0 30px rgba(16, 185, 129, 0.08);
-  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
 }
 
-/* Gradient text */
+/* ── Sticky Nav ── */
+.nav-glass {
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ── Gradient Text ── */
 .gradient-text {
-  background: linear-gradient(135deg, #10b981, #3b82f6, #8b5cf6);
+  background: linear-gradient(135deg, #10b981 0%, #3b82f6 50%, #8b5cf6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* Pulse glow for live indicator */
+/* ── Hero Gradient ── */
+.hero-gradient {
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(16, 185, 129, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(59, 130, 246, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(139, 92, 246, 0.03) 0%, transparent 50%);
+}
+
+/* ── Section Divider ── */
+.section-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+}
+
+/* ── Live Pulse ── */
 @keyframes pulse-glow {
   0%, 100% { box-shadow: 0 0 4px rgba(16, 185, 129, 0.6); }
   50% { box-shadow: 0 0 12px rgba(16, 185, 129, 0.9); }
@@ -60,43 +84,65 @@ body {
   animation: pulse-glow 2s infinite;
 }
 
-/* Animated background gradient */
-.hero-gradient {
-  background: radial-gradient(ellipse at 20% 50%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
-              radial-gradient(ellipse at 80% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 50%),
-              radial-gradient(ellipse at 50% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 50%);
+/* ── Animations ── */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Smooth scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(55, 65, 81, 0.5);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(75, 85, 99, 0.7);
-}
-
-/* Status badges */
-.badge-approved { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-.badge-pending { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-.badge-rejected { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-.badge-under-review { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
-
-/* Activity feed animation */
 @keyframes slide-in {
   from { opacity: 0; transform: translateX(-12px); }
   to { opacity: 1; transform: translateX(0); }
 }
 
+.animate-fade-in-up {
+  animation: fade-in-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+  opacity: 0;
+}
+
+.animate-slide-up {
+  animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
 .activity-item {
   animation: slide-in 0.4s ease forwards;
 }
+
+/* ── Badges ── */
+.badge-approved {
+  background: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.15);
+}
+.badge-pending {
+  background: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.15);
+}
+.badge-rejected {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.15);
+}
+.badge-under-review {
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.15);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }

@@ -64,10 +64,10 @@ export default function SubmitPermit() {
         }
     };
 
-    if (isLoading) return <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center">Loading...</div>;
+    if (isLoading) return <div className="min-h-screen bg-black text-white flex items-center justify-center">Loading...</div>;
 
     return (
-        <div className="min-h-screen bg-[#0a0a0f] text-white p-8 hero-gradient">
+        <div className="min-h-screen bg-black text-white p-8 hero-gradient">
             <div className="max-w-2xl mx-auto">
                 <Link href="/" className="inline-flex items-center text-gray-400 hover:text-white mb-8 transition-colors">
                     <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home

@@ -13,15 +13,17 @@ function useAnimatedCounter(target: number, duration = 2000) {
     useEffect(() => {
         if (target <= 0 || started.current) return;
         started.current = true;
+        let rafId: number;
         const startTime = Date.now();
         const tick = () => {
             const elapsed = Date.now() - startTime;
             const progress = Math.min(elapsed / duration, 1);
             const eased = 1 - Math.pow(1 - progress, 3);
             setCount(Math.floor(eased * target));
-            if (progress < 1) requestAnimationFrame(tick);
+            if (progress < 1) rafId = requestAnimationFrame(tick);
         };
-        requestAnimationFrame(tick);
+        rafId = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(rafId);
     }, [target, duration]);
     return count;
 }
@@ -39,24 +41,25 @@ export default function ImpactPage() {
 
     if (!mounted) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-[#0a0a0f]">
-                <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            <div className="min-h-screen flex items-center justify-center bg-black">
+                <div className="w-10 h-10 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#0a0a0f] text-white hero-gradient">
-            <div className="max-w-6xl mx-auto px-4 py-12">
-                <Link href="/" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm mb-8">
+        <div className="min-h-screen bg-black text-white hero-gradient">
+            <div className="max-w-5xl mx-auto px-6 py-16">
+                <Link href="/" className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-sm mb-10">
                     <ArrowLeft className="w-4 h-4" /> Back to Home
                 </Link>
 
-                <h1 className="text-4xl md:text-5xl font-bold mb-3">
-                    Why This <span className="gradient-text">Matters</span>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-400/80 mb-3">Why this matters</p>
+                <h1 className="text-4xl md:text-5xl font-bold mb-4">
+                    The Data Behind <span className="gradient-text">Factory Farming</span>
                 </h1>
-                <p className="text-gray-400 mb-12 text-lg max-w-2xl">
-                    The data behind factory farming — and why automated legal tools are urgently needed.
+                <p className="text-gray-400 mb-14 text-lg max-w-2xl leading-relaxed">
+                    Why automated legal tools are urgently needed — and why objections work.
                 </p>
 
                 {/* ─── THE PROBLEM: KEY STATS ─── */}

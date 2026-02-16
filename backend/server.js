@@ -1,8 +1,8 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
-const path = require('path');
 const nodemailer = require('nodemailer');
 
 const app = express();
@@ -360,16 +360,22 @@ app.post('/api/objections', authenticateToken, async (req, res) => {
 
     try {
         if (supabase && permit_id) {
-            const { data: permit } = await supabase.from('permits').select('id, project_title, country').eq('id', permit_id).single();
-            if (!permit) return res.status(404).json({ error: 'Permit not found' });
             const { data, error } = await supabase.from('objections')
-                .insert([{ permit_id, user_id: req.user.id, generated_letter: letterContent, status, recipient_email }])
+                .insert([{
+                    permit_id,
+                    user_id: req.user.id,
+                    generated_letter: letterContent,
+                    status: status || 'draft',
+                    recipient_email
+                }])
                 .select().single();
-            if (error) throw error;
-            return res.status(201).json(data);
+            if (!error && data) {
+                return res.status(201).json({ ...data, project_title, location, country });
+            }
+            console.warn('Supabase objection insert failed, using fallback:', error?.message);
         }
 
-        // JSON fallback
+        // JSON fallback (no Supabase, no permit_id, or Supabase failed)
         const objection = {
             id: objectionsData.length + 1,
             permit_id: permit_id || null,

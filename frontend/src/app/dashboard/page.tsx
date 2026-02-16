@@ -47,7 +47,7 @@ export default function Dashboard() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-[#0a0a0f]">
+            <div className="min-h-screen flex items-center justify-center bg-black">
                 <div className="text-center">
                     <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
                     <p className="text-gray-400 text-sm">Loading Analytics...</p>
@@ -98,7 +98,7 @@ export default function Dashboard() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0a0a0f] text-white p-8">
+        <div className="min-h-screen bg-black text-white p-8">
             <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
                     <div>
