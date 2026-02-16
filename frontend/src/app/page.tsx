@@ -103,10 +103,12 @@ export default function Home() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
 
   useEffect(() => {
+    setIsMounted(true);
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
@@ -114,14 +116,14 @@ export default function Home() {
 
   useEffect(() => {
     setCurrentDate(new Date().toISOString().split("T")[0]);
-    if (user) {
+    if (user && isMounted) {
       setFormData((prev) => ({
         ...prev,
         yourName: user.name || "",
         yourEmail: user.email || "",
       }));
     }
-  }, [user]);
+  }, [user, isMounted]);
 
   useEffect(() => {
     Promise.all([
@@ -171,7 +173,7 @@ export default function Home() {
   };
 
   const handleSaveObjection = async () => {
-    if (!isAuthenticated) {
+    if (!isMounted || !isAuthenticated) {
       setIsAuthModalOpen(true);
       return;
     }
@@ -305,7 +307,7 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-3">
-            {isAuthenticated ? (
+            {isMounted && isAuthenticated ? (
               <>
                 <span className="hidden md:block text-sm text-gray-500">{user?.name}</span>
                 <Link href="/my-objections" className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-white transition-colors" title="My Objections">
@@ -315,10 +317,12 @@ export default function Home() {
                   <LogOut className="w-4 h-4" />
                 </button>
               </>
-            ) : (
+            ) : isMounted ? (
               <button onClick={() => setIsAuthModalOpen(true)} className="px-4 py-2 text-sm font-medium text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all">
                 Sign In
               </button>
+            ) : (
+              <div className="px-4 py-2 text-sm">Loading...</div>
             )}
           </div>
         </div>
