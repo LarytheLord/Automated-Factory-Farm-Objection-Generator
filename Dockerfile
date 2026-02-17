@@ -20,7 +20,7 @@ RUN cd frontend && npm install
 # Copy all files
 COPY . .
 
-# Build the Next.js frontend with standalone output
+# Build the Next.js frontend
 RUN cd frontend && npm run build
 
 # Expose port
@@ -30,5 +30,5 @@ EXPOSE 3000
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Start the application using Next.js standalone server
-CMD ["node", "frontend/.next/standalone/server.js"]
+# Start the unified server
+CMD ["node", "server.js"]

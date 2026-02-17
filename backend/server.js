@@ -783,12 +783,5 @@ app.get('/', (req, res) => {
     });
 });
 
-// Start server
-app.listen(port, () => {
-    console.log(`\n🚀 AFFOG Backend running on port ${port}`);
-    console.log(`   AI: ${genAI ? 'Gemini API ✅' : 'Template Engine (set GEMINI_API_KEY for AI)'}`);
-    console.log(`   DB: ${supabase ? 'Supabase ✅' : 'JSON fallback ✅'}`);
-    console.log(`   Email: ${transporter ? 'Gmail ✅' : 'Simulated (set USER_EMAIL for real email)'}`);
-    console.log(`   Permits loaded: ${permitsData.length}`);
-    console.log(`   Legal frameworks: 6 countries, 37+ laws\n`);
-});
+// Export the app for use in root server
+module.exports = { app };
