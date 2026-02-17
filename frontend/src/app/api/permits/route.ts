@@ -5,7 +5,8 @@ export async function GET(request: NextRequest) {
   try {
     // In production, this will call the backend API
     // During development, we'll proxy to the backend
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+    // Use same domain for API
+    const backendUrl = typeof window !== 'undefined' ? window.location.origin : '';
     const response = await fetch(`${backendUrl}/api/permits`, {
       headers: {
         'Content-Type': 'application/json',

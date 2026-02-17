@@ -46,7 +46,8 @@ export default function SubmitPermit() {
         setSuccess(false);
 
         try {
-            const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
+            // Use same domain for API
+            const BACKEND_URL = typeof window !== 'undefined' ? window.location.origin : '';
             const res = await fetch(`${BACKEND_URL}/api/permits`, {
                 method: "POST",
                 headers: {

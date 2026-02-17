@@ -26,7 +26,8 @@ export default function Dashboard() {
     const [frameworks, setFrameworks] = useState<LegalFramework[]>([]);
     const [loading, setLoading] = useState(true);
 
-    const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+    // Use same domain for API
+    const BACKEND = typeof window !== 'undefined' ? window.location.origin : '';
 
     useEffect(() => {
         const fetchData = async () => {

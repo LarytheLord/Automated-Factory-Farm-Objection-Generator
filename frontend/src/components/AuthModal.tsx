@@ -17,7 +17,7 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
+    const BACKEND_URL = typeof window !== 'undefined' ? window.location.origin : '';
 
     if (!isOpen) return null;
 

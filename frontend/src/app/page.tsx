@@ -131,7 +131,8 @@ export default function Home() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
 
-  const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
+  // Use same domain for API (no separate backend server)
+  const BACKEND = typeof window !== 'undefined' ? window.location.origin : '';
 
   // Check authentication status
   const isAuthenticated = !!user;

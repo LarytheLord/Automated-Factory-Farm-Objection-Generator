@@ -42,7 +42,8 @@ export default function MyObjections() {
 
     useEffect(() => {
         if (token && isAuthenticated) {
-            const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
+            // Use same domain for API
+            const BACKEND_URL = typeof window !== 'undefined' ? window.location.origin : '';
             fetch(`${BACKEND_URL}/api/objections`, {
                 headers: { Authorization: `Bearer ${token}` },
             })
