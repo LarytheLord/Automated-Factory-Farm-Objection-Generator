@@ -1,15 +1,26 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Ignore build errors for TypeScript
+  // CRITICAL: Disable all static generation
+  output: 'standalone',
+  
+  // Force all routes to be server-rendered
+  experimental: {
+    // Enable server actions which forces SSR
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
+  },
+  
+  // Don't generate static pages
+  trailingSlash: false,
+  
+  // Ignore build errors
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Ignore ESLint errors during build
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Output configuration for deployment
-  output: 'standalone',
 };
 
 export default nextConfig;

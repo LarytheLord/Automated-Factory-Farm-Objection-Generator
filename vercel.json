@@ -1,36 +1,14 @@
 {
   "version": 2,
-  "name": "automated-factory-farm-objection-generator",
-  "builds": [
-    {
-      "src": "frontend/next.config.ts",
-      "use": "@vercel/next",
-      "config": {
-        "serverless": true
-      }
-    },
-    {
-      "src": "server.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["backend/**"]
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "server.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "frontend/$1"
-    }
-  ],
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/.next",
+  "installCommand": "cd frontend && npm install",
+  "framework": "nextjs",
+  "regions": ["iad1"],
   "env": {
-    "GEMINI_API_KEY": "YOUR_GEMINI_API_KEY_HERE",
-    "USER_EMAIL": "YOUR_EMAIL_HERE",
-    "USER_PASS": "YOUR_APP_PASSWORD_HERE",
-    "AUTHORITY_EMAIL": "AUTHORITY_EMAIL_HERE"
+    "GEMINI_API_KEY": "@gemini-api-key",
+    "USER_EMAIL": "@user-email",
+    "USER_PASS": "@user-pass",
+    "NEXT_PUBLIC_BACKEND_URL": "@backend-url"
   }
 }
