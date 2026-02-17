@@ -42,9 +42,7 @@ export default function MyObjections() {
 
     useEffect(() => {
         if (token && isAuthenticated) {
-            // Use same domain for API
-            const BACKEND_URL = typeof window !== 'undefined' ? window.location.origin : '';
-            fetch(`${BACKEND_URL}/api/objections`, {
+            fetch(`/api/objections`, {
                 headers: { Authorization: `Bearer ${token}` },
             })
                 .then((res) => {

@@ -4,12 +4,12 @@
   "description": "A platform that auto-detects permit filings, generates compelling objection letters with legal citations, and scales objection capacity for NGOs and communities.",
   "main": "server.js",
   "scripts": {
-    "dev": "echo 'Run in separate terminals:\\n  Terminal 1: npm run server\\n  Terminal 2: npm run frontend'",
+    "dev": "echo 'Run in separate terminals:\n  Terminal 1: npm run server\n  Terminal 2: npm run frontend'",
     "server": "node --max-old-space-size=512 backend/server.js",
     "frontend": "cd frontend && npm run dev",
     "build": "cd frontend && npm run build",
-    "install:all": "cd backend && npm install && cd ../frontend && npm install",
-    "start": "node --max-old-space-size=512 server.js"
+    "postinstall": "npm install --prefix backend && npm install --prefix frontend",
+    "start": "NODE_ENV=production node --max-old-space-size=512 server.js"
   },
   "keywords": [
     "factory-farm",
@@ -26,7 +26,7 @@
     "next": "^14.2.35"
   },
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=8.0.0"
+    "node": ">=20 <21",
+    "npm": ">=10"
   }
 }

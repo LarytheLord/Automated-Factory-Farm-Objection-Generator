@@ -26,15 +26,14 @@ export default function Dashboard() {
     const [frameworks, setFrameworks] = useState<LegalFramework[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Use same domain for API
-    const BACKEND = typeof window !== 'undefined' ? window.location.origin : '';
+    const API_BASE = '';
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 const [permitsRes, legalRes] = await Promise.all([
-                    fetch(`${BACKEND}/api/permits`).then(r => r.json()).catch(() => []),
-                    fetch(`${BACKEND}/api/legal-frameworks`).then(r => r.json()).catch(() => ({ frameworks: [] })),
+                    fetch(`${API_BASE}/api/permits`).then(r => r.json()).catch(() => []),
+                    fetch(`${API_BASE}/api/legal-frameworks`).then(r => r.json()).catch(() => ({ frameworks: [] })),
                 ]);
                 const permitsArray = Array.isArray(permitsRes) ? permitsRes : (permitsRes.permits || []);
                 setPermits(permitsArray);
@@ -46,7 +45,7 @@ export default function Dashboard() {
             }
         };
         fetchData();
-    }, [BACKEND]);
+    }, [API_BASE]);
 
     if (loading) {
         return (

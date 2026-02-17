@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
+const { readArrayFile, writeArrayFile, nextId } = require('./dataStore');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -49,10 +50,11 @@ try {
     console.warn('⚠️  Supabase not available. Using JSON fallback.');
 }
 
-// ─── In-Memory Data Store (JSON fallback) ───
+// ─── JSON Data Store (fallback/persistent) ───
 let permitsData = [];
-let usersData = [];
-let objectionsData = [];
+let submittedPermitsData = readArrayFile('submitted-permits.json');
+let usersData = readArrayFile('users.json');
+let objectionsData = readArrayFile('objections.json');
 let activityLog = [];
 
 // Load permits from JSON
@@ -80,6 +82,10 @@ function loadPermits() {
     }
 }
 loadPermits();
+
+function allPermits() {
+    return [...permitsData, ...submittedPermitsData];
+}
 
 // ─── Rate Limiting (with automatic stale-IP cleanup) ───
 const rateLimit = new Map();
@@ -112,11 +118,21 @@ const rateLimiter = (req, res, next) => {
 // ─── JWT Auth Middleware ───
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const JWT_SECRET = process.env.JWT_SECRET || 'affog-demo-secret-2026';
+const isProduction = process.env.NODE_ENV === 'production';
+const JWT_SECRET = process.env.JWT_SECRET || (isProduction ? '' : 'affog-demo-secret-2026');
+
+if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET must be set in production');
+}
+
+function extractBearerToken(authHeader) {
+    if (!authHeader || typeof authHeader !== 'string') return null;
+    if (!authHeader.startsWith('Bearer ')) return null;
+    return authHeader.slice(7).trim() || null;
+}
 
 function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    const token = extractBearerToken(req.headers['authorization']);
     if (!token) return res.status(401).json({ error: 'Access token required' });
     jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) return res.status(403).json({ error: 'Invalid or expired token' });
@@ -126,8 +142,7 @@ function authenticateToken(req, res, next) {
 }
 
 function optionalAuth(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    const token = extractBearerToken(req.headers['authorization']);
     if (token) {
         jwt.verify(token, JWT_SECRET, (err, user) => {
             if (!err) req.user = user;
@@ -175,12 +190,13 @@ app.post('/api/auth/register', async (req, res) => {
         }
         const passwordHash = await bcrypt.hash(password, 10);
         const user = {
-            id: usersData.length + 1,
+            id: nextId(usersData),
             email, name, role,
             password_hash: passwordHash,
             created_at: new Date().toISOString()
         };
         usersData.push(user);
+        writeArrayFile('users.json', usersData);
         const { password_hash, ...safeUser } = user;
         const token = generateToken(safeUser);
         res.status(201).json({ user: safeUser, token });
@@ -259,7 +275,7 @@ app.get('/api/permits', optionalAuth, async (req, res) => {
         }
 
         // JSON fallback
-        let filtered = [...permitsData];
+        let filtered = allPermits();
         if (country && country !== 'All') filtered = filtered.filter(p => p.country.toLowerCase().includes(country.toLowerCase()));
         if (status) filtered = filtered.filter(p => p.status === status);
         if (category) filtered = filtered.filter(p => p.category === category);
@@ -283,7 +299,7 @@ app.get('/api/permits/:id', async (req, res) => {
             if (error || !data) return res.status(404).json({ error: 'Permit not found' });
             return res.json(data);
         }
-        const permit = permitsData.find(p => p.id === parseInt(req.params.id));
+        const permit = allPermits().find(p => String(p.id) === String(req.params.id));
         if (!permit) return res.status(404).json({ error: 'Permit not found' });
         res.json(permit);
     } catch (error) {
@@ -305,12 +321,13 @@ app.post('/api/permits', authenticateToken, async (req, res) => {
             return res.status(201).json(data);
         }
         const newPermit = {
-            id: permitsData.length + 1,
+            id: `s-${Date.now()}-${nextId(submittedPermitsData)}`,
             project_title, location, country, activity, status, category, capacity, species, coordinates, notes,
             submitted_by: req.user.id,
             created_at: new Date().toISOString(),
         };
-        permitsData.push(newPermit);
+        submittedPermitsData.push(newPermit);
+        writeArrayFile('submitted-permits.json', submittedPermitsData);
         res.status(201).json(newPermit);
     } catch (error) {
         res.status(500).json({ error: 'Failed to create permit' });
@@ -377,7 +394,7 @@ app.post('/api/objections', authenticateToken, async (req, res) => {
 
         // JSON fallback (no Supabase, no permit_id, or Supabase failed)
         const objection = {
-            id: objectionsData.length + 1,
+            id: nextId(objectionsData),
             permit_id: permit_id || null,
             user_id: req.user.id,
             generated_letter: letterContent,
@@ -389,8 +406,12 @@ app.post('/api/objections', authenticateToken, async (req, res) => {
             created_at: new Date().toISOString(),
         };
         objectionsData.push(objection);
+        writeArrayFile('objections.json', objectionsData);
         // Cap in-memory arrays to prevent unbounded growth
-        if (objectionsData.length > 500) objectionsData = objectionsData.slice(-500);
+        if (objectionsData.length > 500) {
+            objectionsData = objectionsData.slice(-500);
+            writeArrayFile('objections.json', objectionsData);
+        }
         activityLog.push({
             action: 'objection_generated',
             target: objection.project_title,
@@ -681,9 +702,10 @@ app.get('/api/stats', async (req, res) => {
                 supabase.from('recent_activity_view').select('*'),
             ]);
             if (!statsResult.error && !activityResult.error) {
-                const countries = new Set(permitsData.map(p => p.country));
+                const all = allPermits();
+                const countries = new Set(all.map(p => p.country));
                 return res.json({
-                    totalPermits: parseInt(statsResult.data.total_permits) || permitsData.length,
+                    totalPermits: parseInt(statsResult.data.total_permits) || all.length,
                     countriesCovered: parseInt(statsResult.data.countries_covered) || countries.size,
                     potentialAnimalsProtected: parseInt(statsResult.data.potential_animals_protected) || 2847000,
                     objectionsGenerated: parseInt(statsResult.data.objections_generated) || (147 + objectionsData.length),
@@ -699,8 +721,9 @@ app.get('/api/stats', async (req, res) => {
         throw new Error('Use fallback');
     } catch (e) {
         // JSON fallback with real-looking data
-        const countries = new Set(permitsData.map(p => p.country));
-        const totalCapacity = permitsData.reduce((sum, p) => {
+        const all = allPermits();
+        const countries = new Set(all.map(p => p.country));
+        const totalCapacity = all.reduce((sum, p) => {
             const capStr = String(p.capacity || p.details?.capacity || '0');
             const cap = parseInt(capStr.replace(/[^0-9]/g, '')) || 0;
             return sum + cap;
@@ -723,7 +746,7 @@ app.get('/api/stats', async (req, res) => {
         }));
 
         res.json({
-            totalPermits: permitsData.length,
+            totalPermits: all.length,
             countriesCovered: countries.size,
             potentialAnimalsProtected: totalCapacity > 0 ? totalCapacity : 2847000,
             objectionsGenerated: 147 + objectionsData.length,
@@ -760,8 +783,17 @@ app.get('/api/legal-frameworks', (req, res) => {
     });
 });
 
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        service: 'affog-api',
+        timestamp: new Date().toISOString(),
+        storage: supabase ? 'supabase' : 'json'
+    });
+});
+
 // Root route
-app.get('/', (req, res) => {
+app.get('/api', (req, res) => {
     res.json({
         name: 'AFFOG Backend',
         status: 'running',
@@ -779,6 +811,7 @@ app.get('/', (req, res) => {
             'POST /api/auth/login',
             'GET  /api/auth/me',
             'GET  /api/legal-frameworks',
+            'GET  /api/health',
         ]
     });
 });

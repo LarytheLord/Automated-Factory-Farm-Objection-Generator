@@ -131,8 +131,7 @@ export default function Home() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
 
-  // Use same domain for API (no separate backend server)
-  const BACKEND = typeof window !== 'undefined' ? window.location.origin : '';
+  const API_BASE = "";
 
   // Check authentication status
   const isAuthenticated = !!user;
@@ -165,8 +164,8 @@ export default function Home() {
 
   useEffect(() => {
     Promise.all([
-      fetch(`${BACKEND}/api/permits`).then((r) => r.json()),
-      fetch(`${BACKEND}/api/stats`).then((r) => r.json()).catch(() => null),
+      fetch(`${API_BASE}/api/permits`).then((r) => r.json()),
+      fetch(`${API_BASE}/api/stats`).then((r) => r.json()).catch(() => null),
     ])
       .then(([permitsData, statsData]) => {
         setPermits(permitsData);
@@ -174,10 +173,10 @@ export default function Home() {
       })
       .catch((err) => {
         console.error("Fetch error:", err);
-        setError("Could not connect to backend. Please ensure it is running on port 3001.");
+        setError("Could not connect to the API. Please try again.");
       })
       .finally(() => setLoading(false));
-  }, [BACKEND]);
+  }, [API_BASE]);
 
   /* ─── Handlers ─── */
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -190,7 +189,7 @@ export default function Home() {
     setLetterError(null);
     setGeneratedLetter("");
     try {
-      const res = await fetch(`${BACKEND}/api/generate-letter`, {
+      const res = await fetch(`${API_BASE}/api/generate-letter`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -219,7 +218,7 @@ export default function Home() {
     setSaving(true);
     setSaveMessage(null);
     try {
-      const res = await fetch(`${BACKEND}/api/objections`, {
+      const res = await fetch(`${API_BASE}/api/objections`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -272,7 +271,7 @@ export default function Home() {
     setEmailError(null);
     setEmailSentMessage("");
     try {
-      const res = await fetch(`${BACKEND}/api/send-email`, {
+      const res = await fetch(`${API_BASE}/api/send-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

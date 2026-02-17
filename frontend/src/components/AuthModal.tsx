@@ -17,8 +17,6 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const BACKEND_URL = typeof window !== 'undefined' ? window.location.origin : '';
-
     if (!isOpen) return null;
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -30,7 +28,7 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
             const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
             const body = isLogin ? { email, password } : { email, password, name };
 
-            const res = await fetch(`${BACKEND_URL}${endpoint}`, {
+            const res = await fetch(endpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(body),
@@ -44,8 +42,8 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
                 onLogin(data.token, data.user);
             }
             onClose();
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Authentication failed");
         } finally {
             setLoading(false);
         }

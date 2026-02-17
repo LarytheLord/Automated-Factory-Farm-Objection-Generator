@@ -46,9 +46,7 @@ export default function SubmitPermit() {
         setSuccess(false);
 
         try {
-            // Use same domain for API
-            const BACKEND_URL = typeof window !== 'undefined' ? window.location.origin : '';
-            const res = await fetch(`${BACKEND_URL}/api/permits`, {
+            const res = await fetch(`/api/permits`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -64,8 +62,8 @@ export default function SubmitPermit() {
 
             setSuccess(true);
             setTimeout(() => router.push("/"), 2000);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to submit permit");
         } finally {
             setSubmitting(false);
         }
