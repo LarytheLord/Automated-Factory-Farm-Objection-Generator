@@ -1,14 +1,6 @@
 {
-  "version": 2,
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/.next",
-  "installCommand": "cd frontend && npm install",
-  "framework": "nextjs",
-  "regions": ["iad1"],
-  "env": {
-    "GEMINI_API_KEY": "@gemini-api-key",
-    "USER_EMAIL": "@user-email",
-    "USER_PASS": "@user-pass",
-    "NEXT_PUBLIC_BACKEND_URL": "@backend-url"
-  }
+  "devCommand": "cd frontend && npm run dev",
+  "installCommand": "cd frontend && npm install"
 }
