@@ -60,6 +60,8 @@ Optional:
 - `ENABLE_PERMIT_SYNC` (`true` to run background source sync loop)
 - `PERMIT_SYNC_INTERVAL_MINUTES` (default `360`)
 - `INCLUDE_STATIC_PERMITS` (`false` by default; set `true` only if you want bundled static permits from `backend/permits.json`)
+- `REAL_PERMITS_ONLY` (`true` by default; excludes untrusted/demo permits from `/api/permits`)
+- `EMAIL_SEND_TIMEOUT_MS` (default `20000`)
 - `PORT` (default `3000` in unified mode)
 - `NODE_ENV`
 
@@ -110,6 +112,8 @@ npm run test:phase8
 npm run test:phase9
 npm run test:phase10
 npm run test:phase11
+npm run test:phase12
+npm run test:phase13
 npm run test:all:local
 ```
 

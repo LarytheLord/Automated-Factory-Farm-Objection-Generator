@@ -109,6 +109,16 @@ function getTokenFromStorage(): string | null {
   return localStorage.getItem("token");
 }
 
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 30000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 /* ─── Main Component ─── */
 export default function Home() {
   const [permits, setPermits] = useState<Permit[]>([]);
@@ -220,13 +230,13 @@ export default function Home() {
     setLetterError(null);
     setGeneratedLetter("");
     try {
-      const res = await fetch(`${API_BASE}/api/generate-letter`, {
+      const res = await fetchWithTimeout(`${API_BASE}/api/generate-letter`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           permitDetails: { ...selectedPermit, ...formData, currentDate },
         }),
-      });
+      }, 35000);
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error || "Failed to generate letter");
@@ -235,7 +245,9 @@ export default function Home() {
       setGeneratedLetter(data.letter);
       fetchUsage(token);
     } catch (err) {
-      if (err instanceof Error) setLetterError(err.message);
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setLetterError("Letter generation timed out. Please try again.");
+      } else if (err instanceof Error) setLetterError(err.message);
       else setLetterError("Unknown error");
       fetchUsage(token);
     } finally {
@@ -305,7 +317,7 @@ export default function Home() {
     setEmailError(null);
     setEmailSentMessage("");
     try {
-      const res = await fetch(`${API_BASE}/api/send-email`, {
+      const res = await fetchWithTimeout(`${API_BASE}/api/send-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -313,12 +325,25 @@ export default function Home() {
           subject: `Objection: ${selectedPermit?.project_title}`,
           text: generatedLetter,
         }),
-      });
-      if (!res.ok) throw new Error("Failed to send email");
+      }, 30000);
+      if (!res.ok) {
+        let message = "Failed to send email";
+        try {
+          const payload = await res.json();
+          if (payload?.error) message = payload.error;
+        } catch {
+          // keep default
+        }
+        throw new Error(message);
+      }
       setEmailSentMessage("Email sent successfully!");
       fetchUsage(token);
     } catch (err) {
-      setEmailError(err instanceof Error ? err.message : "Failed to send email");
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setEmailError("Email request timed out. Please try again.");
+      } else {
+        setEmailError(err instanceof Error ? err.message : "Failed to send email");
+      }
       fetchUsage(token);
     } finally {
       setSendingEmail(false);

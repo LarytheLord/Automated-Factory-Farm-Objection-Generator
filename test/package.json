@@ -16,7 +16,9 @@
     "test:phase9": "node phase9-source-management.test.js",
     "test:phase10": "node phase10-api-surface.test.js",
     "test:phase11": "node phase11-source-validation-report.test.js",
-    "test:all:local": "npm run test:phase2 && npm run test:phase3 && npm run test:phase4 && npm run test:phase5 && npm run test:phase6 && npm run test:phase7 && npm run test:phase8 && npm run test:phase9 && npm run test:phase10 && npm run test:phase11"
+    "test:phase12": "node phase12-permit-priority.test.js",
+    "test:phase13": "node phase13-letter-sanitizer.test.js",
+    "test:all:local": "npm run test:phase2 && npm run test:phase3 && npm run test:phase4 && npm run test:phase5 && npm run test:phase6 && npm run test:phase7 && npm run test:phase8 && npm run test:phase9 && npm run test:phase10 && npm run test:phase11 && npm run test:phase12 && npm run test:phase13"
   },
   "keywords": [
     "testing",

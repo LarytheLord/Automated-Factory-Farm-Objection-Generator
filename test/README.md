@@ -17,6 +17,8 @@ npm run test:phase8
 npm run test:phase9
 npm run test:phase10
 npm run test:phase11
+npm run test:phase12
+npm run test:phase13
 npm run test:all:local
 ```
 

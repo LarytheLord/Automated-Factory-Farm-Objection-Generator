@@ -11,6 +11,8 @@ const { syncPermitSources, previewPermitSource } = require('./permitIngestion');
 const { summarizeIngestionHealth } = require('./ingestionHealth');
 const { applySourcePatch } = require('./permitSourceConfig');
 const { buildSourceValidationReport } = require('./sourceRollout');
+const { annotateAndSortPermits } = require('./permitPriority');
+const { sanitizeLetterText } = require('./letterSanitizer');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -23,6 +25,7 @@ app.use(express.json({ limit: '1mb' }));
 const geminiApiKey = process.env.GEMINI_API_KEY;
 const emailUser = process.env.USER_EMAIL;
 const emailPass = process.env.USER_PASS;
+const realPermitsOnly = String(process.env.REAL_PERMITS_ONLY || 'true').toLowerCase() !== 'false';
 
 let genAI = null;
 if (geminiApiKey && geminiApiKey !== 'your_google_gemini_api_key_here') {
@@ -36,9 +39,15 @@ if (geminiApiKey && geminiApiKey !== 'your_google_gemini_api_key_here') {
 // ─── Nodemailer setup (optional) ───
 let transporter = null;
 if (emailUser && emailPass) {
+    const connectionTimeout = Number.parseInt(process.env.EMAIL_CONNECTION_TIMEOUT_MS || '15000', 10) || 15000;
+    const greetingTimeout = Number.parseInt(process.env.EMAIL_GREETING_TIMEOUT_MS || '10000', 10) || 10000;
+    const socketTimeout = Number.parseInt(process.env.EMAIL_SOCKET_TIMEOUT_MS || '20000', 10) || 20000;
     transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: { user: emailUser, pass: emailPass },
+        connectionTimeout,
+        greetingTimeout,
+        socketTimeout,
     });
     console.log('✅ Email configured');
 } else {
@@ -102,6 +111,24 @@ function allPermits() {
         ...ingestedPermitsData,
         ...submittedPermitsData,
     ];
+}
+
+function buildTrustedSourceSet() {
+    return new Set(
+        (Array.isArray(permitSourcesData) ? permitSourcesData : [])
+            .filter((source) => source.type !== 'local_file' && source.trust_level !== 'demo')
+            .map((source) => source.key)
+    );
+}
+
+function isTrustedPermitRecord(permit, trustedSources) {
+    if (!permit || typeof permit !== 'object') return false;
+    const sourceKey = String(permit.source_key || '').trim();
+    if (sourceKey) return trustedSources.has(sourceKey);
+    const ingestKey = String(permit.ingest_key || permit.id || '').trim();
+    if (!ingestKey.includes(':')) return false;
+    const prefix = ingestKey.split(':')[0];
+    return trustedSources.has(prefix);
 }
 
 function buildPermitDedupKey(permit) {
@@ -555,6 +582,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 app.get('/api/permits', optionalAuth, async (req, res) => {
     try {
         const { country, status, category } = req.query;
+        const trustedSources = buildTrustedSourceSet();
 
         let supabasePermits = [];
         if (supabase) {
@@ -573,12 +601,16 @@ app.get('/api/permits', optionalAuth, async (req, res) => {
         }
 
         let filtered = mergePermitSets(supabasePermits, allPermits());
+        if (realPermitsOnly) {
+            filtered = filtered.filter((permit) => isTrustedPermitRecord(permit, trustedSources));
+        }
         if (country && country !== 'All') {
             const countryQuery = String(country).toLowerCase();
             filtered = filtered.filter((p) => String(p.country || '').toLowerCase().includes(countryQuery));
         }
         if (status) filtered = filtered.filter((p) => String(p.status || '') === String(status));
         if (category) filtered = filtered.filter((p) => String(p.category || '') === String(category));
+        filtered = annotateAndSortPermits(filtered);
 
         const limitRaw = req.query.limit ? Number.parseInt(String(req.query.limit), 10) : null;
         const pageRaw = req.query.page ? Number.parseInt(String(req.query.page), 10) : 1;
@@ -594,7 +626,12 @@ app.get('/api/permits', optionalAuth, async (req, res) => {
         res.json(filtered);
     } catch (error) {
         console.error('Get permits error:', error);
-        const fallbackPermits = allPermits();
+        const trustedSources = buildTrustedSourceSet();
+        let fallbackPermits = allPermits();
+        if (realPermitsOnly) {
+            fallbackPermits = fallbackPermits.filter((permit) => isTrustedPermitRecord(permit, trustedSources));
+        }
+        fallbackPermits = annotateAndSortPermits(fallbackPermits);
         if (fallbackPermits.length > 0) {
             return res.json(fallbackPermits);
         }
@@ -604,11 +641,20 @@ app.get('/api/permits', optionalAuth, async (req, res) => {
 
 app.get('/api/permits/:id', async (req, res) => {
     try {
+        const trustedSources = buildTrustedSourceSet();
         if (supabase) {
             const { data, error } = await supabase.from('permits').select('*').eq('id', req.params.id).single();
-            if (!error && data) return res.json(data);
+            if (!error && data) {
+                if (!realPermitsOnly || isTrustedPermitRecord(data, trustedSources)) {
+                    return res.json(data);
+                }
+            }
         }
-        const permit = allPermits().find(p => String(p.id) === String(req.params.id));
+        let localPermits = allPermits();
+        if (realPermitsOnly) {
+            localPermits = localPermits.filter((permit) => isTrustedPermitRecord(permit, trustedSources));
+        }
+        const permit = localPermits.find((p) => String(p.id) === String(req.params.id));
         if (!permit) return res.status(404).json({ error: 'Permit not found' });
         res.json(permit);
     } catch (error) {
@@ -678,7 +724,7 @@ app.get('/api/objections', authenticateToken, async (req, res) => {
 
 app.post('/api/objections', authenticateToken, async (req, res) => {
     const { permit_id, generated_letter, generated_text, project_title, location, country, status = 'draft', recipient_email } = req.body;
-    const letterContent = generated_letter || generated_text;
+    const letterContent = sanitizeLetterText(generated_letter || generated_text || '');
 
     if (!letterContent) {
         return res.status(400).json({ error: 'generated_letter or generated_text is required' });
@@ -771,20 +817,20 @@ app.post('/api/generate-letter', optionalAuth, rateLimiter, async (req, res) => 
             const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
             const prompt = buildAIPrompt(permitDetails);
             const result = await model.generateContent(prompt);
-            const letter = result.response.text();
+            const letter = sanitizeLetterText(result.response.text());
             recordUsage(req, 'generate_letter');
             return res.json({ letter });
         }
 
         // Fallback: Built-in legal template engine
-        const letter = generateTemplatedLetter(permitDetails);
+        const letter = sanitizeLetterText(generateTemplatedLetter(permitDetails));
         recordUsage(req, 'generate_letter');
         res.json({ letter });
     } catch (error) {
         console.error('Letter generation error:', error);
         // Even if AI fails, use template fallback
         try {
-            const letter = generateTemplatedLetter(permitDetails);
+            const letter = sanitizeLetterText(generateTemplatedLetter(permitDetails));
             recordUsage(req, 'generate_letter');
             res.json({ letter });
         } catch (fallbackError) {
@@ -989,12 +1035,35 @@ ${phone}`;
 // EMAIL SENDING
 // ═══════════════════════════════════════════════════
 
+const EMAIL_SEND_TIMEOUT_MS = Math.max(5000, intFromEnv('EMAIL_SEND_TIMEOUT_MS', 20000));
+
+function sendMailWithTimeout(mailOptions, timeoutMs = EMAIL_SEND_TIMEOUT_MS) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            reject(new Error('Email send timed out'));
+        }, timeoutMs);
+
+        transporter.sendMail(mailOptions)
+            .then((info) => {
+                clearTimeout(timer);
+                resolve(info);
+            })
+            .catch((error) => {
+                clearTimeout(timer);
+                reject(error);
+            });
+    });
+}
+
 app.post('/api/send-email', optionalAuth, rateLimiter, async (req, res) => {
     if (!isFeatureEnabled('emailSendingEnabled')) {
         return res.status(503).json({ error: 'Email sending is temporarily disabled' });
     }
     const { to, subject, text } = req.body;
-    if (!to || !subject || !text) {
+    const safeTo = String(to || '').trim();
+    const safeSubject = sanitizeLetterText(subject || '').slice(0, 250);
+    const safeText = sanitizeLetterText(text || '');
+    if (!safeTo || !safeSubject || !safeText) {
         return res.status(400).json({ error: 'to, subject, and text are required' });
     }
     if (isFeatureEnabled('quotaEnforcementEnabled')) {
@@ -1010,22 +1079,25 @@ app.post('/api/send-email', optionalAuth, rateLimiter, async (req, res) => {
 
     try {
         if (transporter) {
-            await transporter.sendMail({
+            await sendMailWithTimeout({
                 from: emailUser,
-                to,
-                subject,
-                text,
+                to: safeTo,
+                subject: safeSubject,
+                text: safeText,
             });
             recordUsage(req, 'send_email');
             return res.json({ message: 'Email sent successfully' });
         }
 
         // Simulated email for demo
-        console.log(`📧 [SIMULATED EMAIL] To: ${to} | Subject: ${subject}`);
+        console.log(`📧 [SIMULATED EMAIL] To: ${safeTo} | Subject: ${safeSubject}`);
         recordUsage(req, 'send_email');
         res.json({ message: 'Email sent successfully (demo mode)' });
     } catch (error) {
         console.error('Email error:', error);
+        if (String(error.message || '').toLowerCase().includes('timed out')) {
+            return res.status(504).json({ error: 'Email provider timed out. Please try again.' });
+        }
         res.status(500).json({ error: 'Failed to send email' });
     }
 });
@@ -1440,17 +1512,20 @@ app.get('/api/legal-frameworks', (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
+    const trustedSources = buildTrustedSourceSet();
     res.json({
         status: 'ok',
         service: 'affog-api',
         timestamp: new Date().toISOString(),
         storage: supabase ? 'supabase' : 'json',
         includeStaticPermits,
+        realPermitsOnly,
         quotaService: 'json-events',
         permits: {
             static: includeStaticPermits ? permitsData.length : 0,
             ingested: ingestedPermitsData.length,
             submitted: submittedPermitsData.length,
+            trustedSources: trustedSources.size,
         }
     });
 });
