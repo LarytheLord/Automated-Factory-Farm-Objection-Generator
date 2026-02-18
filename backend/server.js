@@ -104,6 +104,32 @@ function allPermits() {
     ];
 }
 
+function buildPermitDedupKey(permit) {
+    if (permit?.ingest_key) return `ingest:${permit.ingest_key}`;
+    if (permit?.id !== undefined && permit?.id !== null) return `id:${String(permit.id)}`;
+    const sourceKey = String(permit?.source_key || permit?.source || 'unknown');
+    const externalId = String(permit?.external_id || '').trim();
+    if (externalId) return `external:${sourceKey}:${externalId.toLowerCase()}`;
+    const title = String(permit?.project_title || '').trim().toLowerCase();
+    const location = String(permit?.location || '').trim().toLowerCase();
+    const country = String(permit?.country || '').trim().toLowerCase();
+    return `fallback:${sourceKey}:${title}:${location}:${country}`;
+}
+
+function mergePermitSets(primary = [], secondary = []) {
+    const seen = new Set();
+    const merged = [];
+
+    for (const permit of [...primary, ...secondary]) {
+        const key = buildPermitDedupKey(permit);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        merged.push(permit);
+    }
+
+    return merged;
+}
+
 function persistPermitIngestionData() {
     writeArrayFile('ingested-permits.json', ingestedPermitsData);
     writeArrayFile('permit-status-history.json', permitStatusHistoryData);
@@ -528,25 +554,43 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 
 app.get('/api/permits', optionalAuth, async (req, res) => {
     try {
-        const { country, status, category, limit = 100, page = 1 } = req.query;
+        const { country, status, category } = req.query;
 
+        let supabasePermits = [];
         if (supabase) {
-            let query = supabase.from('permits').select('*', { count: 'exact' });
-            if (country) query = query.ilike('country', `%${country}%`);
-            if (status) query = query.eq('status', status);
-            if (category) query = query.eq('category', category);
-            const offset = (page - 1) * limit;
-            query = query.order('created_at', { ascending: false }).range(offset, offset + parseInt(limit) - 1);
-            const { data, error, count } = await query;
-            if (error) throw error;
-            return res.json(data || []);
+            try {
+                const { data, error } = await supabase
+                    .from('permits')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .range(0, 4999);
+                if (!error && Array.isArray(data)) {
+                    supabasePermits = data;
+                }
+            } catch (supabaseError) {
+                console.warn('Supabase permits query failed, continuing with JSON permits:', supabaseError.message);
+            }
         }
 
-        // JSON fallback
-        let filtered = allPermits();
-        if (country && country !== 'All') filtered = filtered.filter(p => p.country.toLowerCase().includes(country.toLowerCase()));
-        if (status) filtered = filtered.filter(p => p.status === status);
-        if (category) filtered = filtered.filter(p => p.category === category);
+        let filtered = mergePermitSets(supabasePermits, allPermits());
+        if (country && country !== 'All') {
+            const countryQuery = String(country).toLowerCase();
+            filtered = filtered.filter((p) => String(p.country || '').toLowerCase().includes(countryQuery));
+        }
+        if (status) filtered = filtered.filter((p) => String(p.status || '') === String(status));
+        if (category) filtered = filtered.filter((p) => String(p.category || '') === String(category));
+
+        const limitRaw = req.query.limit ? Number.parseInt(String(req.query.limit), 10) : null;
+        const pageRaw = req.query.page ? Number.parseInt(String(req.query.page), 10) : 1;
+        const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1;
+
+        if (Number.isFinite(limitRaw) && limitRaw > 0) {
+            const limit = Math.min(limitRaw, 1000);
+            const start = (page - 1) * limit;
+            const paged = filtered.slice(start, start + limit);
+            return res.json(paged);
+        }
+
         res.json(filtered);
     } catch (error) {
         console.error('Get permits error:', error);
@@ -562,8 +606,7 @@ app.get('/api/permits/:id', async (req, res) => {
     try {
         if (supabase) {
             const { data, error } = await supabase.from('permits').select('*').eq('id', req.params.id).single();
-            if (error || !data) return res.status(404).json({ error: 'Permit not found' });
-            return res.json(data);
+            if (!error && data) return res.json(data);
         }
         const permit = allPermits().find(p => String(p.id) === String(req.params.id));
         if (!permit) return res.status(404).json({ error: 'Permit not found' });
@@ -1402,6 +1445,7 @@ app.get('/api/health', (req, res) => {
         service: 'affog-api',
         timestamp: new Date().toISOString(),
         storage: supabase ? 'supabase' : 'json',
+        includeStaticPermits,
         quotaService: 'json-events',
         permits: {
             static: includeStaticPermits ? permitsData.length : 0,
