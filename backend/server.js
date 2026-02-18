@@ -94,9 +94,14 @@ function loadPermits() {
     }
 }
 loadPermits();
+const includeStaticPermits = String(process.env.INCLUDE_STATIC_PERMITS || 'false').toLowerCase() === 'true';
 
 function allPermits() {
-    return [...permitsData, ...ingestedPermitsData, ...submittedPermitsData];
+    return [
+        ...(includeStaticPermits ? permitsData : []),
+        ...ingestedPermitsData,
+        ...submittedPermitsData,
+    ];
 }
 
 function persistPermitIngestionData() {
@@ -545,13 +550,11 @@ app.get('/api/permits', optionalAuth, async (req, res) => {
         res.json(filtered);
     } catch (error) {
         console.error('Get permits error:', error);
-        // Ultimate fallback
-        try {
-            const data = fs.readFileSync(path.join(__dirname, 'permits.json'), 'utf8');
-            res.json(JSON.parse(data));
-        } catch (e) {
-            res.status(500).json({ error: 'Failed to fetch permits' });
+        const fallbackPermits = allPermits();
+        if (fallbackPermits.length > 0) {
+            return res.json(fallbackPermits);
         }
+        res.status(500).json({ error: 'Failed to fetch permits' });
     }
 });
 
@@ -1401,7 +1404,7 @@ app.get('/api/health', (req, res) => {
         storage: supabase ? 'supabase' : 'json',
         quotaService: 'json-events',
         permits: {
-            static: permitsData.length,
+            static: includeStaticPermits ? permitsData.length : 0,
             ingested: ingestedPermitsData.length,
             submitted: submittedPermitsData.length,
         }

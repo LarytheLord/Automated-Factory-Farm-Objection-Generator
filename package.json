@@ -9,7 +9,9 @@
     "frontend": "cd frontend && npm run dev",
     "build": "cd frontend && npm run build",
     "validate:sources": "npm --prefix backend run validate:sources",
+    "validate:sources:all": "npm --prefix backend run validate:sources:all",
     "sync:sources": "npm --prefix backend run sync:sources",
+    "sync:sources:all": "npm --prefix backend run sync:sources:all",
     "postinstall": "npm install --prefix backend && npm install --prefix frontend",
     "start": "NODE_ENV=production node --max-old-space-size=512 server.js"
   },

@@ -59,6 +59,7 @@ Optional:
 - `ANON_DAILY_EMAILS`
 - `ENABLE_PERMIT_SYNC` (`true` to run background source sync loop)
 - `PERMIT_SYNC_INTERVAL_MINUTES` (default `360`)
+- `INCLUDE_STATIC_PERMITS` (`false` by default; set `true` only if you want bundled static permits from `backend/permits.json`)
 - `PORT` (default `3000` in unified mode)
 - `NODE_ENV`
 
@@ -115,14 +116,16 @@ npm run test:all:local
 The contract suite validates auth, permits, letter generation, objection persistence, and email endpoint behavior.
 
 Permit ingestion is source-driven via `backend/data/permit-sources.json` and persists normalized records to `backend/data/ingested-permits.json`.
-The current default production-safe mode keeps remote government sources configured but disabled until validated in your environment.
+The current local default runs remote sources only (`local_file` sources are disabled by default).
 
 Source validation commands:
 
 ```bash
 npm run validate:sources
-npm --prefix backend run validate:sources -- --include-disabled
+npm run validate:sources:all
 npm --prefix backend run validate:sources -- --source nc_deq_application_tracker --include-disabled
+npm run sync:sources
+npm --prefix backend run sync:sources -- --reset-data
 ```
 
 Safe live rollout sequence (staging first):

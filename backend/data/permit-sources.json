@@ -5,7 +5,7 @@
     "country": "Multi-country",
     "type": "local_file",
     "path": "./sources/demo-latest-permits.json",
-    "enabled": true,
+    "enabled": false,
     "poll_interval_hours": 24
   },
   {
@@ -15,7 +15,7 @@
     "type": "arcgis_mapserver",
     "transform": "nc_deq_application_tracker",
     "url": "https://maps.deq.nc.gov/arcgis/rest/services/DEQ/ApplicationTracker/MapServer/2/query",
-    "enabled": false,
+    "enabled": true,
     "poll_interval_hours": 12,
     "query": {
       "where": "1=1",
@@ -50,7 +50,7 @@
     "type": "json_url",
     "transform": "uk_ea_public_register",
     "url": "https://environment.data.gov.uk/public-register/industrial-installations/registration.json",
-    "enabled": false,
+    "enabled": true,
     "poll_interval_hours": 24,
     "records_path": "items",
     "field_map": {
@@ -65,6 +65,24 @@
     "defaults": {
       "country": "United Kingdom",
       "category": "Unknown"
-    }
+    },
+    "include_keywords": [
+      "poultry",
+      "pig",
+      "swine",
+      "broiler",
+      "layer",
+      "livestock",
+      "dairy",
+      "farm",
+      "animal",
+      "intensive"
+    ],
+    "filter_fields": [
+      "project_title",
+      "activity",
+      "notes",
+      "location"
+    ]
   }
 ]

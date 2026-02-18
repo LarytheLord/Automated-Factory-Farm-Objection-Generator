@@ -7,6 +7,8 @@ function parseArgs(argv) {
   const args = {
     sourceKey: null,
     includeDisabled: false,
+    remoteOnly: false,
+    resetData: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -16,6 +18,10 @@ function parseArgs(argv) {
       i += 1;
     } else if (value === '--include-disabled') {
       args.includeDisabled = true;
+    } else if (value === '--remote-only') {
+      args.remoteOnly = true;
+    } else if (value === '--reset-data') {
+      args.resetData = true;
     }
   }
 
@@ -23,11 +29,18 @@ function parseArgs(argv) {
 }
 
 function selectSources(sources, args) {
+  let selected = sources;
   if (args.sourceKey) {
-    return sources.filter((source) => source.key === args.sourceKey);
+    selected = selected.filter((source) => source.key === args.sourceKey);
+  } else if (!args.includeDisabled) {
+    selected = selected.filter((source) => source.enabled !== false);
   }
-  if (args.includeDisabled) return sources;
-  return sources.filter((source) => source.enabled !== false);
+
+  if (args.remoteOnly) {
+    selected = selected.filter((source) => source.type !== 'local_file');
+  }
+
+  return selected;
 }
 
 async function syncOneSource(source, stores, baseDir) {
@@ -55,9 +68,9 @@ async function run() {
   }
 
   const stores = {
-    ingestedPermits: readArrayFile('ingested-permits.json'),
-    statusHistory: readArrayFile('permit-status-history.json'),
-    runs: readArrayFile('ingestion-runs.json'),
+    ingestedPermits: args.resetData ? [] : readArrayFile('ingested-permits.json'),
+    statusHistory: args.resetData ? [] : readArrayFile('permit-status-history.json'),
+    runs: args.resetData ? [] : readArrayFile('ingestion-runs.json'),
   };
 
   const baseDir = path.resolve(__dirname, '..');

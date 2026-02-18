@@ -8,6 +8,7 @@ function parseArgs(argv) {
     includeDisabled: false,
     sourceKey: null,
     sampleLimit: 3,
+    remoteOnly: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -21,6 +22,8 @@ function parseArgs(argv) {
       const parsed = Number.parseInt(argv[i + 1], 10);
       args.sampleLimit = Number.isFinite(parsed) ? parsed : 3;
       i += 1;
+    } else if (value === '--remote-only') {
+      args.remoteOnly = true;
     }
   }
 
@@ -37,6 +40,9 @@ async function run() {
   }
   if (args.sourceKey) {
     selected = selected.filter((source) => source.key === args.sourceKey);
+  }
+  if (args.remoteOnly) {
+    selected = selected.filter((source) => source.type !== 'local_file');
   }
 
   if (selected.length === 0) {

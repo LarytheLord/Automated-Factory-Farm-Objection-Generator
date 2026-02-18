@@ -5,8 +5,10 @@
   "scripts": {
     "start": "node --max-old-space-size=512 server.js",
     "dev": "node --max-old-space-size=512 server.js",
-    "validate:sources": "node scripts/validate-permit-sources.js",
-    "sync:sources": "node scripts/sync-permit-sources.js"
+    "validate:sources": "node scripts/validate-permit-sources.js --remote-only",
+    "validate:sources:all": "node scripts/validate-permit-sources.js --include-disabled",
+    "sync:sources": "node scripts/sync-permit-sources.js --remote-only",
+    "sync:sources:all": "node scripts/sync-permit-sources.js --include-disabled"
   },
   "keywords": [],
   "author": "",

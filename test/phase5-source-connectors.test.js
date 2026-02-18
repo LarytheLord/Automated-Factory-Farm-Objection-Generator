@@ -2,6 +2,7 @@ const {
   normalizeStatus,
   mapRecordToPermit,
   readSourcePermits,
+  shouldIncludePermit,
   syncPermitSources,
 } = require('../backend/permitIngestion');
 
@@ -14,6 +15,8 @@ async function run() {
   assert(normalizeStatus('Permit Issued') === 'Approved', 'status mapping failed for approved');
   assert(normalizeStatus('Denied') === 'Rejected', 'status mapping failed for rejected');
   assert(normalizeStatus('Withdrawn by applicant') === 'Withdrawn', 'status mapping failed for withdrawn');
+  assert(normalizeStatus('In Draft') === 'Pending', 'status mapping failed for in draft');
+  assert(normalizeStatus('In Review') === 'Pending', 'status mapping failed for in review');
 
   const mapped = mapRecordToPermit(
     {
@@ -39,6 +42,25 @@ async function run() {
   assert(mapped.external_id === 'NC-1001', 'field map external_id failed');
   assert(mapped.location === '123 Farm Lane, Raleigh', 'field map array join failed');
   assert(mapped.country === 'United States', 'default country fallback failed');
+
+  const includeSource = {
+    include_keywords: ['poultry', 'swine'],
+    filter_fields: ['project_title', 'activity'],
+  };
+  assert(
+    shouldIncludePermit(
+      { project_title: 'Mega Poultry Unit', activity: 'Intensive Poultry' },
+      includeSource
+    ) === true,
+    'keyword inclusion should accept matching permit'
+  );
+  assert(
+    shouldIncludePermit(
+      { project_title: 'Chemical Processing Plant', activity: 'Industrial chemical' },
+      includeSource
+    ) === false,
+    'keyword inclusion should reject non-matching permit'
+  );
 
   const arcgisSource = {
     key: 'nc_deq',

@@ -100,6 +100,28 @@ function normalizePermit(rawPermit, source, nowIso) {
   };
 }
 
+function shouldIncludePermit(rawPermit, source) {
+  const keywords = Array.isArray(source?.include_keywords)
+    ? source.include_keywords
+        .map((keyword) => normalizeText(keyword, '').toLowerCase())
+        .filter(Boolean)
+    : [];
+
+  if (keywords.length === 0) return true;
+
+  const fields = Array.isArray(source?.filter_fields) && source.filter_fields.length > 0
+    ? source.filter_fields
+    : ['project_title', 'activity', 'notes', 'location'];
+
+  const haystack = fields
+    .map((field) => normalizeText(rawPermit?.[field], '').toLowerCase())
+    .filter(Boolean)
+    .join(' ');
+
+  if (!haystack) return false;
+  return keywords.some((keyword) => haystack.includes(keyword));
+}
+
 function nextHistoryId(history) {
   const max = history.reduce((highest, item) => {
     const value = Number(item?.id);
@@ -356,6 +378,11 @@ async function syncPermitSource({ source, ingestedPermits, statusHistory, now, b
 
   for (const rawPermit of rawPermits) {
     try {
+      if (!shouldIncludePermit(rawPermit, source)) {
+        stats.skipped += 1;
+        continue;
+      }
+
       const normalized = normalizePermit(rawPermit, source, nowIso);
       if (!normalized.project_title || !normalized.country || !normalized.location) {
         stats.skipped += 1;
@@ -495,6 +522,7 @@ module.exports = {
   mapSourceRecordToPermit,
   readSourcePermits,
   previewPermitSource,
+  shouldIncludePermit,
   syncPermitSource,
   syncPermitSources,
 };
