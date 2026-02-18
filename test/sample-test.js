@@ -98,6 +98,14 @@ async function run() {
   assert(generated.data && typeof generated.data.letter === 'string' && generated.data.letter.length > 50, 'Generated letter invalid');
   console.log('✓ POST /api/generate-letter');
 
+  // 6.1) Usage visibility
+  const usage = await request('/api/usage', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  assert(usage.response.ok, 'GET /api/usage failed');
+  assert(usage.data && usage.data.letters && usage.data.letters.usage, 'Usage payload invalid');
+  console.log('✓ GET /api/usage');
+
   // 7) Save objection
   const objection = await request('/api/objections', {
     method: 'POST',
@@ -131,7 +139,7 @@ async function run() {
   assert(objectionsFile.some((o) => String(o.id) === String(objection.data.id)), 'Objection was not persisted to JSON data store');
   console.log('✓ JSON persistence check');
 
-  // 10) Send email endpoint
+  // 11) Send email endpoint
   const email = await request('/api/send-email', {
     method: 'POST',
     body: JSON.stringify({

@@ -5,7 +5,18 @@
   "main": "sample-test.js",
   "scripts": {
     "test": "node sample-test.js",
-    "test:full": "node sample-test.js"
+    "test:full": "node sample-test.js",
+    "test:phase2": "node phase2-usage-analytics.test.js",
+    "test:phase3": "node phase3-platform-controls.test.js",
+    "test:phase4": "node phase4-permit-ingestion.test.js",
+    "test:phase5": "node phase5-source-connectors.test.js",
+    "test:phase6": "node phase6-source-transforms.test.js",
+    "test:phase7": "node phase7-ingestion-health.test.js",
+    "test:phase8": "node phase8-admin-ingestion-endpoints.test.js",
+    "test:phase9": "node phase9-source-management.test.js",
+    "test:phase10": "node phase10-api-surface.test.js",
+    "test:phase11": "node phase11-source-validation-report.test.js",
+    "test:all:local": "npm run test:phase2 && npm run test:phase3 && npm run test:phase4 && npm run test:phase5 && npm run test:phase6 && npm run test:phase7 && npm run test:phase8 && npm run test:phase9 && npm run test:phase10 && npm run test:phase11"
   },
   "keywords": [
     "testing",

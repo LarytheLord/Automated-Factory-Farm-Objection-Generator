@@ -1,0 +1,10 @@
+{
+  "freeDailyLetters": 15,
+  "freeMonthlyLetters": 120,
+  "ngoDailyLetters": 200,
+  "ngoMonthlyLetters": 3000,
+  "anonDailyLetters": 6,
+  "userDailyEmails": 20,
+  "ngoDailyEmails": 250,
+  "anonDailyEmails": 3
+}

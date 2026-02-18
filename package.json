@@ -8,6 +8,8 @@
     "server": "node --max-old-space-size=512 backend/server.js",
     "frontend": "cd frontend && npm run dev",
     "build": "cd frontend && npm run build",
+    "validate:sources": "npm --prefix backend run validate:sources",
+    "sync:sources": "npm --prefix backend run sync:sources",
     "postinstall": "npm install --prefix backend && npm install --prefix frontend",
     "start": "NODE_ENV=production node --max-old-space-size=512 server.js"
   },

@@ -1,0 +1,70 @@
+[
+  {
+    "key": "global_demo_feed",
+    "name": "Global Demo Permit Feed",
+    "country": "Multi-country",
+    "type": "local_file",
+    "path": "./sources/demo-latest-permits.json",
+    "enabled": true,
+    "poll_interval_hours": 24
+  },
+  {
+    "key": "nc_deq_application_tracker",
+    "name": "North Carolina DEQ Application Tracker",
+    "country": "United States",
+    "type": "arcgis_mapserver",
+    "transform": "nc_deq_application_tracker",
+    "url": "https://maps.deq.nc.gov/arcgis/rest/services/DEQ/ApplicationTracker/MapServer/2/query",
+    "enabled": false,
+    "poll_interval_hours": 12,
+    "query": {
+      "where": "1=1",
+      "outFields": "*",
+      "orderByFields": "RECV_DT DESC",
+      "resultRecordCount": 500,
+      "f": "json"
+    },
+    "timeout_ms": 60000,
+    "field_map": {
+      "external_id": "APP_ID",
+      "project_title": "NAME",
+      "location": [
+        "ADDRESS",
+        "CITY",
+        "STATE"
+      ],
+      "country": "COUNTRY",
+      "activity": "PROG_CAT",
+      "status": "STATUS",
+      "notes": "PERMIT_TYPE"
+    },
+    "defaults": {
+      "country": "United States",
+      "category": "Unknown"
+    }
+  },
+  {
+    "key": "uk_ea_public_register",
+    "name": "UK Environment Agency Public Register",
+    "country": "United Kingdom",
+    "type": "json_url",
+    "transform": "uk_ea_public_register",
+    "url": "https://environment.data.gov.uk/public-register/industrial-installations/registration.json",
+    "enabled": false,
+    "poll_interval_hours": 24,
+    "records_path": "items",
+    "field_map": {
+      "external_id": "permitNumber",
+      "project_title": "facilityName",
+      "location": "siteAddress",
+      "country": "country",
+      "activity": "activityType",
+      "status": "status",
+      "source_url": "uri"
+    },
+    "defaults": {
+      "country": "United Kingdom",
+      "category": "Unknown"
+    }
+  }
+]

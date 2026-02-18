@@ -39,6 +39,27 @@ function writeArrayFile(fileName, data) {
   fs.renameSync(tmpPath, filePath);
 }
 
+function readJsonFile(fileName, defaultValue) {
+  ensureDataDir();
+  const filePath = path.join(dataDir, fileName);
+  ensureFile(filePath, defaultValue);
+
+  try {
+    const raw = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(raw);
+  } catch {
+    return defaultValue;
+  }
+}
+
+function writeJsonFile(fileName, data) {
+  ensureDataDir();
+  const filePath = path.join(dataDir, fileName);
+  const tmpPath = `${filePath}.tmp`;
+  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2));
+  fs.renameSync(tmpPath, filePath);
+}
+
 function nextId(items) {
   const maxId = items.reduce((max, item) => {
     const value = Number(item?.id);
@@ -50,5 +71,7 @@ function nextId(items) {
 module.exports = {
   readArrayFile,
   writeArrayFile,
+  readJsonFile,
+  writeJsonFile,
   nextId,
 };

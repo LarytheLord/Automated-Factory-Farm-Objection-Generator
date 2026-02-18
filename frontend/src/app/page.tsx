@@ -57,6 +57,18 @@ interface User {
   role: string;
 }
 
+interface UsageBucket {
+  dailyUsed: number;
+  monthlyUsed: number;
+  dailyRemaining: number | null;
+  monthlyRemaining: number | null;
+}
+
+interface UsageResponse {
+  letters?: { usage: UsageBucket };
+  email?: { usage: UsageBucket };
+}
+
 /* ─── Animated Counter Hook ─── */
 function useAnimatedCounter(target: number, duration = 2000) {
   const [count, setCount] = useState(0);
@@ -130,6 +142,7 @@ export default function Home() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [usage, setUsage] = useState<UsageResponse | null>(null);
 
   const API_BASE = "";
 
@@ -178,6 +191,24 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, [API_BASE]);
 
+  const fetchUsage = async (authToken?: string | null) => {
+    try {
+      const headers: HeadersInit = {};
+      if (authToken) headers.Authorization = `Bearer ${authToken}`;
+      const response = await fetch(`${API_BASE}/api/usage`, { headers });
+      if (!response.ok) return;
+      const data = await response.json();
+      setUsage(data);
+    } catch {
+      // Non-blocking: usage indicator should never break page flow.
+    }
+  };
+
+  useEffect(() => {
+    if (!isMounted) return;
+    fetchUsage(token);
+  }, [token, isMounted]);
+
   /* ─── Handlers ─── */
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -202,8 +233,11 @@ export default function Home() {
       }
       const data = await res.json();
       setGeneratedLetter(data.letter);
+      fetchUsage(token);
     } catch (err) {
-      setLetterError(err instanceof Error ? err.message : "Unknown error");
+      if (err instanceof Error) setLetterError(err.message);
+      else setLetterError("Unknown error");
+      fetchUsage(token);
     } finally {
       setGeneratingLetter(false);
     }
@@ -282,8 +316,10 @@ export default function Home() {
       });
       if (!res.ok) throw new Error("Failed to send email");
       setEmailSentMessage("Email sent successfully!");
+      fetchUsage(token);
     } catch (err) {
       setEmailError(err instanceof Error ? err.message : "Failed to send email");
+      fetchUsage(token);
     } finally {
       setSendingEmail(false);
     }
@@ -309,6 +345,7 @@ export default function Home() {
   const animCountries = useAnimatedCounter(stats?.countriesCovered || 0);
   const animAnimals = useAnimatedCounter(stats?.potentialAnimalsProtected || 0, 2500);
   const animObjections = useAnimatedCounter(stats?.objectionsGenerated || 0);
+  const lettersUsage = usage?.letters?.usage;
 
   /* ─── Loading ─── */
   if (loading) {
@@ -610,6 +647,11 @@ export default function Home() {
                       </>
                     )}
                   </button>
+                  {lettersUsage && (
+                    <p className="mt-2 text-xs text-gray-500">
+                      Remaining today: {lettersUsage.dailyRemaining ?? "unlimited"} · This month: {lettersUsage.monthlyRemaining ?? "unlimited"}
+                    </p>
+                  )}
                   {letterError && (
                     <div className="mt-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{letterError}</div>
                   )}

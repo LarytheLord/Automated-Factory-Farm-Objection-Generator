@@ -4,7 +4,13 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
-const { readArrayFile, writeArrayFile, nextId } = require('./dataStore');
+const { readArrayFile, writeArrayFile, readJsonFile, writeJsonFile, nextId } = require('./dataStore');
+const { summarizeUsageEvents, detectUsageAnomalies } = require('./usageAnalytics');
+const { DEFAULT_PLATFORM_CONFIG, sanitizePlatformConfig, applyPlatformPatch } = require('./platformControls');
+const { syncPermitSources, previewPermitSource } = require('./permitIngestion');
+const { summarizeIngestionHealth } = require('./ingestionHealth');
+const { applySourcePatch } = require('./permitSourceConfig');
+const { buildSourceValidationReport } = require('./sourceRollout');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -53,9 +59,15 @@ try {
 // ─── JSON Data Store (fallback/persistent) ───
 let permitsData = [];
 let submittedPermitsData = readArrayFile('submitted-permits.json');
+let ingestedPermitsData = readArrayFile('ingested-permits.json');
 let usersData = readArrayFile('users.json');
 let objectionsData = readArrayFile('objections.json');
+let usageEvents = readArrayFile('usage-events.json');
+let permitStatusHistoryData = readArrayFile('permit-status-history.json');
+let ingestionRunsData = readArrayFile('ingestion-runs.json');
+let permitSourcesData = readArrayFile('permit-sources.json');
 let activityLog = [];
+let platformConfig = sanitizePlatformConfig(readJsonFile('platform-config.json', DEFAULT_PLATFORM_CONFIG));
 
 // Load permits from JSON
 function loadPermits() {
@@ -84,7 +96,61 @@ function loadPermits() {
 loadPermits();
 
 function allPermits() {
-    return [...permitsData, ...submittedPermitsData];
+    return [...permitsData, ...ingestedPermitsData, ...submittedPermitsData];
+}
+
+function persistPermitIngestionData() {
+    writeArrayFile('ingested-permits.json', ingestedPermitsData);
+    writeArrayFile('permit-status-history.json', permitStatusHistoryData);
+    writeArrayFile('ingestion-runs.json', ingestionRunsData);
+}
+
+function persistPermitSources() {
+    writeArrayFile('permit-sources.json', permitSourcesData);
+}
+
+function deepCloneJson(value) {
+    return JSON.parse(JSON.stringify(value));
+}
+
+const permitSyncEnabled = String(process.env.ENABLE_PERMIT_SYNC || 'false').toLowerCase() === 'true';
+const permitSyncIntervalMinutes = Math.max(5, intFromEnv('PERMIT_SYNC_INTERVAL_MINUTES', 360));
+let permitSyncInProgress = false;
+
+async function runBackgroundPermitSync(reason = 'scheduled') {
+    if (permitSyncInProgress) return;
+    permitSyncInProgress = true;
+
+    try {
+        const { run } = await syncPermitSources({
+            sources: permitSourcesData,
+            ingestedPermits: ingestedPermitsData,
+            statusHistory: permitStatusHistoryData,
+            ingestionRuns: ingestionRunsData,
+            baseDir: __dirname,
+        });
+
+        if (ingestionRunsData.length > 1000) ingestionRunsData = ingestionRunsData.slice(-1000);
+        if (permitStatusHistoryData.length > 5000) permitStatusHistoryData = permitStatusHistoryData.slice(-5000);
+        persistPermitIngestionData();
+
+        console.log(
+            `✅ Permit sync (${reason}) completed: inserted=${run.inserted} updated=${run.updated} errors=${run.errors}`
+        );
+    } catch (error) {
+        // Fail open: ingestion issues must not affect frontend/API availability.
+        console.warn(`⚠️  Permit sync (${reason}) failed: ${error.message}`);
+    } finally {
+        permitSyncInProgress = false;
+    }
+}
+
+if (permitSyncEnabled) {
+    console.log(`✅ Background permit sync enabled (${permitSyncIntervalMinutes} min interval)`);
+    runBackgroundPermitSync('startup');
+    setInterval(() => {
+        runBackgroundPermitSync('scheduled');
+    }, permitSyncIntervalMinutes * 60 * 1000).unref();
 }
 
 // ─── Rate Limiting (with automatic stale-IP cleanup) ───
@@ -114,6 +180,164 @@ const rateLimiter = (req, res, next) => {
     timestamps.push(now);
     next();
 };
+
+function intFromEnv(name, fallback) {
+    const value = Number.parseInt(process.env[name] || '', 10);
+    return Number.isFinite(value) ? value : fallback;
+}
+
+const DEFAULT_QUOTA_LIMITS = {
+    freeDailyLetters: 15,
+    freeMonthlyLetters: 120,
+    ngoDailyLetters: 200,
+    ngoMonthlyLetters: 3000,
+    anonDailyLetters: 6,
+    userDailyEmails: 20,
+    ngoDailyEmails: 250,
+    anonDailyEmails: 3,
+};
+
+let quotaConfigData = readJsonFile('quota-config.json', DEFAULT_QUOTA_LIMITS);
+let QUOTA_LIMITS = {
+    ...DEFAULT_QUOTA_LIMITS,
+    ...quotaConfigData,
+    freeDailyLetters: intFromEnv('FREE_DAILY_LETTERS', quotaConfigData.freeDailyLetters ?? DEFAULT_QUOTA_LIMITS.freeDailyLetters),
+    freeMonthlyLetters: intFromEnv('FREE_MONTHLY_LETTERS', quotaConfigData.freeMonthlyLetters ?? DEFAULT_QUOTA_LIMITS.freeMonthlyLetters),
+    ngoDailyLetters: intFromEnv('NGO_DAILY_LETTERS', quotaConfigData.ngoDailyLetters ?? DEFAULT_QUOTA_LIMITS.ngoDailyLetters),
+    ngoMonthlyLetters: intFromEnv('NGO_MONTHLY_LETTERS', quotaConfigData.ngoMonthlyLetters ?? DEFAULT_QUOTA_LIMITS.ngoMonthlyLetters),
+    anonDailyLetters: intFromEnv('ANON_DAILY_LETTERS', quotaConfigData.anonDailyLetters ?? DEFAULT_QUOTA_LIMITS.anonDailyLetters),
+    userDailyEmails: intFromEnv('USER_DAILY_EMAILS', quotaConfigData.userDailyEmails ?? DEFAULT_QUOTA_LIMITS.userDailyEmails),
+    ngoDailyEmails: intFromEnv('NGO_DAILY_EMAILS', quotaConfigData.ngoDailyEmails ?? DEFAULT_QUOTA_LIMITS.ngoDailyEmails),
+    anonDailyEmails: intFromEnv('ANON_DAILY_EMAILS', quotaConfigData.anonDailyEmails ?? DEFAULT_QUOTA_LIMITS.anonDailyEmails),
+};
+
+function getClientIp(req) {
+    return (
+        req.headers['x-forwarded-for']?.toString().split(',')[0].trim() ||
+        req.ip ||
+        req.connection?.remoteAddress ||
+        'unknown'
+    );
+}
+
+function getActor(req) {
+    if (req.user?.id) {
+        const role = req.user.role || 'citizen';
+        return { key: `user:${req.user.id}`, kind: 'user', role };
+    }
+    return { key: `ip:${getClientIp(req)}`, kind: 'anonymous', role: 'anonymous' };
+}
+
+function getNowKeys() {
+    const now = new Date();
+    const dayKey = now.toISOString().slice(0, 10);
+    const monthKey = dayKey.slice(0, 7);
+    return { now, dayKey, monthKey };
+}
+
+function getQuotaConfig(actor, action) {
+    if (actor.role === 'admin') {
+        return { daily: Number.POSITIVE_INFINITY, monthly: Number.POSITIVE_INFINITY };
+    }
+
+    if (action === 'generate_letter') {
+        if (actor.kind === 'anonymous') {
+            return { daily: QUOTA_LIMITS.anonDailyLetters, monthly: QUOTA_LIMITS.anonDailyLetters * 30 };
+        }
+        if (actor.role === 'ngo' || actor.role === 'ngo_admin' || actor.role === 'ngo_member') {
+            return { daily: QUOTA_LIMITS.ngoDailyLetters, monthly: QUOTA_LIMITS.ngoMonthlyLetters };
+        }
+        return { daily: QUOTA_LIMITS.freeDailyLetters, monthly: QUOTA_LIMITS.freeMonthlyLetters };
+    }
+
+    if (action === 'send_email') {
+        if (actor.kind === 'anonymous') {
+            return { daily: QUOTA_LIMITS.anonDailyEmails, monthly: QUOTA_LIMITS.anonDailyEmails * 30 };
+        }
+        if (actor.role === 'ngo' || actor.role === 'ngo_admin' || actor.role === 'ngo_member') {
+            return { daily: QUOTA_LIMITS.ngoDailyEmails, monthly: QUOTA_LIMITS.ngoDailyEmails * 30 };
+        }
+        return { daily: QUOTA_LIMITS.userDailyEmails, monthly: QUOTA_LIMITS.userDailyEmails * 30 };
+    }
+
+    return { daily: 0, monthly: 0 };
+}
+
+function getUsageCounts(actor, action, dayKey, monthKey) {
+    let dailyUsed = 0;
+    let monthlyUsed = 0;
+    for (const event of usageEvents) {
+        if (event.actor_key !== actor.key || event.action !== action) continue;
+        if ((event.outcome || 'success') !== 'success') continue;
+        if (event.month_key === monthKey) monthlyUsed += 1;
+        if (event.day_key === dayKey) dailyUsed += 1;
+    }
+    return { dailyUsed, monthlyUsed };
+}
+
+function getUsageStatus(req, action) {
+    const actor = getActor(req);
+    const { dayKey, monthKey } = getNowKeys();
+    const quota = getQuotaConfig(actor, action);
+    const { dailyUsed, monthlyUsed } = getUsageCounts(actor, action, dayKey, monthKey);
+    const dailyRemaining = Number.isFinite(quota.daily) ? Math.max(0, quota.daily - dailyUsed) : null;
+    const monthlyRemaining = Number.isFinite(quota.monthly) ? Math.max(0, quota.monthly - monthlyUsed) : null;
+
+    return {
+        actor,
+        quota,
+        usage: {
+            dayKey,
+            monthKey,
+            dailyUsed,
+            monthlyUsed,
+            dailyRemaining,
+            monthlyRemaining,
+        },
+    };
+}
+
+function enforceQuota(req, action) {
+    try {
+        const status = getUsageStatus(req, action);
+        const dailyBlocked = Number.isFinite(status.quota.daily) && status.usage.dailyUsed >= status.quota.daily;
+        const monthlyBlocked = Number.isFinite(status.quota.monthly) && status.usage.monthlyUsed >= status.quota.monthly;
+        return {
+            allowed: !dailyBlocked && !monthlyBlocked,
+            status,
+            failOpen: false,
+        };
+    } catch (error) {
+        console.error(`Quota evaluation failed for ${action}:`, error.message);
+        return { allowed: true, failOpen: true, status: null };
+    }
+}
+
+function recordUsage(req, action, metadata = {}) {
+    try {
+        const actor = getActor(req);
+        const { now, dayKey, monthKey } = getNowKeys();
+        const event = {
+            id: `${now.getTime()}-${nextId(usageEvents)}`,
+            actor_key: actor.key,
+            actor_kind: actor.kind,
+            role: actor.role,
+            action,
+            day_key: dayKey,
+            month_key: monthKey,
+            created_at: now.toISOString(),
+            outcome: metadata.outcome || 'success',
+            reason: metadata.reason || null,
+        };
+        usageEvents.push(event);
+        if (usageEvents.length > 5000) usageEvents = usageEvents.slice(-5000);
+        writeArrayFile('usage-events.json', usageEvents);
+        return true;
+    } catch (error) {
+        console.error(`Failed to record usage for ${action}:`, error.message);
+        return false;
+    }
+}
 
 // ─── JWT Auth Middleware ───
 const jwt = require('jsonwebtoken');
@@ -151,6 +375,33 @@ function optionalAuth(req, res, next) {
     next();
 }
 
+function requireAdmin(req, res, next) {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+    next();
+}
+
+function persistQuotaConfig() {
+    quotaConfigData = { ...QUOTA_LIMITS };
+    writeJsonFile('quota-config.json', quotaConfigData);
+}
+
+function getUsageSummary(limit = 200) {
+    return summarizeUsageEvents(usageEvents, limit);
+}
+
+function isFeatureEnabled(key) {
+    try {
+        return platformConfig[key] !== false;
+    } catch (error) {
+        return true;
+    }
+}
+
+function persistPlatformConfig() {
+    writeJsonFile('platform-config.json', platformConfig);
+}
+
 function generateToken(user) {
     return jwt.sign(
         { id: user.id, email: user.email, name: user.name, role: user.role },
@@ -164,9 +415,21 @@ function generateToken(user) {
 // ═══════════════════════════════════════════════════
 
 app.post('/api/auth/register', async (req, res) => {
-    const { email, password, name, role = 'citizen' } = req.body;
+    const { email, password, name, role = 'citizen', adminBootstrapToken } = req.body;
+    if (!isFeatureEnabled('signupEnabled')) {
+        return res.status(503).json({ error: 'Registration is temporarily disabled' });
+    }
     if (!email || !password || !name) {
         return res.status(400).json({ error: 'Email, password, and name are required' });
+    }
+    const allowedRoles = new Set(['citizen', 'ngo', 'ngo_admin', 'ngo_member', 'lawyer']);
+    let safeRole = allowedRoles.has(role) ? role : 'citizen';
+    if (role === 'admin') {
+        const bootstrap = process.env.ADMIN_BOOTSTRAP_TOKEN;
+        if (!bootstrap || adminBootstrapToken !== bootstrap) {
+            return res.status(403).json({ error: 'Admin registration is restricted' });
+        }
+        safeRole = 'admin';
     }
 
     try {
@@ -176,7 +439,7 @@ app.post('/api/auth/register', async (req, res) => {
             const passwordHash = await bcrypt.hash(password, 10);
             const { data: user, error } = await supabase
                 .from('users')
-                .insert([{ email, password_hash: passwordHash, name, role }])
+                .insert([{ email, password_hash: passwordHash, name, role: safeRole }])
                 .select('id, email, name, role, created_at')
                 .single();
             if (error) throw error;
@@ -191,7 +454,7 @@ app.post('/api/auth/register', async (req, res) => {
         const passwordHash = await bcrypt.hash(password, 10);
         const user = {
             id: nextId(usersData),
-            email, name, role,
+            email, name, role: safeRole,
             password_hash: passwordHash,
             created_at: new Date().toISOString()
         };
@@ -431,10 +694,23 @@ app.post('/api/objections', authenticateToken, async (req, res) => {
 // AI LETTER GENERATION
 // ═══════════════════════════════════════════════════
 
-app.post('/api/generate-letter', rateLimiter, async (req, res) => {
+app.post('/api/generate-letter', optionalAuth, rateLimiter, async (req, res) => {
+    if (!isFeatureEnabled('letterGenerationEnabled')) {
+        return res.status(503).json({ error: 'Letter generation is temporarily disabled' });
+    }
     const { permitDetails } = req.body;
     if (!permitDetails) {
         return res.status(400).json({ error: 'permitDetails is required' });
+    }
+    if (isFeatureEnabled('quotaEnforcementEnabled')) {
+        const quotaCheck = enforceQuota(req, 'generate_letter');
+        if (!quotaCheck.allowed) {
+            recordUsage(req, 'generate_letter', { outcome: 'blocked', reason: 'quota_limit' });
+            return res.status(429).json({
+                error: 'Daily or monthly letter generation limit reached.',
+                quota: quotaCheck.status?.usage || null,
+            });
+        }
     }
 
     const {
@@ -450,17 +726,20 @@ app.post('/api/generate-letter', rateLimiter, async (req, res) => {
             const prompt = buildAIPrompt(permitDetails);
             const result = await model.generateContent(prompt);
             const letter = result.response.text();
+            recordUsage(req, 'generate_letter');
             return res.json({ letter });
         }
 
         // Fallback: Built-in legal template engine
         const letter = generateTemplatedLetter(permitDetails);
+        recordUsage(req, 'generate_letter');
         res.json({ letter });
     } catch (error) {
         console.error('Letter generation error:', error);
         // Even if AI fails, use template fallback
         try {
             const letter = generateTemplatedLetter(permitDetails);
+            recordUsage(req, 'generate_letter');
             res.json({ letter });
         } catch (fallbackError) {
             res.status(500).json({ error: 'Failed to generate letter' });
@@ -664,10 +943,23 @@ ${phone}`;
 // EMAIL SENDING
 // ═══════════════════════════════════════════════════
 
-app.post('/api/send-email', rateLimiter, async (req, res) => {
+app.post('/api/send-email', optionalAuth, rateLimiter, async (req, res) => {
+    if (!isFeatureEnabled('emailSendingEnabled')) {
+        return res.status(503).json({ error: 'Email sending is temporarily disabled' });
+    }
     const { to, subject, text } = req.body;
     if (!to || !subject || !text) {
         return res.status(400).json({ error: 'to, subject, and text are required' });
+    }
+    if (isFeatureEnabled('quotaEnforcementEnabled')) {
+        const quotaCheck = enforceQuota(req, 'send_email');
+        if (!quotaCheck.allowed) {
+            recordUsage(req, 'send_email', { outcome: 'blocked', reason: 'quota_limit' });
+            return res.status(429).json({
+                error: 'Daily email sending limit reached.',
+                quota: quotaCheck.status?.usage || null,
+            });
+        }
     }
 
     try {
@@ -678,15 +970,333 @@ app.post('/api/send-email', rateLimiter, async (req, res) => {
                 subject,
                 text,
             });
+            recordUsage(req, 'send_email');
             return res.json({ message: 'Email sent successfully' });
         }
 
         // Simulated email for demo
         console.log(`📧 [SIMULATED EMAIL] To: ${to} | Subject: ${subject}`);
+        recordUsage(req, 'send_email');
         res.json({ message: 'Email sent successfully (demo mode)' });
     } catch (error) {
         console.error('Email error:', error);
         res.status(500).json({ error: 'Failed to send email' });
+    }
+});
+
+app.get('/api/usage', optionalAuth, (req, res) => {
+    try {
+        const letterStatus = getUsageStatus(req, 'generate_letter');
+        const emailStatus = getUsageStatus(req, 'send_email');
+        return res.json({
+            actor: letterStatus.actor,
+            letters: {
+                limits: letterStatus.quota,
+                usage: letterStatus.usage,
+            },
+            email: {
+                limits: emailStatus.quota,
+                usage: emailStatus.usage,
+            },
+        });
+    } catch (error) {
+        return res.status(200).json({
+            actor: { key: 'unknown', kind: 'unknown', role: 'unknown' },
+            letters: null,
+            email: null,
+            warning: 'Usage information is temporarily unavailable.',
+        });
+    }
+});
+
+// ═══════════════════════════════════════════════════
+// ADMIN CONTROL PLANE (PHASE 1.5)
+// ═══════════════════════════════════════════════════
+
+app.get('/api/admin/quotas', authenticateToken, requireAdmin, (req, res) => {
+    res.json({
+        quotas: QUOTA_LIMITS,
+        source: 'json-config-with-env-overrides',
+    });
+});
+
+app.get('/api/admin/platform-config', authenticateToken, requireAdmin, (req, res) => {
+    return res.json({ platformConfig });
+});
+
+app.patch('/api/admin/platform-config', authenticateToken, requireAdmin, (req, res) => {
+    try {
+        platformConfig = applyPlatformPatch(platformConfig, req.body || {});
+        persistPlatformConfig();
+        return res.json({
+            message: 'Platform config updated',
+            platformConfig,
+        });
+    } catch (error) {
+        return res.status(500).json({ error: 'Failed to persist platform config' });
+    }
+});
+
+app.patch('/api/admin/quotas', authenticateToken, requireAdmin, (req, res) => {
+    const allowedKeys = Object.keys(DEFAULT_QUOTA_LIMITS);
+    const updates = req.body || {};
+    const errors = [];
+
+    for (const [key, value] of Object.entries(updates)) {
+        if (!allowedKeys.includes(key)) {
+            errors.push(`Unknown quota key: ${key}`);
+            continue;
+        }
+        const parsed = Number.parseInt(String(value), 10);
+        if (!Number.isFinite(parsed) || parsed < 0) {
+            errors.push(`Invalid value for ${key}`);
+            continue;
+        }
+        QUOTA_LIMITS[key] = parsed;
+    }
+
+    if (errors.length > 0) {
+        return res.status(400).json({ error: errors.join('; ') });
+    }
+
+    try {
+        persistQuotaConfig();
+        return res.json({ message: 'Quota configuration updated', quotas: QUOTA_LIMITS });
+    } catch (error) {
+        console.error('Failed to persist quota config:', error.message);
+        return res.status(500).json({ error: 'Failed to persist quota configuration' });
+    }
+});
+
+app.get('/api/admin/usage/summary', authenticateToken, requireAdmin, (req, res) => {
+    try {
+        const limitRaw = Number.parseInt(String(req.query.limit || '200'), 10);
+        const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 1000) : 200;
+        return res.json({
+            summary: getUsageSummary(limit),
+            quotas: QUOTA_LIMITS,
+        });
+    } catch (error) {
+        return res.status(500).json({ error: 'Failed to generate usage summary' });
+    }
+});
+
+app.get('/api/admin/usage/anomalies', authenticateToken, requireAdmin, (req, res) => {
+    try {
+        const windowHoursRaw = Number.parseInt(String(req.query.windowHours || '24'), 10);
+        const minEventsRaw = Number.parseInt(String(req.query.minEvents || '25'), 10);
+        const anomalies = detectUsageAnomalies(usageEvents, {
+            windowHours: Number.isFinite(windowHoursRaw) ? windowHoursRaw : 24,
+            minEvents: Number.isFinite(minEventsRaw) ? minEventsRaw : 25,
+        });
+        return res.json({
+            count: anomalies.length,
+            anomalies,
+        });
+    } catch (error) {
+        return res.status(500).json({ error: 'Failed to detect anomalies' });
+    }
+});
+
+app.post('/api/admin/usage/reset', authenticateToken, requireAdmin, (req, res) => {
+    const { actorKey, action, dayKey, monthKey, all = false } = req.body || {};
+    if (!all && !actorKey && !action && !dayKey && !monthKey) {
+        return res.status(400).json({ error: 'Specify reset filters or set all=true' });
+    }
+
+    const before = usageEvents.length;
+    usageEvents = usageEvents.filter((event) => {
+        if (all) return false;
+        if (actorKey && event.actor_key !== actorKey) return true;
+        if (action && event.action !== action) return true;
+        if (dayKey && event.day_key !== dayKey) return true;
+        if (monthKey && event.month_key !== monthKey) return true;
+        return false;
+    });
+    const removed = before - usageEvents.length;
+
+    try {
+        writeArrayFile('usage-events.json', usageEvents);
+        return res.json({
+            message: 'Usage events reset completed',
+            removed,
+            remaining: usageEvents.length,
+        });
+    } catch (error) {
+        console.error('Failed to persist usage reset:', error.message);
+        return res.status(500).json({ error: 'Failed to persist usage reset' });
+    }
+});
+
+app.get('/api/admin/permit-sources', authenticateToken, requireAdmin, (req, res) => {
+    return res.json({
+        sources: permitSourcesData,
+        enabled: permitSourcesData.filter((source) => source.enabled !== false).length,
+        total: permitSourcesData.length,
+    });
+});
+
+app.post('/api/admin/permit-sources/preview', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const sourceKey = req.body?.sourceKey ? String(req.body.sourceKey) : null;
+        if (!sourceKey) {
+            return res.status(400).json({ error: 'sourceKey is required' });
+        }
+        const source = permitSourcesData.find((item) => item.key === sourceKey);
+        if (!source) {
+            return res.status(404).json({ error: `Source not found: ${sourceKey}` });
+        }
+
+        const preview = await previewPermitSource({
+            source,
+            baseDir: __dirname,
+            sampleLimit: req.body?.sampleLimit || 5,
+        });
+        return res.json({ preview });
+    } catch (error) {
+        return res.status(500).json({ error: 'Failed to preview source' });
+    }
+});
+
+app.post('/api/admin/permit-sources/validate', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const sourceKey = req.body?.sourceKey ? String(req.body.sourceKey) : null;
+        if (!sourceKey) {
+            return res.status(400).json({ error: 'sourceKey is required' });
+        }
+        const source = permitSourcesData.find((item) => item.key === sourceKey);
+        if (!source) {
+            return res.status(404).json({ error: `Source not found: ${sourceKey}` });
+        }
+
+        const preview = await previewPermitSource({
+            source,
+            baseDir: __dirname,
+            sampleLimit: req.body?.sampleLimit || 5,
+        });
+
+        const dryIngestedPermits = deepCloneJson(ingestedPermitsData);
+        const dryStatusHistory = deepCloneJson(permitStatusHistoryData);
+        const dryRuns = [];
+        const { run } = await syncPermitSources({
+            sources: [source],
+            sourceKey: source.key,
+            ingestedPermits: dryIngestedPermits,
+            statusHistory: dryStatusHistory,
+            ingestionRuns: dryRuns,
+            baseDir: __dirname,
+        });
+
+        const report = buildSourceValidationReport({
+            source,
+            preview,
+            dryRun: run,
+        });
+
+        return res.json({
+            sourceKey,
+            preview,
+            dryRun: run,
+            report,
+        });
+    } catch (error) {
+        return res.status(500).json({ error: 'Failed to validate source' });
+    }
+});
+
+app.patch('/api/admin/permit-sources/:sourceKey', authenticateToken, requireAdmin, (req, res) => {
+    const sourceKey = String(req.params.sourceKey);
+    const sourceIndex = permitSourcesData.findIndex((source) => source.key === sourceKey);
+    if (sourceIndex < 0) {
+        return res.status(404).json({ error: `Source not found: ${sourceKey}` });
+    }
+
+    try {
+        const updated = applySourcePatch(permitSourcesData[sourceIndex], req.body || {});
+        permitSourcesData[sourceIndex] = updated;
+        persistPermitSources();
+        return res.json({
+            message: 'Permit source updated',
+            source: updated,
+        });
+    } catch (error) {
+        return res.status(400).json({ error: error.message || 'Invalid source update' });
+    }
+});
+
+app.get('/api/admin/ingestion-runs', authenticateToken, requireAdmin, (req, res) => {
+    const limitRaw = Number.parseInt(String(req.query.limit || '25'), 10);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 25;
+    const runs = [...ingestionRunsData]
+        .sort((a, b) => new Date(b.started_at || 0) - new Date(a.started_at || 0))
+        .slice(0, limit);
+    return res.json({ runs, total: ingestionRunsData.length });
+});
+
+app.get('/api/admin/ingestion-health', authenticateToken, requireAdmin, (req, res) => {
+    try {
+        const health = summarizeIngestionHealth({
+            sources: permitSourcesData,
+            ingestedPermits: ingestedPermitsData,
+            ingestionRuns: ingestionRunsData,
+            now: new Date(),
+        });
+        return res.json(health);
+    } catch (error) {
+        return res.status(500).json({ error: 'Failed to compute ingestion health' });
+    }
+});
+
+app.get('/api/admin/permit-status-history', authenticateToken, requireAdmin, (req, res) => {
+    const limitRaw = Number.parseInt(String(req.query.limit || '50'), 10);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 500) : 50;
+    const permitKey = req.query.permitKey ? String(req.query.permitKey) : null;
+    let events = [...permitStatusHistoryData];
+    if (permitKey) {
+        events = events.filter((event) => event.permit_key === permitKey);
+    }
+    events = events
+        .sort((a, b) => new Date(b.changed_at || 0) - new Date(a.changed_at || 0))
+        .slice(0, limit);
+    return res.json({ events, total: permitStatusHistoryData.length });
+});
+
+app.post('/api/admin/permit-sources/sync', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const sourceKey = req.body?.sourceKey ? String(req.body.sourceKey) : null;
+        const { run } = await syncPermitSources({
+            sources: permitSourcesData,
+            sourceKey,
+            ingestedPermits: ingestedPermitsData,
+            statusHistory: permitStatusHistoryData,
+            ingestionRuns: ingestionRunsData,
+            baseDir: __dirname,
+        });
+
+        if (ingestionRunsData.length > 1000) {
+            ingestionRunsData = ingestionRunsData.slice(-1000);
+        }
+        if (permitStatusHistoryData.length > 5000) {
+            permitStatusHistoryData = permitStatusHistoryData.slice(-5000);
+        }
+
+        persistPermitIngestionData();
+
+        return res.json({
+            message: 'Permit sync completed',
+            run,
+            totals: {
+                ingestedPermits: ingestedPermitsData.length,
+                statusHistoryEvents: permitStatusHistoryData.length,
+                ingestionRuns: ingestionRunsData.length,
+            },
+        });
+    } catch (error) {
+        if (error.message.includes('No enabled permit sources') || error.message.includes('Source not found')) {
+            return res.status(404).json({ error: error.message });
+        }
+        console.error('Permit sync failed:', error.message);
+        return res.status(500).json({ error: 'Failed to sync permit sources' });
     }
 });
 
@@ -788,7 +1398,13 @@ app.get('/api/health', (req, res) => {
         status: 'ok',
         service: 'affog-api',
         timestamp: new Date().toISOString(),
-        storage: supabase ? 'supabase' : 'json'
+        storage: supabase ? 'supabase' : 'json',
+        quotaService: 'json-events',
+        permits: {
+            static: permitsData.length,
+            ingested: ingestedPermitsData.length,
+            submitted: submittedPermitsData.length,
+        }
     });
 });
 
@@ -804,6 +1420,22 @@ app.get('/api', (req, res) => {
             'POST /api/permits',
             'POST /api/generate-letter',
             'POST /api/send-email',
+            'GET  /api/usage',
+            'GET  /api/admin/quotas',
+            'PATCH /api/admin/quotas',
+            'GET  /api/admin/platform-config',
+            'PATCH /api/admin/platform-config',
+            'GET  /api/admin/usage/summary',
+            'GET  /api/admin/usage/anomalies',
+            'POST /api/admin/usage/reset',
+            'GET  /api/admin/permit-sources',
+            'POST /api/admin/permit-sources/preview',
+            'POST /api/admin/permit-sources/validate',
+            'PATCH /api/admin/permit-sources/:sourceKey',
+            'POST /api/admin/permit-sources/sync',
+            'GET  /api/admin/ingestion-runs',
+            'GET  /api/admin/ingestion-health',
+            'GET  /api/admin/permit-status-history',
             'GET  /api/stats',
             'GET  /api/objections',
             'POST /api/objections',

@@ -1,0 +1,158 @@
+[
+  {
+    "id": "run-1771413799908-4zohr2",
+    "started_at": "2026-02-18T11:23:19.908Z",
+    "completed_at": "2026-02-18T11:23:19.910Z",
+    "source_keys": [
+      "global_demo_feed"
+    ],
+    "inserted": 2,
+    "updated": 0,
+    "status_changed": 0,
+    "skipped": 0,
+    "errors": 0,
+    "source_results": [
+      {
+        "sourceKey": "global_demo_feed",
+        "sourceName": "Global Demo Permit Feed",
+        "fetched": 2,
+        "inserted": 2,
+        "updated": 0,
+        "statusChanged": 0,
+        "skipped": 0,
+        "errors": 0,
+        "errorMessages": []
+      }
+    ]
+  },
+  {
+    "id": "run-1771413799913-9rqna0",
+    "started_at": "2026-02-18T11:23:19.913Z",
+    "completed_at": "2026-02-18T11:23:22.452Z",
+    "source_keys": [
+      "nc_deq_application_tracker"
+    ],
+    "inserted": 58,
+    "updated": 0,
+    "status_changed": 0,
+    "skipped": 0,
+    "errors": 0,
+    "source_results": [
+      {
+        "sourceKey": "nc_deq_application_tracker",
+        "sourceName": "North Carolina DEQ Application Tracker",
+        "fetched": 58,
+        "inserted": 58,
+        "updated": 0,
+        "statusChanged": 0,
+        "skipped": 0,
+        "errors": 0,
+        "errorMessages": []
+      }
+    ]
+  },
+  {
+    "id": "run-1771413802453-ahjbov",
+    "started_at": "2026-02-18T11:23:22.453Z",
+    "completed_at": "2026-02-18T11:23:26.806Z",
+    "source_keys": [
+      "uk_ea_public_register"
+    ],
+    "inserted": 2000,
+    "updated": 0,
+    "status_changed": 0,
+    "skipped": 0,
+    "errors": 0,
+    "source_results": [
+      {
+        "sourceKey": "uk_ea_public_register",
+        "sourceName": "UK Environment Agency Public Register",
+        "fetched": 2000,
+        "inserted": 2000,
+        "updated": 0,
+        "statusChanged": 0,
+        "skipped": 0,
+        "errors": 0,
+        "errorMessages": []
+      }
+    ]
+  },
+  {
+    "id": "run-1771413866924-zwwwun",
+    "started_at": "2026-02-18T11:24:26.924Z",
+    "completed_at": "2026-02-18T11:24:26.926Z",
+    "source_keys": [
+      "global_demo_feed"
+    ],
+    "inserted": 0,
+    "updated": 2,
+    "status_changed": 0,
+    "skipped": 0,
+    "errors": 0,
+    "source_results": [
+      {
+        "sourceKey": "global_demo_feed",
+        "sourceName": "Global Demo Permit Feed",
+        "fetched": 2,
+        "inserted": 0,
+        "updated": 2,
+        "statusChanged": 0,
+        "skipped": 0,
+        "errors": 0,
+        "errorMessages": []
+      }
+    ]
+  },
+  {
+    "id": "run-1771413866930-lgr59r",
+    "started_at": "2026-02-18T11:24:26.930Z",
+    "completed_at": "2026-02-18T11:24:29.259Z",
+    "source_keys": [
+      "nc_deq_application_tracker"
+    ],
+    "inserted": 0,
+    "updated": 58,
+    "status_changed": 44,
+    "skipped": 0,
+    "errors": 0,
+    "source_results": [
+      {
+        "sourceKey": "nc_deq_application_tracker",
+        "sourceName": "North Carolina DEQ Application Tracker",
+        "fetched": 58,
+        "inserted": 0,
+        "updated": 58,
+        "statusChanged": 44,
+        "skipped": 0,
+        "errors": 0,
+        "errorMessages": []
+      }
+    ]
+  },
+  {
+    "id": "run-1771413869259-p7ykyh",
+    "started_at": "2026-02-18T11:24:29.259Z",
+    "completed_at": "2026-02-18T11:24:31.589Z",
+    "source_keys": [
+      "uk_ea_public_register"
+    ],
+    "inserted": 0,
+    "updated": 2000,
+    "status_changed": 0,
+    "skipped": 0,
+    "errors": 0,
+    "source_results": [
+      {
+        "sourceKey": "uk_ea_public_register",
+        "sourceName": "UK Environment Agency Public Register",
+        "fetched": 2000,
+        "inserted": 0,
+        "updated": 2000,
+        "statusChanged": 0,
+        "skipped": 0,
+        "errors": 0,
+        "errorMessages": []
+      }
+    ]
+  }
+]
