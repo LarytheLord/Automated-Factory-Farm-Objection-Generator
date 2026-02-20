@@ -48,6 +48,7 @@ Optional:
 - `USER_PASS`
 - `SUPABASE_URL`
 - `SUPABASE_KEY`
+- `REQUIRE_SUPABASE` (`true` to fail startup unless Supabase is configured; recommended for strict production mode)
 - `ADMIN_BOOTSTRAP_TOKEN` (required only if you want to create admin users via register API)
 - `FREE_DAILY_LETTERS`
 - `FREE_MONTHLY_LETTERS`
@@ -62,6 +63,12 @@ Optional:
 - `INCLUDE_STATIC_PERMITS` (`false` by default; set `true` only if you want bundled static permits from `backend/permits.json`)
 - `REAL_PERMITS_ONLY` (`true` by default; excludes untrusted/demo permits from `/api/permits`)
 - `EMAIL_SEND_TIMEOUT_MS` (default `20000`)
+- `ALLOWED_ORIGINS` (comma-separated CORS allowlist; required in production for browser access)
+- `TRUST_PROXY` (default enabled; set `false` only if you are not behind a proxy/load balancer)
+- `STRICT_SECURITY_HEADERS` (default enabled in production)
+- `AUTH_RATE_LIMIT_PER_HOUR` (default `20`)
+- `LETTER_RATE_LIMIT_PER_HOUR` (default `25`)
+- `EMAIL_RATE_LIMIT_PER_HOUR` (default `20`)
 - `PORT` (default `3000` in unified mode)
 - `NODE_ENV`
 
@@ -84,6 +91,9 @@ Optional:
 - `GET /api/admin/quotas` (admin)
 - `PATCH /api/admin/quotas` (admin)
 - `GET /api/admin/platform-config` (admin)
+- `GET /api/admin/runtime-config` (admin)
+- `GET /api/admin/access-requests` (admin)
+- `PATCH /api/admin/access-requests/:userId` (admin)
 - `PATCH /api/admin/platform-config` (admin)
 - `GET /api/admin/usage/summary` (admin)
 - `GET /api/admin/usage/anomalies` (admin)
@@ -118,6 +128,14 @@ npm run test:all:local
 ```
 
 The contract suite validates auth, permits, letter generation, objection persistence, and email endpoint behavior.
+
+## Access Control Model
+
+- Permit browsing and letter/email actions are protected by auth + manual approval.
+- New signups are pending by default.
+- Admins can review and approve/revoke account access through:
+  - `GET /api/admin/access-requests`
+  - `PATCH /api/admin/access-requests/:userId` with `{ "approved": true|false, "note": "..." }`
 
 Permit ingestion is source-driven via `backend/data/permit-sources.json` and persists normalized records to `backend/data/ingested-permits.json`.
 The current local default runs remote sources only (`local_file` sources are disabled by default).

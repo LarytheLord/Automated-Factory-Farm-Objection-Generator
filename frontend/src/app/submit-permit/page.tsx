@@ -70,15 +70,15 @@ export default function SubmitPermit() {
     };
 
     if (isLoading) {
-        return <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        return <div className="min-h-screen bg-black text-slate-900 flex items-center justify-center">
             <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
         </div>;
     }
 
     return (
-        <div className="min-h-screen bg-black text-white p-8 hero-gradient">
+        <div className="min-h-screen bg-black text-slate-900 p-8 hero-gradient">
             <div className="max-w-2xl mx-auto">
-                <Link href="/" className="inline-flex items-center text-gray-400 hover:text-white mb-8 transition-colors">
+                <Link href="/" className="inline-flex items-center text-gray-400 hover:text-slate-900 mb-8 transition-colors">
                     <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
                 </Link>
 
@@ -110,7 +110,7 @@ export default function SubmitPermit() {
                                     name="project_title"
                                     value={formData.project_title}
                                     onChange={handleChange}
-                                    className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                                    className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-slate-900 focus:outline-none focus:border-emerald-500 transition-colors"
                                     placeholder="e.g. Mega Dairy Farm Expansion"
                                     required
                                 />
@@ -126,7 +126,7 @@ export default function SubmitPermit() {
                                         name="country"
                                         value={formData.country}
                                         onChange={handleChange}
-                                        className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-emerald-500 transition-colors appearance-none"
+                                        className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-slate-900 focus:outline-none focus:border-emerald-500 transition-colors appearance-none"
                                         required
                                     >
                                         <option value="">Select Country</option>
@@ -148,7 +148,7 @@ export default function SubmitPermit() {
                                         name="location"
                                         value={formData.location}
                                         onChange={handleChange}
-                                        className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                                        className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-slate-900 focus:outline-none focus:border-emerald-500 transition-colors"
                                         placeholder="City, Region"
                                         required
                                     />
@@ -164,7 +164,7 @@ export default function SubmitPermit() {
                                     name="activity"
                                     value={formData.activity}
                                     onChange={handleChange}
-                                    className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-emerald-500 transition-colors min-h-[100px]"
+                                    className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-slate-900 focus:outline-none focus:border-emerald-500 transition-colors min-h-[100px]"
                                     placeholder="Describe the facility operations..."
                                     required
                                 />
@@ -178,7 +178,7 @@ export default function SubmitPermit() {
                                     name="category"
                                     value={formData.category}
                                     onChange={handleChange}
-                                    className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                                    className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 text-slate-900 focus:outline-none focus:border-emerald-500 transition-colors"
                                 >
                                     <option value="Red">Red (High Risk)</option>
                                     <option value="Orange">Orange (Medium Risk)</option>

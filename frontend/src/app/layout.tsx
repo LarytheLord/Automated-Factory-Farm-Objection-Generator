@@ -26,7 +26,7 @@ export default function RootLayout({
   noStore();
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased bg-black text-white`}>
+      <body className={`${inter.variable} font-sans antialiased bg-slate-50 text-slate-900`}>
         {children}
       </body>
     </html>

@@ -1,11 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --background: #000000;
-  --foreground: #ededed;
-  --accent-green: #10b981;
-  --accent-blue: #3b82f6;
-  --accent-purple: #8b5cf6;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --accent-green: #0f766e;
+  --accent-blue: #2563eb;
 }
 
 @theme inline {
@@ -20,37 +19,51 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
+input,
+textarea,
+select {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8;
+}
+
 ::selection {
-  background: rgba(16, 185, 129, 0.3);
-  color: white;
+  background: rgba(37, 99, 235, 0.25);
+  color: #0f172a;
 }
 
 /* ── Glass Card ── */
 .glass-card {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 16px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
 }
 
 .glass-card:hover {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(15, 23, 42, 0.16);
+  background: rgba(255, 255, 255, 0.98);
 }
 
 /* ── Sticky Nav ── */
 .nav-glass {
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 /* ── Gradient Text ── */
 .gradient-text {
-  background: linear-gradient(135deg, #10b981 0%, #3b82f6 50%, #8b5cf6 100%);
+  background: linear-gradient(135deg, #0f766e 0%, #2563eb 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -59,15 +72,14 @@ body {
 /* ── Hero Gradient ── */
 .hero-gradient {
   background:
-    radial-gradient(ellipse at 20% 50%, rgba(16, 185, 129, 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(59, 130, 246, 0.04) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 80%, rgba(139, 92, 246, 0.03) 0%, transparent 50%);
+    radial-gradient(ellipse at 20% 50%, rgba(15, 118, 110, 0.08) 0%, transparent 52%),
+    radial-gradient(ellipse at 80% 20%, rgba(37, 99, 235, 0.07) 0%, transparent 55%);
 }
 
 /* ── Section Divider ── */
 .section-divider {
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  background: linear-gradient(90deg, transparent, rgba(15, 23, 42, 0.12), transparent);
 }
 
 /* ── Live Pulse ── */
@@ -80,7 +92,7 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #10b981;
+  background: #0f766e;
   animation: pulse-glow 2s infinite;
 }
 
@@ -121,28 +133,32 @@ body {
 
 /* ── Badges ── */
 .badge-approved {
-  background: rgba(16, 185, 129, 0.1);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.15);
+  background: rgba(15, 118, 110, 0.1);
+  color: #0f766e;
+  border: 1px solid rgba(15, 118, 110, 0.15);
 }
 .badge-pending {
-  background: rgba(245, 158, 11, 0.1);
-  color: #fbbf24;
+  background: rgba(202, 138, 4, 0.12);
+  color: #a16207;
   border: 1px solid rgba(245, 158, 11, 0.15);
 }
 .badge-rejected {
-  background: rgba(239, 68, 68, 0.1);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.15);
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
+  border: 1px solid rgba(220, 38, 38, 0.15);
 }
 .badge-under-review {
-  background: rgba(59, 130, 246, 0.1);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.15);
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  border: 1px solid rgba(37, 99, 235, 0.15);
+}
+
+.bg-black {
+  background-color: #f8fafc;
 }
 
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+::-webkit-scrollbar-thumb { background: rgba(15, 23, 42, 0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(15, 23, 42, 0.35); }

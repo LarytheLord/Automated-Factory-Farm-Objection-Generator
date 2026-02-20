@@ -3,6 +3,8 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
 const { readArrayFile, writeArrayFile, readJsonFile, writeJsonFile, nextId } = require('./dataStore');
 const { summarizeUsageEvents, detectUsageAnomalies } = require('./usageAnalytics');
@@ -16,10 +18,60 @@ const { sanitizeLetterText } = require('./letterSanitizer');
 
 const app = express();
 const port = process.env.PORT || 3001;
+const isProduction = process.env.NODE_ENV === 'production';
+
+function parseCsvEnv(value) {
+    return String(value || '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+}
+
+function parseBooleanEnv(name, fallback = false) {
+    const value = String(process.env[name] || '').trim().toLowerCase();
+    if (!value) return fallback;
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return fallback;
+}
+
+const allowlistedOrigins = parseCsvEnv(process.env.ALLOWED_ORIGINS);
+const strictSecurityHeaders = parseBooleanEnv('STRICT_SECURITY_HEADERS', isProduction);
+if (process.env.TRUST_PROXY !== 'false') {
+    app.set('trust proxy', 1);
+}
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow non-browser requests (no Origin header).
+        if (!origin) return callback(null, true);
+        if (allowlistedOrigins.length === 0) {
+            // Default-open for local/dev; default-closed for production unless explicitly allowlisted.
+            return isProduction
+                ? callback(new Error('CORS origin denied'))
+                : callback(null, true);
+        }
+        return allowlistedOrigins.includes(origin)
+            ? callback(null, true)
+            : callback(new Error('CORS origin denied'));
+    },
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+}));
 app.use(express.json({ limit: '1mb' }));
+
+if (strictSecurityHeaders) {
+    app.use((req, res, next) => {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('X-Frame-Options', 'DENY');
+        res.setHeader('Referrer-Policy', 'no-referrer');
+        res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+        if (isProduction && req.secure) {
+            res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+        }
+        next();
+    });
+}
 
 // ─── Environment variables (graceful handling) ───
 const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -56,6 +108,7 @@ if (emailUser && emailPass) {
 
 // ─── Supabase (optional) ───
 let supabase = null;
+const requireSupabase = parseBooleanEnv('REQUIRE_SUPABASE', false);
 try {
     if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
         supabase = require('./supabaseClient');
@@ -64,6 +117,9 @@ try {
 } catch (e) {
     console.warn('⚠️  Supabase not available. Using JSON fallback.');
 }
+if (requireSupabase && !supabase) {
+    throw new Error('REQUIRE_SUPABASE=true but Supabase is not configured');
+}
 
 // ─── JSON Data Store (fallback/persistent) ───
 let permitsData = [];
@@ -71,6 +127,7 @@ let submittedPermitsData = readArrayFile('submitted-permits.json');
 let ingestedPermitsData = readArrayFile('ingested-permits.json');
 let usersData = readArrayFile('users.json');
 let objectionsData = readArrayFile('objections.json');
+let accessApprovalsData = readArrayFile('access-approvals.json');
 let usageEvents = readArrayFile('usage-events.json');
 let permitStatusHistoryData = readArrayFile('permit-status-history.json');
 let ingestionRunsData = readArrayFile('ingestion-runs.json');
@@ -167,6 +224,10 @@ function persistPermitSources() {
     writeArrayFile('permit-sources.json', permitSourcesData);
 }
 
+function persistAccessApprovals() {
+    writeArrayFile('access-approvals.json', accessApprovalsData);
+}
+
 function deepCloneJson(value) {
     return JSON.parse(JSON.stringify(value));
 }
@@ -212,32 +273,55 @@ if (permitSyncEnabled) {
 }
 
 // ─── Rate Limiting (with automatic stale-IP cleanup) ───
-const rateLimit = new Map();
-const RATE_LIMIT_WINDOW = 60 * 60 * 1000;
-const MAX_REQUESTS = 20;
+function createRateLimiter({ key, windowMs, maxRequests }) {
+    const buckets = new Map();
+    const safeWindowMs = Math.max(60 * 1000, Number(windowMs) || 60 * 60 * 1000);
+    const safeMax = Math.max(1, Number(maxRequests) || 20);
 
-// Sweep stale IPs every 10 min so the Map doesn't grow forever
-setInterval(() => {
-    const now = Date.now();
-    for (const [ip, timestamps] of rateLimit) {
-        const active = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW);
-        if (active.length === 0) rateLimit.delete(ip);
-        else rateLimit.set(ip, active);
-    }
-}, 10 * 60 * 1000).unref();
+    // Sweep stale keys so memory does not grow unbounded.
+    setInterval(() => {
+        const now = Date.now();
+        for (const [bucketKey, timestamps] of buckets) {
+            const active = timestamps.filter((t) => now - t < safeWindowMs);
+            if (active.length === 0) buckets.delete(bucketKey);
+            else buckets.set(bucketKey, active);
+        }
+    }, 10 * 60 * 1000).unref();
 
-const rateLimiter = (req, res, next) => {
-    const ip = req.ip || req.connection?.remoteAddress || 'unknown';
-    const now = Date.now();
-    if (!rateLimit.has(ip)) rateLimit.set(ip, []);
-    const timestamps = rateLimit.get(ip).filter(t => now - t < RATE_LIMIT_WINDOW);
-    rateLimit.set(ip, timestamps);
-    if (timestamps.length >= MAX_REQUESTS) {
-        return res.status(429).json({ error: 'Too many requests. Please try again later.' });
-    }
-    timestamps.push(now);
-    next();
-};
+    return (req, res, next) => {
+        const bucketKey = `${key}:${getClientIp(req)}`;
+        const now = Date.now();
+        const existing = buckets.get(bucketKey) || [];
+        const active = existing.filter((t) => now - t < safeWindowMs);
+        if (active.length >= safeMax) {
+            return res.status(429).json({
+                error: 'Too many requests. Please try again later.',
+                limiter: key,
+            });
+        }
+        active.push(now);
+        buckets.set(bucketKey, active);
+        next();
+    };
+}
+
+const authRateLimiter = createRateLimiter({
+    key: 'auth',
+    windowMs: 60 * 60 * 1000,
+    maxRequests: intFromEnv('AUTH_RATE_LIMIT_PER_HOUR', 20),
+});
+
+const letterRateLimiter = createRateLimiter({
+    key: 'generate-letter',
+    windowMs: 60 * 60 * 1000,
+    maxRequests: intFromEnv('LETTER_RATE_LIMIT_PER_HOUR', 25),
+});
+
+const emailRateLimiter = createRateLimiter({
+    key: 'send-email',
+    windowMs: 60 * 60 * 1000,
+    maxRequests: intFromEnv('EMAIL_RATE_LIMIT_PER_HOUR', 20),
+});
 
 function intFromEnv(name, fallback) {
     const value = Number.parseInt(process.env[name] || '', 10);
@@ -276,6 +360,119 @@ function getClientIp(req) {
         req.connection?.remoteAddress ||
         'unknown'
     );
+}
+
+function normalizeEmail(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function sanitizeNote(value, maxLength = 400) {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    return trimmed.slice(0, maxLength);
+}
+
+function findAccessApprovalByUser(user) {
+    if (!user || typeof user !== 'object') return null;
+    const userId = user.id === undefined || user.id === null ? '' : String(user.id);
+    const email = normalizeEmail(user.email);
+    return (
+        accessApprovalsData.find((entry) => {
+            const entryUserId = entry?.user_id === undefined || entry?.user_id === null ? '' : String(entry.user_id);
+            const entryEmail = normalizeEmail(entry?.email);
+            if (userId && entryUserId && entryUserId === userId) return true;
+            if (email && entryEmail && entryEmail === email) return true;
+            return false;
+        }) || null
+    );
+}
+
+function isUserAccessApproved(user) {
+    if (!user || typeof user !== 'object') return false;
+    if (user.role === 'admin') return true;
+    const approval = findAccessApprovalByUser(user);
+    return approval?.approved === true;
+}
+
+function decorateUserAccess(user) {
+    if (!user || typeof user !== 'object') return user;
+    const accessApproved = isUserAccessApproved(user);
+    return {
+        ...user,
+        accessApproved,
+        accessPending: !accessApproved,
+    };
+}
+
+function upsertAccessApproval(user, { approved, reviewedBy = null, note = null } = {}) {
+    if (!user || user.id === undefined || user.id === null) {
+        throw new Error('Cannot update access approval without user id');
+    }
+    const userId = String(user.id);
+    const email = normalizeEmail(user.email);
+    const nowIso = new Date().toISOString();
+    const reviewedByValue = reviewedBy === undefined || reviewedBy === null ? null : String(reviewedBy);
+
+    const existingIndex = accessApprovalsData.findIndex((entry) => {
+        const entryUserId = entry?.user_id === undefined || entry?.user_id === null ? '' : String(entry.user_id);
+        const entryEmail = normalizeEmail(entry?.email);
+        return (entryUserId && entryUserId === userId) || (email && entryEmail && entryEmail === email);
+    });
+
+    const safeApproved = approved === true;
+    const safeNote = sanitizeNote(note);
+
+    if (existingIndex < 0) {
+        const newEntry = {
+            id: nextId(accessApprovalsData),
+            user_id: userId,
+            email,
+            approved: safeApproved,
+            note: safeNote,
+            reviewed_by: reviewedByValue,
+            reviewed_at: reviewedByValue ? nowIso : null,
+            created_at: nowIso,
+            updated_at: nowIso,
+        };
+        accessApprovalsData.push(newEntry);
+        persistAccessApprovals();
+        return newEntry;
+    }
+
+    const existing = accessApprovalsData[existingIndex];
+    existing.user_id = userId;
+    existing.email = email;
+    existing.approved = safeApproved;
+    existing.note = safeNote;
+    existing.reviewed_by = reviewedByValue;
+    existing.reviewed_at = reviewedByValue ? nowIso : existing.reviewed_at || null;
+    existing.updated_at = nowIso;
+    accessApprovalsData[existingIndex] = existing;
+    persistAccessApprovals();
+    return existing;
+}
+
+function buildAccessRequestRecord(user) {
+    const approval = findAccessApprovalByUser(user);
+    const accessApproved = isUserAccessApproved(user);
+    return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        created_at: user.created_at || null,
+        accessApproved,
+        accessPending: !accessApproved,
+        approval: approval
+            ? {
+                note: approval.note || null,
+                reviewed_by: approval.reviewed_by || null,
+                reviewed_at: approval.reviewed_at || null,
+                updated_at: approval.updated_at || null,
+            }
+            : null,
+    };
 }
 
 function getActor(req) {
@@ -398,9 +595,6 @@ function recordUsage(req, action, metadata = {}) {
 }
 
 // ─── JWT Auth Middleware ───
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
-const isProduction = process.env.NODE_ENV === 'production';
 const JWT_SECRET = process.env.JWT_SECRET || (isProduction ? '' : 'affog-demo-secret-2026');
 
 if (!JWT_SECRET) {
@@ -439,6 +633,17 @@ function requireAdmin(req, res, next) {
     next();
 }
 
+function requireApprovedAccess(req, res, next) {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    if (!isUserAccessApproved(req.user)) {
+        return res.status(403).json({
+            error: 'Account pending manual approval',
+            accessApproved: false,
+        });
+    }
+    next();
+}
+
 function persistQuotaConfig() {
     quotaConfigData = { ...QUOTA_LIMITS };
     writeJsonFile('quota-config.json', quotaConfigData);
@@ -472,7 +677,7 @@ function generateToken(user) {
 // AUTH ROUTES
 // ═══════════════════════════════════════════════════
 
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', authRateLimiter, async (req, res) => {
     const { email, password, name, role = 'citizen', adminBootstrapToken } = req.body;
     if (!isFeatureEnabled('signupEnabled')) {
         return res.status(503).json({ error: 'Registration is temporarily disabled' });
@@ -501,8 +706,13 @@ app.post('/api/auth/register', async (req, res) => {
                 .select('id, email, name, role, created_at')
                 .single();
             if (error) throw error;
+            upsertAccessApproval(user, {
+                approved: safeRole === 'admin',
+                reviewedBy: safeRole === 'admin' ? 'system' : null,
+                note: safeRole === 'admin' ? 'Auto-approved admin user' : null,
+            });
             const token = generateToken(user);
-            return res.status(201).json({ user, token });
+            return res.status(201).json({ user: decorateUserAccess(user), token });
         }
 
         // JSON fallback
@@ -519,15 +729,20 @@ app.post('/api/auth/register', async (req, res) => {
         usersData.push(user);
         writeArrayFile('users.json', usersData);
         const { password_hash, ...safeUser } = user;
+        upsertAccessApproval(safeUser, {
+            approved: safeRole === 'admin',
+            reviewedBy: safeRole === 'admin' ? 'system' : null,
+            note: safeRole === 'admin' ? 'Auto-approved admin user' : null,
+        });
         const token = generateToken(safeUser);
-        res.status(201).json({ user: safeUser, token });
+        res.status(201).json({ user: decorateUserAccess(safeUser), token });
     } catch (error) {
         console.error('Registration error:', error);
         res.status(500).json({ error: 'Failed to register user' });
     }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authRateLimiter, async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) {
         return res.status(400).json({ error: 'Email and password are required' });
@@ -550,7 +765,7 @@ app.post('/api/auth/login', async (req, res) => {
         if (!isValid) return res.status(401).json({ error: 'Invalid email or password' });
         const { password_hash, ...userWithoutPassword } = user;
         const token = generateToken(userWithoutPassword);
-        res.json({ user: userWithoutPassword, token });
+        res.json({ user: decorateUserAccess(userWithoutPassword), token });
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ error: 'Failed to login' });
@@ -564,12 +779,12 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
                 .from('users').select('id, email, name, role, created_at')
                 .eq('id', req.user.id).single();
             if (error || !data) return res.status(404).json({ error: 'User not found' });
-            return res.json({ user: data });
+            return res.json({ user: decorateUserAccess(data) });
         }
         const user = usersData.find(u => u.id === req.user.id);
         if (!user) return res.status(404).json({ error: 'User not found' });
         const { password_hash, ...safeUser } = user;
-        res.json({ user: safeUser });
+        res.json({ user: decorateUserAccess(safeUser) });
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch user' });
     }
@@ -579,7 +794,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 // PERMITS ROUTES
 // ═══════════════════════════════════════════════════
 
-app.get('/api/permits', optionalAuth, async (req, res) => {
+app.get('/api/permits', authenticateToken, requireApprovedAccess, async (req, res) => {
     try {
         const { country, status, category } = req.query;
         const trustedSources = buildTrustedSourceSet();
@@ -639,7 +854,7 @@ app.get('/api/permits', optionalAuth, async (req, res) => {
     }
 });
 
-app.get('/api/permits/:id', async (req, res) => {
+app.get('/api/permits/:id', authenticateToken, requireApprovedAccess, async (req, res) => {
     try {
         const trustedSources = buildTrustedSourceSet();
         if (supabase) {
@@ -662,7 +877,7 @@ app.get('/api/permits/:id', async (req, res) => {
     }
 });
 
-app.post('/api/permits', authenticateToken, async (req, res) => {
+app.post('/api/permits', authenticateToken, requireApprovedAccess, async (req, res) => {
     const { project_title, location, country, activity, status = 'Pending', category, capacity, species, coordinates, notes } = req.body;
     if (!project_title || !location || !country || !activity) {
         return res.status(400).json({ error: 'project_title, location, country, and activity are required' });
@@ -693,7 +908,7 @@ app.post('/api/permits', authenticateToken, async (req, res) => {
 // OBJECTIONS ROUTES
 // ═══════════════════════════════════════════════════
 
-app.get('/api/objections', authenticateToken, async (req, res) => {
+app.get('/api/objections', authenticateToken, requireApprovedAccess, async (req, res) => {
     try {
         if (supabase) {
             const { data, error } = await supabase
@@ -722,7 +937,7 @@ app.get('/api/objections', authenticateToken, async (req, res) => {
     }
 });
 
-app.post('/api/objections', authenticateToken, async (req, res) => {
+app.post('/api/objections', authenticateToken, requireApprovedAccess, async (req, res) => {
     const { permit_id, generated_letter, generated_text, project_title, location, country, status = 'draft', recipient_email } = req.body;
     const letterContent = sanitizeLetterText(generated_letter || generated_text || '');
 
@@ -786,7 +1001,7 @@ app.post('/api/objections', authenticateToken, async (req, res) => {
 // AI LETTER GENERATION
 // ═══════════════════════════════════════════════════
 
-app.post('/api/generate-letter', optionalAuth, rateLimiter, async (req, res) => {
+app.post('/api/generate-letter', authenticateToken, requireApprovedAccess, letterRateLimiter, async (req, res) => {
     if (!isFeatureEnabled('letterGenerationEnabled')) {
         return res.status(503).json({ error: 'Letter generation is temporarily disabled' });
     }
@@ -880,12 +1095,15 @@ Generate the complete letter text only, no markdown formatting.`;
 function getCountryLegalFramework(country) {
     const frameworks = {
         'India': `
-- Environment Protection Act, 1986 (Section 6: Powers to protect environment; Section 7: Restrictions on pollutant discharge; Section 8: Environmental quality standards)
-- Prevention of Cruelty to Animals Act, 1960 (Section 11: Prohibition of cruelty; Section 19: Animal Welfare Board)
-- Animal Factory Farming (Regulation) Bill, 2020 (Article 5: Registration/licensing; Article 8: Welfare standards; Article 12: EIA requirement; Article 15: Waste management; Article 18: Antibiotic regulation)
-- Water (Prevention and Control of Pollution) Act, 1974 (Section 24: Prohibition of pollutant discharge)
-- Air (Prevention and Control of Pollution) Act, 1981 (Section 21: Emission standards)
-- National Green Tribunal Act, 2010 (Section 14: Jurisdiction over environmental disputes)`,
+- Prevention of Cruelty to Animals Act, 1960 (Section 3: Duties of persons in charge of animals; Section 11: Treating animals cruelly; Section 38: Rule-making powers)
+- Prevention of Cruelty to Animals (Animal Husbandry Practices and Procedures) Rules, 2023
+- Prevention of Cruelty to Animals (Egg Laying Hens) Rules, 2023
+- Prevention of Cruelty to Animals (Slaughter House) Rules, 2001 and 2010
+- Transport of Animals Rules, 1978 and subsequent amendments
+- Environment (Protection) Act, 1986 (Section 3: Measures to protect environment; Section 7: Restrictions on emissions/discharge)
+- Water (Prevention and Control of Pollution) Act, 1974 (Section 24: Prohibition on disposal of polluting matter in streams/wells)
+- Air (Prevention and Control of Pollution) Act, 1981 (Section 21: Consent mechanism for emissions sources)
+- National Green Tribunal Act, 2010 (Section 14: Jurisdiction over civil environmental disputes)`,
 
         'United States': `
 - Clean Water Act (33 U.S.C. §1251 et seq.) — NPDES permit requirements for CAFOs; Section 402: Discharge permits; Section 301: Effluent limitations
@@ -1055,7 +1273,7 @@ function sendMailWithTimeout(mailOptions, timeoutMs = EMAIL_SEND_TIMEOUT_MS) {
     });
 }
 
-app.post('/api/send-email', optionalAuth, rateLimiter, async (req, res) => {
+app.post('/api/send-email', authenticateToken, requireApprovedAccess, emailRateLimiter, async (req, res) => {
     if (!isFeatureEnabled('emailSendingEnabled')) {
         return res.status(503).json({ error: 'Email sending is temporarily disabled' });
     }
@@ -1140,6 +1358,118 @@ app.get('/api/admin/quotas', authenticateToken, requireAdmin, (req, res) => {
 
 app.get('/api/admin/platform-config', authenticateToken, requireAdmin, (req, res) => {
     return res.json({ platformConfig });
+});
+
+app.get('/api/admin/runtime-config', authenticateToken, requireAdmin, (req, res) => {
+    return res.json({
+        environment: process.env.NODE_ENV || 'development',
+        security: {
+            strictSecurityHeaders,
+            trustProxy: process.env.TRUST_PROXY !== 'false',
+            corsAllowlistConfigured: allowlistedOrigins.length > 0,
+            allowlistedOriginsCount: allowlistedOrigins.length,
+        },
+        rateLimitsPerHour: {
+            auth: intFromEnv('AUTH_RATE_LIMIT_PER_HOUR', 20),
+            generateLetter: intFromEnv('LETTER_RATE_LIMIT_PER_HOUR', 25),
+            sendEmail: intFromEnv('EMAIL_RATE_LIMIT_PER_HOUR', 20),
+        },
+        features: platformConfig,
+        storage: supabase ? 'supabase' : 'json',
+        requireSupabase,
+    });
+});
+
+app.get('/api/admin/access-requests', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const statusFilter = String(req.query.status || 'all').toLowerCase();
+        let users = [];
+
+        if (supabase) {
+            const { data, error } = await supabase
+                .from('users')
+                .select('id, email, name, role, created_at')
+                .order('created_at', { ascending: false })
+                .range(0, 1999);
+            if (error) throw error;
+            users = data || [];
+        } else {
+            users = usersData.map((user) => {
+                const { password_hash, ...safeUser } = user;
+                return safeUser;
+            });
+        }
+
+        let requests = users.map(buildAccessRequestRecord);
+        if (statusFilter === 'pending') {
+            requests = requests.filter((entry) => entry.accessPending);
+        } else if (statusFilter === 'approved') {
+            requests = requests.filter((entry) => entry.accessApproved);
+        }
+
+        return res.json({
+            total: requests.length,
+            pending: requests.filter((entry) => entry.accessPending).length,
+            approved: requests.filter((entry) => entry.accessApproved).length,
+            requests,
+        });
+    } catch (error) {
+        console.error('Access request listing failed:', error.message);
+        return res.status(500).json({ error: 'Failed to list access requests' });
+    }
+});
+
+app.patch('/api/admin/access-requests/:userId', authenticateToken, requireAdmin, async (req, res) => {
+    const userId = String(req.params.userId || '').trim();
+    const approved = req.body?.approved;
+    const note = sanitizeNote(req.body?.note);
+
+    if (!userId) return res.status(400).json({ error: 'userId is required' });
+    if (typeof approved !== 'boolean') {
+        return res.status(400).json({ error: 'approved boolean is required' });
+    }
+
+    try {
+        let targetUser = null;
+        if (supabase) {
+            const { data, error } = await supabase
+                .from('users')
+                .select('id, email, name, role, created_at')
+                .eq('id', userId)
+                .maybeSingle();
+            if (error) throw error;
+            targetUser = data || null;
+        } else {
+            targetUser = usersData
+                .map((user) => {
+                    const { password_hash, ...safeUser } = user;
+                    return safeUser;
+                })
+                .find((user) => String(user.id) === userId) || null;
+        }
+
+        if (!targetUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        if (targetUser.role === 'admin' && approved === false) {
+            return res.status(400).json({ error: 'Admin access cannot be revoked via this endpoint' });
+        }
+
+        upsertAccessApproval(targetUser, {
+            approved,
+            reviewedBy: req.user.id,
+            note,
+        });
+
+        return res.json({
+            message: approved ? 'User approved' : 'User access set to pending',
+            request: buildAccessRequestRecord(targetUser),
+        });
+    } catch (error) {
+        console.error('Access request update failed:', error.message);
+        return res.status(500).json({ error: 'Failed to update access request' });
+    }
 });
 
 app.patch('/api/admin/platform-config', authenticateToken, requireAdmin, (req, res) => {
@@ -1498,16 +1828,16 @@ function getRelativeTime(date) {
 app.get('/api/legal-frameworks', (req, res) => {
     res.json({
         frameworks: [
-            { country: 'India', laws: 6, keyLaw: 'Environment Protection Act, 1986', status: 'Active' },
+            { country: 'India', laws: 9, keyLaw: 'Prevention of Cruelty to Animals Act, 1960', status: 'Active' },
             { country: 'United States', laws: 7, keyLaw: 'Clean Water Act (NPDES)', status: 'Active' },
             { country: 'United Kingdom', laws: 7, keyLaw: 'Town and Country Planning Act 1990', status: 'Active' },
             { country: 'European Union', laws: 7, keyLaw: 'Industrial Emissions Directive (IED 2.0)', status: 'Active' },
             { country: 'Australia', laws: 5, keyLaw: 'EPBC Act 1999', status: 'Active' },
             { country: 'Canada', laws: 5, keyLaw: 'Canadian Environmental Protection Act', status: 'Active' },
         ],
-        totalLaws: 37,
+        totalLaws: 40,
         totalCountries: 8,
-        lastUpdated: '2026-02-11'
+        lastUpdated: '2026-02-19'
     });
 });
 
@@ -1518,6 +1848,7 @@ app.get('/api/health', (req, res) => {
         service: 'affog-api',
         timestamp: new Date().toISOString(),
         storage: supabase ? 'supabase' : 'json',
+        requireSupabase,
         includeStaticPermits,
         realPermitsOnly,
         quotaService: 'json-events',
@@ -1546,6 +1877,9 @@ app.get('/api', (req, res) => {
             'GET  /api/admin/quotas',
             'PATCH /api/admin/quotas',
             'GET  /api/admin/platform-config',
+            'GET  /api/admin/runtime-config',
+            'GET  /api/admin/access-requests',
+            'PATCH /api/admin/access-requests/:userId',
             'PATCH /api/admin/platform-config',
             'GET  /api/admin/usage/summary',
             'GET  /api/admin/usage/anomalies',
@@ -1568,6 +1902,13 @@ app.get('/api', (req, res) => {
             'GET  /api/health',
         ]
     });
+});
+
+app.use((err, req, res, next) => {
+    if (err && String(err.message || '').includes('CORS origin denied')) {
+        return res.status(403).json({ error: 'Request origin is not allowed' });
+    }
+    return next(err);
 });
 
 // Export the app for use in root server

@@ -100,7 +100,7 @@ export default function Dashboard() {
     };
 
     return (
-        <div className="min-h-screen bg-black text-white p-8">
+        <div className="min-h-screen bg-black text-slate-900 p-8">
             <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
                     <div>
@@ -110,7 +110,7 @@ export default function Dashboard() {
                         </h1>
                         <p className="text-gray-500 mt-1 text-sm">{permits.length} permits monitored across {countryData.length} countries</p>
                     </div>
-                    <Link href="/" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm">
+                    <Link href="/" className="flex items-center gap-2 text-gray-400 hover:text-slate-900 transition-colors text-sm">
                         <ArrowLeft className="w-4 h-4" /> Back
                     </Link>
                 </div>

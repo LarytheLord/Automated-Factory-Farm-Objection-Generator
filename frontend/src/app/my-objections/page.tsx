@@ -6,10 +6,12 @@ import Link from "next/link";
 import { ArrowLeft, FileText, Clock, CheckCircle } from "lucide-react";
 
 interface User {
-    id: number;
+    id: number | string;
     email: string;
     name: string;
     role: string;
+    accessApproved?: boolean;
+    accessPending?: boolean;
 }
 
 export default function MyObjections() {
@@ -62,16 +64,16 @@ export default function MyObjections() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-black text-white flex items-center justify-center">
+            <div className="min-h-screen bg-black text-slate-900 flex items-center justify-center">
                 <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-black text-white p-8 hero-gradient">
+        <div className="min-h-screen bg-black text-slate-900 p-8 hero-gradient">
             <div className="max-w-4xl mx-auto">
-                <Link href="/" className="inline-flex items-center text-gray-400 hover:text-white mb-8 transition-colors">
+                <Link href="/" className="inline-flex items-center text-gray-400 hover:text-slate-900 mb-8 transition-colors">
                     <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
                 </Link>
                 <div className="flex justify-between items-end mb-8">

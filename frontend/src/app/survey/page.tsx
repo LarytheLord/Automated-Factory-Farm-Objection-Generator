@@ -75,7 +75,7 @@ export default function SurveyPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
+      <div className="min-h-screen bg-black text-slate-900 flex items-center justify-center p-4">
         <div className="glass-card max-w-2xl w-full p-8 text-center">
           <div className="mx-auto w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-6">
             <CheckCircle className="w-8 h-8 text-emerald-400" />
@@ -96,7 +96,7 @@ export default function SurveyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white py-12 px-4">
+    <div className="min-h-screen bg-black text-slate-900 py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">Help Us Improve AFOG</h1>
@@ -125,7 +125,7 @@ export default function SurveyPage() {
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl py-3 px-4 text-white focus:outline-none focus:border-emerald-500/30 transition-colors"
+                  className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-slate-900 focus:outline-none focus:border-emerald-500/30 transition-colors"
                   placeholder="Your name"
                 />
               </div>
@@ -139,7 +139,7 @@ export default function SurveyPage() {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl py-3 px-4 text-white focus:outline-none focus:border-emerald-500/30 transition-colors"
+                  className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-slate-900 focus:outline-none focus:border-emerald-500/30 transition-colors"
                   placeholder="your@email.com"
                 />
               </div>
@@ -153,7 +153,7 @@ export default function SurveyPage() {
                 name="role"
                 value={formData.role}
                 onChange={handleChange}
-                className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl py-3 px-4 text-white focus:outline-none focus:border-emerald-500/30 transition-colors"
+                className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-slate-900 focus:outline-none focus:border-emerald-500/30 transition-colors"
               >
                 <option value="">Select your role</option>
                 <option value="activist">Animal Rights Activist</option>
@@ -180,7 +180,7 @@ export default function SurveyPage() {
                     className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all ${
                       formData.feedbackType === option.value
                         ? "border-emerald-500/50 bg-emerald-500/5"
-                        : "border-white/[0.06] hover:border-white/[0.1]"
+                        : "border-slate-200 hover:border-white/[0.1]"
                     }`}
                   >
                     <input
@@ -207,7 +207,7 @@ export default function SurveyPage() {
                   value={formData.suggestion}
                   onChange={handleChange}
                   rows={4}
-                  className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl py-3 px-4 text-white focus:outline-none focus:border-emerald-500/30 transition-colors"
+                  className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-slate-900 focus:outline-none focus:border-emerald-500/30 transition-colors"
                   placeholder="Describe the feature or improvement you'd like to see..."
                 ></textarea>
               </div>
@@ -223,7 +223,7 @@ export default function SurveyPage() {
                   value={formData.issueDescription}
                   onChange={handleChange}
                   rows={4}
-                  className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl py-3 px-4 text-white focus:outline-none focus:border-emerald-500/30 transition-colors"
+                  className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-slate-900 focus:outline-none focus:border-emerald-500/30 transition-colors"
                   placeholder="Describe the problem or issue you encountered..."
                 ></textarea>
               </div>
@@ -260,7 +260,7 @@ export default function SurveyPage() {
                 value={formData.additionalComments}
                 onChange={handleChange}
                 rows={3}
-                className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl py-3 px-4 text-white focus:outline-none focus:border-emerald-500/30 transition-colors"
+                className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-slate-900 focus:outline-none focus:border-emerald-500/30 transition-colors"
                 placeholder="Any other thoughts or suggestions..."
               ></textarea>
             </div>

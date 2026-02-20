@@ -51,10 +51,12 @@ interface Stats {
 }
 
 interface User {
-  id: number;
+  id: number | string;
   email: string;
   name: string;
   role: string;
+  accessApproved?: boolean;
+  accessPending?: boolean;
 }
 
 interface UsageBucket {
@@ -153,26 +155,48 @@ export default function Home() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const [usage, setUsage] = useState<UsageResponse | null>(null);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
 
   const API_BASE = "";
 
   // Check authentication status
   const isAuthenticated = !!user;
+  const hasApprovedAccess = !!(user && (user.role === "admin" || user.accessApproved));
 
   useEffect(() => {
     setIsMounted(true);
-    // Load user from localStorage
-    const storedUser = getUserFromStorage();
     const storedToken = getTokenFromStorage();
-    if (storedUser && storedToken) {
-      setUser(storedUser);
+    const storedUser = getUserFromStorage();
+    if (storedToken && storedUser) {
       setToken(storedToken);
+      fetch(`${API_BASE}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${storedToken}` },
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error("Session expired");
+          return res.json();
+        })
+        .then((payload) => {
+          if (payload?.user) {
+            setUser(payload.user);
+            localStorage.setItem("user", JSON.stringify(payload.user));
+            if (!(payload.user.role === "admin" || payload.user.accessApproved)) {
+              setAuthNotice("Account pending manual approval. You'll get access once an admin approves your profile.");
+            }
+          }
+        })
+        .catch(() => {
+          setUser(null);
+          setToken(null);
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+        });
     }
-    
+
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [API_BASE]);
 
   useEffect(() => {
     setCurrentDate(new Date().toISOString().split("T")[0]);
@@ -186,20 +210,50 @@ export default function Home() {
   }, [user, isMounted]);
 
   useEffect(() => {
-    Promise.all([
-      fetch(`${API_BASE}/api/permits`).then((r) => r.json()),
-      fetch(`${API_BASE}/api/stats`).then((r) => r.json()).catch(() => null),
-    ])
-      .then(([permitsData, statsData]) => {
-        setPermits(permitsData);
+    if (!isMounted) return;
+
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const statsPromise = fetch(`${API_BASE}/api/stats`)
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null);
+
+        if (!token || !hasApprovedAccess) {
+          const statsData = await statsPromise;
+          setPermits([]);
+          setStats(statsData);
+          setLoading(false);
+          return;
+        }
+
+        const [permitsRes, statsData] = await Promise.all([
+          fetch(`${API_BASE}/api/permits`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          statsPromise,
+        ]);
+
+        if (!permitsRes.ok) {
+          const payload = await permitsRes.json().catch(() => null);
+          throw new Error(payload?.error || "Failed to fetch permits");
+        }
+
+        const permitsData = await permitsRes.json();
+        setPermits(Array.isArray(permitsData) ? permitsData : []);
         setStats(statsData);
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error("Fetch error:", err);
-        setError("Could not connect to the API. Please try again.");
-      })
-      .finally(() => setLoading(false));
-  }, [API_BASE]);
+        setError(err instanceof Error ? err.message : "Could not connect to the API. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [API_BASE, token, hasApprovedAccess, isMounted]);
 
   const fetchUsage = async (authToken?: string | null) => {
     try {
@@ -219,12 +273,28 @@ export default function Home() {
     fetchUsage(token);
   }, [token, isMounted]);
 
+  useEffect(() => {
+    if (!hasApprovedAccess) {
+      setSelectedPermit(null);
+      setGeneratedLetter("");
+      setRecipientEmail("");
+    }
+  }, [hasApprovedAccess]);
+
   /* ─── Handlers ─── */
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const generateLetter = async () => {
+    if (!isAuthenticated) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    if (!hasApprovedAccess) {
+      setLetterError("Account pending manual approval. You cannot generate letters yet.");
+      return;
+    }
     if (!selectedPermit) return;
     setGeneratingLetter(true);
     setLetterError(null);
@@ -232,7 +302,10 @@ export default function Home() {
     try {
       const res = await fetchWithTimeout(`${API_BASE}/api/generate-letter`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           permitDetails: { ...selectedPermit, ...formData, currentDate },
         }),
@@ -258,6 +331,10 @@ export default function Home() {
   const handleSaveObjection = async () => {
     if (!isMounted || !isAuthenticated) {
       setIsAuthModalOpen(true);
+      return;
+    }
+    if (!hasApprovedAccess) {
+      setSaveMessage("Account pending manual approval.");
       return;
     }
     if (!selectedPermit || !generatedLetter) return;
@@ -302,6 +379,11 @@ export default function Home() {
   const handleLogin = (newToken: string, newUser: User) => {
     setToken(newToken);
     setUser(newUser);
+    if (!(newUser.role === "admin" || newUser.accessApproved)) {
+      setAuthNotice("Account pending manual approval. You'll get access once an admin approves your profile.");
+    } else {
+      setAuthNotice(null);
+    }
     if (typeof window !== 'undefined') {
       localStorage.setItem("token", newToken);
       localStorage.setItem("user", JSON.stringify(newUser));
@@ -309,6 +391,14 @@ export default function Home() {
   };
 
   const sendEmail = async () => {
+    if (!isAuthenticated) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    if (!hasApprovedAccess) {
+      setEmailError("Account pending manual approval. You cannot send letters yet.");
+      return;
+    }
     if (!generatedLetter || !recipientEmail) {
       setEmailError("Please generate a letter and provide a recipient email.");
       return;
@@ -319,7 +409,10 @@ export default function Home() {
     try {
       const res = await fetchWithTimeout(`${API_BASE}/api/send-email`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           to: recipientEmail,
           subject: `Objection: ${selectedPermit?.project_title}`,
@@ -375,7 +468,7 @@ export default function Home() {
   /* ─── Loading ─── */
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="min-h-screen flex items-center justify-center bg-black text-slate-900">
         <div className="text-center">
           <div className="w-10 h-10 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-500 text-sm">Loading platform...</p>
@@ -386,7 +479,7 @@ export default function Home() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black px-4">
+      <div className="min-h-screen flex items-center justify-center bg-black text-slate-900 px-4">
         <div className="glass-card p-8 max-w-md text-center">
           <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto mb-4" />
           <h2 className="text-lg font-semibold mb-2">Connection Error</h2>
@@ -398,14 +491,14 @@ export default function Home() {
 
   /* ═══ RENDER ═══ */
   return (
-    <main className="min-h-screen bg-black text-white overflow-x-hidden">
+    <main className="min-h-screen bg-black text-slate-900 overflow-x-hidden">
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={handleLogin} />
 
       {/* Background Gradient Orbs */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-emerald-500/[0.07] blur-[120px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-blue-500/[0.05] blur-[120px]" />
-        <div className="absolute top-[40%] right-[20%] w-[300px] h-[300px] rounded-full bg-purple-500/[0.04] blur-[100px]" />
+        <div className="absolute top-[40%] right-[20%] w-[300px] h-[300px] rounded-full bg-cyan-500/[0.04] blur-[100px]" />
       </div>
 
       {/* ════════════ NAV ════════════ */}
@@ -417,18 +510,18 @@ export default function Home() {
           </Link>
 
           <div className="hidden md:flex items-center gap-8 text-sm text-gray-500">
-            <a href="#how-it-works" className="hover:text-white transition-colors">How it works</a>
-            <a href="#permits" className="hover:text-white transition-colors">Permits</a>
-            <Link href="/dashboard" className="hover:text-white transition-colors">Analytics</Link>
-            <Link href="/impact" className="hover:text-white transition-colors">Impact</Link>
-            <Link href="/survey" className="hover:text-white transition-colors">Feedback</Link>
+            <a href="#how-it-works" className="hover:text-slate-900 transition-colors">How it works</a>
+            <a href="#permits" className="hover:text-slate-900 transition-colors">Permits</a>
+            <Link href="/dashboard" className="hover:text-slate-900 transition-colors">Analytics</Link>
+            <Link href="/impact" className="hover:text-slate-900 transition-colors">Impact</Link>
+            <Link href="/survey" className="hover:text-slate-900 transition-colors">Feedback</Link>
           </div>
 
           <div className="flex items-center gap-3">
             {isMounted && isAuthenticated ? (
               <>
                 <span className="hidden md:block text-sm text-gray-500">{user?.name}</span>
-                <Link href="/my-objections" className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-white transition-colors" title="My Objections">
+                <Link href="/my-objections" className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-slate-900 transition-colors" title="My Objections">
                   <FileText className="w-4 h-4" />
                 </Link>
                 <button onClick={handleLogout} className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-red-400 transition-colors" title="Sign Out">
@@ -436,7 +529,7 @@ export default function Home() {
                 </button>
               </>
             ) : isMounted ? (
-              <button onClick={() => setIsAuthModalOpen(true)} className="px-4 py-2 text-sm font-medium text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all">
+              <button onClick={() => setIsAuthModalOpen(true)} className="px-4 py-2 text-sm font-medium text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg transition-all">
                 Sign In
               </button>
             ) : (
@@ -465,11 +558,14 @@ export default function Home() {
           </p>
 
           <div className="animate-fade-in-up flex flex-wrap justify-center gap-4 mb-16" style={{ animationDelay: "300ms" }}>
-            <a href="#permits" className="group px-8 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-emerald-500/20 inline-flex items-center gap-2">
-              Generate Objection
+            <a
+              href="#permits"
+              className="group px-8 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-emerald-500/20 inline-flex items-center gap-2"
+            >
+              {hasApprovedAccess ? "Generate Objection" : "Request Access"}
               <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </a>
-            <Link href="/impact" className="px-8 py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 font-medium rounded-xl transition-all inline-flex items-center gap-2 text-sm">
+            <Link href="/impact" className="px-8 py-3.5 bg-white hover:bg-slate-100 border border-slate-200 hover:border-slate-300 font-medium rounded-xl transition-all inline-flex items-center gap-2 text-sm">
               See the Impact
             </Link>
           </div>
@@ -490,7 +586,7 @@ export default function Home() {
           <p className="text-[11px] uppercase tracking-[0.2em] text-gray-600 mb-6">Monitoring factory farms across</p>
           <div className="flex flex-wrap justify-center gap-x-8 gap-y-3 text-sm text-gray-500">
             {["United States", "United Kingdom", "India", "Australia", "Canada", "European Union", "Brazil", "New Zealand"].map((c) => (
-              <span key={c} className="hover:text-gray-300 transition-colors">{c}</span>
+              <span key={c} className="hover:text-gray-700 transition-colors">{c}</span>
             ))}
           </div>
         </div>
@@ -527,7 +623,7 @@ export default function Home() {
                 {stats.recentActivity.map((item, i) => (
                   <div key={i} className="activity-item glass-card px-5 py-3 flex items-center justify-between" style={{ animationDelay: `${i * 0.08}s` }}>
                     <div className="flex items-center gap-3">
-                      <span className={`w-1.5 h-1.5 rounded-full ${item.action.includes("Objection") ? "bg-emerald-400" : item.action.includes("RTI") ? "bg-blue-400" : item.action.includes("Violation") ? "bg-amber-400" : "bg-purple-400"}`} />
+                      <span className={`w-1.5 h-1.5 rounded-full ${item.action.includes("Objection") ? "bg-emerald-400" : item.action.includes("RTI") ? "bg-blue-400" : item.action.includes("Violation") ? "bg-amber-400" : "bg-cyan-500"}`} />
                       <span className="font-medium text-sm">{item.action}</span>
                       <span className="text-gray-700">·</span>
                       <span className="text-gray-500 text-sm">{item.target}</span>
@@ -548,7 +644,32 @@ export default function Home() {
       <div className="section-divider" />
       <section id="permits" className="relative z-10 py-24 px-6">
         <div className="max-w-6xl mx-auto">
-          {!selectedPermit ? (
+          {!isAuthenticated ? (
+            <div className="glass-card p-8 text-center max-w-2xl mx-auto">
+              <Shield className="w-10 h-10 text-emerald-500 mx-auto mb-4" />
+              <h3 className="text-2xl font-semibold mb-2">Protected Access Area</h3>
+              <p className="text-gray-600 mb-6">
+                Permit data and objection generation are restricted to approved members only.
+                Sign in and submit your profile for manual review.
+              </p>
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl transition-all"
+              >
+                Sign In / Create Account
+              </button>
+            </div>
+          ) : !hasApprovedAccess ? (
+            <div className="glass-card p-8 text-center max-w-2xl mx-auto">
+              <Clock className="w-10 h-10 text-amber-500 mx-auto mb-4" />
+              <h3 className="text-2xl font-semibold mb-2">Approval Pending</h3>
+              <p className="text-gray-600 mb-4">
+                Your account is waiting for manual verification by an admin.
+                Once approved, permit browsing and letter generation will be unlocked.
+              </p>
+              {authNotice && <p className="text-sm text-amber-700">{authNotice}</p>}
+            </div>
+          ) : !selectedPermit ? (
             <>
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10">
                 <div>
@@ -562,13 +683,13 @@ export default function Home() {
                     <input
                       type="text"
                       placeholder="Search permits..."
-                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-emerald-500/30 transition-colors placeholder:text-gray-600"
+                      className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-emerald-500/30 transition-colors placeholder:text-gray-500"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
                   <select
-                    className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500/30 text-gray-300"
+                    className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500/30 text-slate-700"
                     value={selectedCountry}
                     onChange={(e) => setSelectedCountry(e.target.value)}
                   >
@@ -619,7 +740,7 @@ export default function Home() {
             <div>
               <button
                 onClick={() => { setSelectedPermit(null); setGeneratedLetter(""); setLetterError(null); }}
-                className="flex items-center gap-2 text-gray-500 hover:text-white mb-8 transition-colors text-sm"
+                className="flex items-center gap-2 text-gray-500 hover:text-slate-900 mb-8 transition-colors text-sm"
               >
                 <ArrowLeft className="w-4 h-4" /> Back to all permits
               </button>
@@ -692,20 +813,20 @@ export default function Home() {
                     </h3>
                     <div className="flex items-center gap-2">
                       {saveMessage && <span className="text-xs text-emerald-400 animate-fade-in">{saveMessage}</span>}
-                      <button onClick={handleSaveObjection} disabled={saving} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5" title="Save">
+                      <button onClick={handleSaveObjection} disabled={saving} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-slate-900 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5" title="Save">
                         {saving ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                         Save
                       </button>
-                      <button onClick={copyLetter} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5">
+                      <button onClick={copyLetter} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-slate-900 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5">
                         {copied ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                         {copied ? "Copied!" : "Copy"}
                       </button>
                     </div>
                   </div>
-                  <div className="bg-white/[0.02] rounded-xl p-6 text-sm leading-relaxed whitespace-pre-wrap text-gray-300 max-h-96 overflow-y-auto border border-white/[0.04]">
+                  <div className="bg-white rounded-xl p-6 text-sm leading-relaxed whitespace-pre-wrap text-slate-700 max-h-96 overflow-y-auto border border-slate-200">
                     {generatedLetter}
                   </div>
-                  <div className="mt-6 pt-6 border-t border-white/[0.06]">
+                  <div className="mt-6 pt-6 border-t border-slate-200">
                     <h4 className="font-medium mb-3 flex items-center gap-2 text-sm">
                       <Mail className="w-4 h-4 text-blue-400" />
                       Send to Authorities
@@ -716,7 +837,7 @@ export default function Home() {
                         value={recipientEmail}
                         onChange={(e) => setRecipientEmail(e.target.value)}
                         placeholder="authority@example.gov"
-                        className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl py-2.5 px-4 text-sm focus:outline-none focus:border-blue-500/30 transition-colors placeholder:text-gray-600"
+                        className="flex-1 bg-white border border-slate-200 rounded-xl py-2.5 px-4 text-sm focus:outline-none focus:border-blue-500/30 transition-colors placeholder:text-gray-500"
                       />
                       <button onClick={sendEmail} disabled={sendingEmail} className="px-6 py-2.5 bg-blue-500 hover:bg-blue-400 text-white font-semibold rounded-xl transition-all disabled:opacity-50 flex items-center gap-2 text-sm">
                         {sendingEmail ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
@@ -751,7 +872,7 @@ export default function Home() {
               <p className="text-gray-600 text-xs">North Carolina, 5 jury cases</p>
             </div>
             <div className="glass-card p-6">
-              <div className="text-3xl font-bold text-purple-400 mb-2">30</div>
+              <div className="text-3xl font-bold text-cyan-600 mb-2">30</div>
               <div className="text-sm font-medium mb-1">voices blocked an Indiana CAFO</div>
               <p className="text-gray-600 text-xs">8,000-head facility denied unanimously</p>
             </div>
@@ -767,7 +888,7 @@ export default function Home() {
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.08] via-transparent to-blue-500/[0.06]" />
             <div className="glass-card p-12 text-center relative">
               <h2 className="text-3xl font-bold mb-4">Your objection could tip the balance</h2>
-              <p className="text-gray-400 mb-8 max-w-lg mx-auto leading-relaxed">
+              <p className="text-gray-600 mb-8 max-w-lg mx-auto leading-relaxed">
                 Every legally grounded objection forces authorities to respond. Join advocates in 8 countries fighting factory farming through law.
               </p>
               <a href="#permits" className="group inline-flex items-center gap-2 px-8 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-emerald-500/20">
@@ -780,7 +901,7 @@ export default function Home() {
       </section>
 
       {/* ════════════ FOOTER ════════════ */}
-      <footer className="relative z-10 border-t border-white/[0.06] py-12 px-6">
+      <footer className="relative z-10 border-t border-slate-200 py-12 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
             <div className="col-span-2 md:col-span-1">
@@ -793,11 +914,11 @@ export default function Home() {
             <div>
               <h4 className="text-[11px] uppercase tracking-wider text-gray-600 mb-3 font-medium">Platform</h4>
               <div className="space-y-2 text-sm">
-                <a href="#permits" className="block text-gray-500 hover:text-white transition-colors">Permits</a>
-                <Link href="/dashboard" className="block text-gray-500 hover:text-white transition-colors">Analytics</Link>
-                <Link href="/impact" className="block text-gray-500 hover:text-white transition-colors">Impact</Link>
-                <Link href="/submit-permit" className="block text-gray-500 hover:text-white transition-colors">Submit Permit</Link>
-            <Link href="/survey" className="block text-gray-500 hover:text-white transition-colors">Share Feedback</Link>
+                <a href="#permits" className="block text-gray-500 hover:text-slate-900 transition-colors">Permits</a>
+                <Link href="/dashboard" className="block text-gray-500 hover:text-slate-900 transition-colors">Analytics</Link>
+                <Link href="/impact" className="block text-gray-500 hover:text-slate-900 transition-colors">Impact</Link>
+                <Link href="/submit-permit" className="block text-gray-500 hover:text-slate-900 transition-colors">Submit Permit</Link>
+            <Link href="/survey" className="block text-gray-500 hover:text-slate-900 transition-colors">Share Feedback</Link>
               </div>
             </div>
             <div>
@@ -816,7 +937,7 @@ export default function Home() {
               </div>
             </div>
           </div>
-          <div className="pt-8 border-t border-white/[0.06] flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="pt-8 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
             <span className="text-xs text-gray-700">&copy; 2026 AFFOG. All rights reserved.</span>
             <span className="text-xs text-gray-700">Automated Factory Farm Objection Generator</span>
           </div>
@@ -854,7 +975,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex gap-3">
       <span className="text-gray-600 w-24 flex-shrink-0 text-xs uppercase tracking-wider">{label}</span>
-      <span className="text-gray-300">{value}</span>
+      <span className="text-slate-700">{value}</span>
     </div>
   );
 }
@@ -870,7 +991,7 @@ function FormInput({ name, label, value, onChange, full }: {
         name={name}
         value={value}
         onChange={onChange}
-        className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-emerald-500/30 transition-colors"
+        className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-emerald-500/30 transition-colors"
       />
     </div>
   );
