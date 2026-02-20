@@ -35,29 +35,66 @@ function parseBooleanEnv(name, fallback = false) {
     return fallback;
 }
 
-const allowlistedOrigins = parseCsvEnv(process.env.ALLOWED_ORIGINS);
+function normalizeOrigin(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    try {
+        const parsed = new URL(withScheme);
+        return `${parsed.protocol}//${parsed.host}`.toLowerCase();
+    } catch {
+        return raw.replace(/\/+$/g, '').toLowerCase();
+    }
+}
+
+function requestHost(req) {
+    const forwardedHost = req.headers['x-forwarded-host'];
+    if (forwardedHost) {
+        return String(forwardedHost).split(',')[0].trim().toLowerCase();
+    }
+    return String(req.headers.host || '').trim().toLowerCase();
+}
+
+function isSameHostOrigin(req, origin) {
+    try {
+        const parsed = new URL(String(origin));
+        const reqHost = requestHost(req);
+        return Boolean(reqHost) && parsed.host.toLowerCase() === reqHost;
+    } catch {
+        return false;
+    }
+}
+
+const allowlistedOrigins = parseCsvEnv(process.env.ALLOWED_ORIGINS).map(normalizeOrigin).filter(Boolean);
 const strictSecurityHeaders = parseBooleanEnv('STRICT_SECURITY_HEADERS', isProduction);
 if (process.env.TRUST_PROXY !== 'false') {
     app.set('trust proxy', 1);
 }
 
 // Middleware
-app.use(cors({
-    origin: (origin, callback) => {
-        // Allow non-browser requests (no Origin header).
-        if (!origin) return callback(null, true);
-        if (allowlistedOrigins.length === 0) {
-            // Default-open for local/dev; default-closed for production unless explicitly allowlisted.
-            return isProduction
-                ? callback(new Error('CORS origin denied'))
-                : callback(null, true);
-        }
-        return allowlistedOrigins.includes(origin)
-            ? callback(null, true)
-            : callback(new Error('CORS origin denied'));
-    },
-    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-}));
+app.use((req, res, next) => {
+    const corsOptions = {
+        origin: (origin, callback) => {
+            // Allow non-browser requests (no Origin header).
+            if (!origin) return callback(null, true);
+            if (isSameHostOrigin(req, origin)) return callback(null, true);
+
+            if (allowlistedOrigins.length === 0) {
+                // Default-open for local/dev; default-closed for production unless explicitly allowlisted.
+                return isProduction
+                    ? callback(new Error('CORS origin denied'))
+                    : callback(null, true);
+            }
+
+            const normalizedOrigin = normalizeOrigin(origin);
+            return allowlistedOrigins.includes(normalizedOrigin)
+                ? callback(null, true)
+                : callback(new Error('CORS origin denied'));
+        },
+        methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    };
+    return cors(corsOptions)(req, res, next);
+});
 app.use(express.json({ limit: '1mb' }));
 
 if (strictSecurityHeaders) {
