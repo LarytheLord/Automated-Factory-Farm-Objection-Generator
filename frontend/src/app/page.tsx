@@ -151,6 +151,7 @@ export default function Home() {
   const [recipientEmail, setRecipientEmail] = useState("");
   const [letterMode, setLetterMode] = useState<"concise" | "detailed">("concise");
   const [recipientSuggestions, setRecipientSuggestions] = useState<RecipientSuggestion[]>([]);
+  const [recommendedRecipient, setRecommendedRecipient] = useState<RecipientSuggestion | null>(null);
   const [recipientGuidance, setRecipientGuidance] = useState<string | null>(null);
   const [loadingRecipients, setLoadingRecipients] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
@@ -295,6 +296,7 @@ export default function Home() {
       setGeneratedLetter("");
       setRecipientEmail("");
       setRecipientSuggestions([]);
+      setRecommendedRecipient(null);
       setRecipientGuidance(null);
     }
   }, [hasApprovedAccess]);
@@ -303,6 +305,7 @@ export default function Home() {
     const loadRecipientSuggestions = async () => {
       if (!selectedPermit || !token || !hasApprovedAccess) {
         setRecipientSuggestions([]);
+        setRecommendedRecipient(null);
         setRecipientGuidance(null);
         setRecipientEmail("");
         return;
@@ -329,14 +332,22 @@ export default function Home() {
         const payload = await res.json();
         const suggestions = Array.isArray(payload?.suggestions) ? payload.suggestions : [];
         setRecipientSuggestions(suggestions);
+        setRecommendedRecipient(payload?.recommended || null);
         setRecipientGuidance(payload?.guidance || null);
 
+        const recommendedEmail =
+          payload?.recommended?.type === "email" && payload?.recommended?.email
+            ? payload.recommended.email
+            : null;
         const firstEmail = suggestions.find((item: RecipientSuggestion) => item.type === "email" && item.email);
-        if (firstEmail?.email) {
+        if (recommendedEmail) {
+          setRecipientEmail(recommendedEmail);
+        } else if (firstEmail?.email) {
           setRecipientEmail(firstEmail.email);
         }
       } catch (err) {
         setRecipientSuggestions([]);
+        setRecommendedRecipient(null);
         setRecipientGuidance(err instanceof Error ? err.message : "Could not load recipient suggestions.");
       } finally {
         setLoadingRecipients(false);
@@ -983,6 +994,11 @@ export default function Home() {
                     {recipientGuidance && (
                       <p className="text-xs text-gray-500 mb-3">{recipientGuidance}</p>
                     )}
+                    {recommendedRecipient?.email && (
+                      <p className="text-xs text-emerald-600 mb-3">
+                        Recommended: {recommendedRecipient.label} ({recommendedRecipient.email})
+                      </p>
+                    )}
                     <div className="flex gap-3">
                       <input
                         type="email"
@@ -1012,6 +1028,9 @@ export default function Home() {
                         {copiedMailDraft ? "Email Draft Copied" : "Copy Email Draft"}
                       </button>
                     </div>
+                    <p className="mt-3 text-xs text-gray-500">
+                      Note: For best deliverability, use <strong>Open in Mail App</strong>, review the draft, and send from your own email client.
+                    </p>
                     {emailSentMessage && <p className="mt-2 text-emerald-400 text-sm flex items-center gap-1"><CheckCircle className="w-4 h-4" /> {emailSentMessage}</p>}
                     {emailError && <p className="mt-2 text-red-400 text-sm">{emailError}</p>}
                   </div>

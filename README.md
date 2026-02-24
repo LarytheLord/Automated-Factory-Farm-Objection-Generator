@@ -148,6 +148,7 @@ npm run validate:sources:all
 npm --prefix backend run validate:sources -- --source nc_deq_application_tracker --include-disabled
 npm run sync:sources
 npm --prefix backend run sync:sources -- --reset-data
+npm --prefix backend run sync:recipients
 ```
 
 Safe live rollout sequence (staging first):

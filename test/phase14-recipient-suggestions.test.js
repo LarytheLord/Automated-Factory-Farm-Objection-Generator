@@ -37,9 +37,26 @@ function testFallbackSuggestions() {
   assert(payload.suggestions.some((item) => item.id === 'uk-ea-public-register'), 'missing UK EA fallback suggestion');
 }
 
+function testReviewerRecommendation() {
+  const permit = {
+    source_key: 'nc_deq_application_tracker',
+    country: 'United States',
+    notes: 'Duplin | Permit | Class | Melissa Abbott',
+  };
+
+  const payload = getRecipientSuggestions(permit);
+  assert(payload.recommended, 'expected recommended recipient');
+  assert(payload.recommended.type === 'email', 'recommended recipient should be an email');
+  assert(
+    payload.recommended.email === 'melissa.abbott@deq.nc.gov',
+    `unexpected recommended email: ${payload.recommended.email}`
+  );
+}
+
 function run() {
   testEmailExtraction();
   testFallbackSuggestions();
+  testReviewerRecommendation();
   console.log('phase14 recipient suggestions tests passed');
 }
 

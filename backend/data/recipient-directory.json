@@ -1,0 +1,410 @@
+{
+  "version": 1,
+  "generated_at": "2026-02-24T08:34:47.893Z",
+  "source_audit": [
+    {
+      "source_key": "nc_deq_application_tracker",
+      "url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "fetched_at": "2026-02-24T08:34:45.498Z",
+      "status": "ok",
+      "emails_found": 24
+    },
+    {
+      "source_key": "uk_ea_public_register",
+      "url": "https://www.gov.uk/access-the-public-register-for-environmental-information",
+      "fetched_at": "2026-02-24T08:34:47.892Z",
+      "status": "ok",
+      "emails_found": 2
+    }
+  ],
+  "entries": [
+    {
+      "id": "nc-deq-ramesh-ravella-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Ramesh Ravella",
+      "reviewer_key": "ramesh ravella",
+      "email": "ramesh.ravella@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "reviewer_match"
+      ],
+      "reason": "Matched to NC DEQ reviewer listed in permit metadata"
+    },
+    {
+      "id": "nc-deq-melissa-abbott-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Melissa Abbott",
+      "reviewer_key": "melissa abbott",
+      "email": "melissa.abbott@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "reviewer_match"
+      ],
+      "reason": "Matched to NC DEQ reviewer listed in permit metadata"
+    },
+    {
+      "id": "nc-deq-christine-lawson-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Christine Lawson",
+      "reviewer_key": "christine lawson",
+      "email": "christine.lawson@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "reviewer_match"
+      ],
+      "reason": "Matched to NC DEQ reviewer listed in permit metadata"
+    },
+    {
+      "id": "nc-deq-miressa-garoma-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Miressa Garoma",
+      "reviewer_key": "miressa garoma",
+      "email": "miressa.garoma@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "reviewer_match"
+      ],
+      "reason": "Matched to NC DEQ reviewer listed in permit metadata"
+    },
+    {
+      "id": "nc-deq-sarah-doydora-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Sarah Doydora",
+      "reviewer_key": "sarah doydora",
+      "email": "sarah.doydora@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "nc-deq-tim-fox-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Tim Fox",
+      "reviewer_key": "tim fox",
+      "email": "tim.fox@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "nc-deq-steve-guyton-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Steve Guyton",
+      "reviewer_key": "steve guyton",
+      "email": "steve.guyton@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "nc-deq-katie-fontenot-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Katie Fontenot",
+      "reviewer_key": "katie fontenot",
+      "email": "katie.fontenot@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "nc-deq-diane-harrison-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Diane Harrison",
+      "reviewer_key": "diane harrison",
+      "email": "diane.harrison@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "nc-deq-michael-meilinger-ncdenr-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Michael Meilinger",
+      "reviewer_key": "michael meilinger",
+      "email": "michael.meilinger@ncdenr.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "nc-deq-akela-martin-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Akela Martin",
+      "reviewer_key": "akela martin",
+      "email": "akela.martin@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "nc-deq-megan-thomas-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Megan Thomas",
+      "reviewer_key": "megan thomas",
+      "email": "megan.thomas@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "nc-deq-curtis-tyree-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Curtis Tyree",
+      "reviewer_key": "curtis tyree",
+      "email": "curtis.tyree@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "nc-deq-megan-stilley-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Megan Stilley",
+      "reviewer_key": "megan stilley",
+      "email": "megan.stilley@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "nc-deq-olivia-riley-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Olivia Riley",
+      "reviewer_key": "olivia riley",
+      "email": "olivia.riley@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "nc-deq-chad-coburn-ncdenr-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Chad Coburn",
+      "reviewer_key": "chad coburn",
+      "email": "chad.coburn@ncdenr.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "nc-deq-ann-marie-baxter-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Ann Marie Baxter",
+      "reviewer_key": "ann marie baxter",
+      "email": "ann.marie.baxter@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "nc-deq-tyler-benson-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Tyler Benson",
+      "reviewer_key": "tyler benson",
+      "email": "tyler.benson@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "nc-deq-michael-petrizzo-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Michael Petrizzo",
+      "reviewer_key": "michael petrizzo",
+      "email": "michael.petrizzo@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "nc-deq-steve-west-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Steve West",
+      "reviewer_key": "steve west",
+      "email": "steve.west@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "nc-deq-kaitlyn-hudson-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Kaitlyn Hudson",
+      "reviewer_key": "kaitlyn hudson",
+      "email": "kaitlyn.hudson@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "nc-deq-caitlin-caudle-ncdenr-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Caitlin Caudle",
+      "reviewer_key": "caitlin caudle",
+      "email": "caitlin.caudle@ncdenr.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "nc-deq-kristin-potwora-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Kristin Potwora",
+      "reviewer_key": "kristin potwora",
+      "email": "kristin.potwora@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "nc-deq-rebecca-chandler-deq-nc-gov",
+      "source_key": "nc_deq_application_tracker",
+      "country": "United States",
+      "authority_name": "Rebecca Chandler",
+      "reviewer_key": "rebecca chandler",
+      "email": "rebecca.chandler@deq.nc.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
+    },
+    {
+      "id": "uk-ea-reservoirs-environment-agency-gov-uk",
+      "source_key": "uk_ea_public_register",
+      "country": "United Kingdom",
+      "authority_name": "Reservoirs",
+      "email": "reservoirs@environment-agency.gov.uk",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.gov.uk/access-the-public-register-for-environmental-information",
+      "tags": [
+        "support"
+      ],
+      "reason": "Published on UK government guidance for Environment Agency public register contact"
+    },
+    {
+      "id": "uk-ea-enquiries-environment-agency-gov-uk",
+      "source_key": "uk_ea_public_register",
+      "country": "United Kingdom",
+      "authority_name": "Environment Agency National Customer Contact Centre",
+      "email": "enquiries@environment-agency.gov.uk",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.gov.uk/access-the-public-register-for-environmental-information",
+      "tags": [
+        "primary"
+      ],
+      "reason": "Published on UK government guidance for Environment Agency public register contact"
+    }
+  ]
+}
