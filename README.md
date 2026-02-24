@@ -94,6 +94,7 @@ Optional:
 - `GET /api/admin/runtime-config` (admin)
 - `GET /api/admin/access-requests` (admin)
 - `PATCH /api/admin/access-requests/:userId` (admin)
+- `DELETE /api/admin/users/:userId` (admin, remove non-admin account)
 - `PATCH /api/admin/platform-config` (admin)
 - `GET /api/admin/usage/summary` (admin)
 - `GET /api/admin/usage/anomalies` (admin)
@@ -136,6 +137,8 @@ The contract suite validates auth, permits, letter generation, objection persist
 - Admins can review and approve/revoke account access through:
   - `GET /api/admin/access-requests`
   - `PATCH /api/admin/access-requests/:userId` with `{ "approved": true|false, "note": "..." }`
+  - `DELETE /api/admin/users/:userId` to remove non-admin users
+- Admin UI path: `/admin/access` (legacy alias: `/internal-access-review-7d9f4a`)
 
 Permit ingestion is source-driven via `backend/data/permit-sources.json` and persists normalized records to `backend/data/ingested-permits.json`.
 The current local default runs remote sources only (`local_file` sources are disabled by default).

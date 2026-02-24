@@ -404,6 +404,19 @@ function normalizeEmail(value) {
     return String(value || '').trim().toLowerCase();
 }
 
+const DISABLED_ROLE = 'disabled';
+
+function normalizeRole(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function getRoleAccessState(rawRole) {
+    const role = normalizeRole(rawRole);
+    if (role === 'admin') return { effectiveRole: 'admin', approved: true, disabled: false, pending: false, baseRole: 'admin' };
+    if (role === DISABLED_ROLE) return { effectiveRole: DISABLED_ROLE, approved: false, disabled: true, pending: false, baseRole: 'citizen' };
+    return { effectiveRole: role || 'citizen', approved: false, disabled: false, pending: true, baseRole: role || 'citizen' };
+}
+
 function sanitizeNote(value, maxLength = 400) {
     if (typeof value !== 'string') return null;
     const trimmed = value.trim();
@@ -428,19 +441,85 @@ function findAccessApprovalByUser(user) {
 
 function isUserAccessApproved(user) {
     if (!user || typeof user !== 'object') return false;
-    if (user.role === 'admin') return true;
+    const roleState = getRoleAccessState(user.role);
+    if (roleState.disabled) return false;
+    if (roleState.approved) return true;
+    if (roleState.pending) {
+        const approval = findAccessApprovalByUser(user);
+        if (approval) return approval.approved === true;
+        return false;
+    }
     const approval = findAccessApprovalByUser(user);
     return approval?.approved === true;
 }
 
 function decorateUserAccess(user) {
     if (!user || typeof user !== 'object') return user;
+    const roleState = getRoleAccessState(user.role);
     const accessApproved = isUserAccessApproved(user);
     return {
         ...user,
+        role: roleState.effectiveRole,
+        accountStatus: roleState.disabled ? 'disabled' : accessApproved ? 'approved' : 'pending',
+        raw_role: normalizeRole(user.role),
         accessApproved,
-        accessPending: !accessApproved,
+        accessPending: !accessApproved && !roleState.disabled,
+        accessDisabled: roleState.disabled,
     };
+}
+
+async function fetchUserById(userId) {
+    const lookupId = userId === undefined || userId === null ? '' : String(userId);
+    if (!lookupId) return null;
+
+    if (supabase) {
+        const { data, error } = await supabase
+            .from('users')
+            .select('id, email, name, role, created_at')
+            .eq('id', lookupId)
+            .maybeSingle();
+        if (error) throw error;
+        return data || null;
+    }
+
+    const user = usersData.find((entry) => String(entry.id) === lookupId) || null;
+    if (!user) return null;
+    const { password_hash, ...safeUser } = user;
+    return safeUser;
+}
+
+async function fetchUserByEmail(email) {
+    const safeEmail = normalizeEmail(email);
+    if (!safeEmail) return null;
+
+    if (supabase) {
+        const { data, error } = await supabase
+            .from('users')
+            .select('id, email, name, role, created_at, password_hash')
+            .eq('email', safeEmail)
+            .maybeSingle();
+        if (error) throw error;
+        return data || null;
+    }
+
+    return usersData.find((entry) => normalizeEmail(entry.email) === safeEmail) || null;
+}
+
+function removeAccessApprovalForUser(user) {
+    if (!user || typeof user !== 'object') return;
+    const userId = user.id === undefined || user.id === null ? '' : String(user.id);
+    const email = normalizeEmail(user.email);
+    const originalLength = accessApprovalsData.length;
+    accessApprovalsData = accessApprovalsData.filter((entry) => {
+        const entryUserId = entry?.user_id === undefined || entry?.user_id === null ? '' : String(entry.user_id);
+        const entryEmail = normalizeEmail(entry?.email);
+        if (userId && entryUserId && entryUserId === userId) return false;
+        if (email && entryEmail && entryEmail === email) return false;
+        return true;
+    });
+    if (accessApprovalsData.length !== originalLength) {
+        persistAccessApprovals();
+    }
 }
 
 function upsertAccessApproval(user, { approved, reviewedBy = null, note = null } = {}) {
@@ -493,15 +572,19 @@ function upsertAccessApproval(user, { approved, reviewedBy = null, note = null }
 
 function buildAccessRequestRecord(user) {
     const approval = findAccessApprovalByUser(user);
+    const roleState = getRoleAccessState(user.role);
     const accessApproved = isUserAccessApproved(user);
     return {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role,
+        role: roleState.effectiveRole,
+        raw_role: normalizeRole(user.role),
+        accountStatus: roleState.disabled ? 'disabled' : accessApproved ? 'approved' : 'pending',
         created_at: user.created_at || null,
         accessApproved,
-        accessPending: !accessApproved,
+        accessPending: !accessApproved && !roleState.disabled,
+        accessDisabled: roleState.disabled,
         approval: approval
             ? {
                 note: approval.note || null,
@@ -515,7 +598,7 @@ function buildAccessRequestRecord(user) {
 
 function getActor(req) {
     if (req.user?.id) {
-        const role = req.user.role || 'citizen';
+        const role = getRoleAccessState(req.user.role).effectiveRole || 'citizen';
         return { key: `user:${req.user.id}`, kind: 'user', role };
     }
     return { key: `ip:${getClientIp(req)}`, kind: 'anonymous', role: 'anonymous' };
@@ -645,24 +728,39 @@ function extractBearerToken(authHeader) {
     return authHeader.slice(7).trim() || null;
 }
 
-function authenticateToken(req, res, next) {
+async function authenticateToken(req, res, next) {
     const token = extractBearerToken(req.headers['authorization']);
     if (!token) return res.status(401).json({ error: 'Access token required' });
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.status(403).json({ error: 'Invalid or expired token' });
-        req.user = user;
-        next();
-    });
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const currentUser = await fetchUserById(decoded?.id);
+        if (!currentUser) return res.status(401).json({ error: 'User no longer exists' });
+        const roleState = getRoleAccessState(currentUser.role);
+        if (roleState.disabled) {
+            return res.status(403).json({ error: 'Account disabled' });
+        }
+        req.user = decorateUserAccess(currentUser);
+        return next();
+    } catch (error) {
+        return res.status(403).json({ error: 'Invalid or expired token' });
+    }
 }
 
-function optionalAuth(req, res, next) {
+async function optionalAuth(req, res, next) {
     const token = extractBearerToken(req.headers['authorization']);
-    if (token) {
-        jwt.verify(token, JWT_SECRET, (err, user) => {
-            if (!err) req.user = user;
-        });
+    if (!token) {
+        return next();
     }
-    next();
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const currentUser = await fetchUserById(decoded?.id);
+        if (currentUser && !getRoleAccessState(currentUser.role).disabled) {
+            req.user = decorateUserAccess(currentUser);
+        }
+    } catch (error) {
+        // Optional auth should not block request flow.
+    }
+    return next();
 }
 
 function requireAdmin(req, res, next) {
@@ -787,16 +885,12 @@ app.post('/api/auth/login', authRateLimiter, async (req, res) => {
     }
 
     try {
-        let user;
-        if (supabase) {
-            const { data, error } = await supabase
-                .from('users').select('id, email, password_hash, name, role')
-                .eq('email', email).maybeSingle();
-            if (error || !data) return res.status(401).json({ error: 'Invalid email or password' });
-            user = data;
-        } else {
-            user = usersData.find(u => u.email === email);
-            if (!user) return res.status(401).json({ error: 'Invalid email or password' });
+        const user = await fetchUserByEmail(email);
+        if (!user) return res.status(401).json({ error: 'Invalid email or password' });
+
+        const roleState = getRoleAccessState(user.role);
+        if (roleState.disabled) {
+            return res.status(403).json({ error: 'Account disabled' });
         }
 
         const isValid = await bcrypt.compare(password, user.password_hash);
@@ -1559,23 +1653,7 @@ app.patch('/api/admin/access-requests/:userId', authenticateToken, requireAdmin,
     }
 
     try {
-        let targetUser = null;
-        if (supabase) {
-            const { data, error } = await supabase
-                .from('users')
-                .select('id, email, name, role, created_at')
-                .eq('id', userId)
-                .maybeSingle();
-            if (error) throw error;
-            targetUser = data || null;
-        } else {
-            targetUser = usersData
-                .map((user) => {
-                    const { password_hash, ...safeUser } = user;
-                    return safeUser;
-                })
-                .find((user) => String(user.id) === userId) || null;
-        }
+        let targetUser = await fetchUserById(userId);
 
         if (!targetUser) {
             return res.status(404).json({ error: 'User not found' });
@@ -1598,6 +1676,51 @@ app.patch('/api/admin/access-requests/:userId', authenticateToken, requireAdmin,
     } catch (error) {
         console.error('Access request update failed:', error.message);
         return res.status(500).json({ error: 'Failed to update access request' });
+    }
+});
+
+app.delete('/api/admin/users/:userId', authenticateToken, requireAdmin, async (req, res) => {
+    const userId = String(req.params.userId || '').trim();
+    if (!userId) return res.status(400).json({ error: 'userId is required' });
+    if (String(req.user.id) === userId) {
+        return res.status(400).json({ error: 'You cannot remove your own account' });
+    }
+
+    try {
+        const targetUser = await fetchUserById(userId);
+        if (!targetUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        if (normalizeRole(targetUser.role) === 'admin') {
+            return res.status(400).json({ error: 'Admin accounts cannot be removed via this endpoint' });
+        }
+
+        if (supabase) {
+            const { error } = await supabase.from('users').delete().eq('id', userId);
+            if (error) throw error;
+        } else {
+            const before = usersData.length;
+            usersData = usersData.filter((entry) => String(entry.id) !== userId);
+            if (usersData.length === before) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+            writeArrayFile('users.json', usersData);
+        }
+
+        removeAccessApprovalForUser(targetUser);
+
+        return res.json({
+            message: 'User removed',
+            removed: {
+                id: targetUser.id,
+                email: targetUser.email,
+                name: targetUser.name,
+            },
+        });
+    } catch (error) {
+        console.error('User removal failed:', error.message);
+        return res.status(500).json({ error: 'Failed to remove user' });
     }
 });
 
@@ -2010,6 +2133,7 @@ app.get('/api', (req, res) => {
             'GET  /api/admin/runtime-config',
             'GET  /api/admin/access-requests',
             'PATCH /api/admin/access-requests/:userId',
+            'DELETE /api/admin/users/:userId',
             'PATCH /api/admin/platform-config',
             'GET  /api/admin/usage/summary',
             'GET  /api/admin/usage/anomalies',

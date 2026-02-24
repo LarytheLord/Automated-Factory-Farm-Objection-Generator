@@ -643,6 +643,15 @@ export default function Home() {
             {isMounted && isAuthenticated ? (
               <>
                 <span className="hidden md:block text-sm text-gray-500">{user?.name}</span>
+                {user?.role === "admin" && (
+                  <Link
+                    href="/admin/access"
+                    className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-slate-900 transition-colors"
+                    title="Admin Access Console"
+                  >
+                    <Shield className="w-4 h-4" />
+                  </Link>
+                )}
                 <Link href="/my-objections" className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-slate-900 transition-colors" title="My Objections">
                   <FileText className="w-4 h-4" />
                 </Link>

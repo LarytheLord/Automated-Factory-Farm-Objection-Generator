@@ -48,6 +48,7 @@ function run() {
     'PATCH /api/admin/quotas',
     'GET /api/admin/platform-config',
     'PATCH /api/admin/platform-config',
+    'DELETE /api/admin/users/:userId',
     'GET /api/admin/usage/summary',
     'GET /api/admin/usage/anomalies',
     'POST /api/admin/usage/reset',
