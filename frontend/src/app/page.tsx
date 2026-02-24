@@ -7,6 +7,7 @@ import {
   Clock,
   FileText,
   Send,
+  ExternalLink,
   ArrowLeft,
   ChevronRight,
   Shield,
@@ -69,6 +70,16 @@ interface UsageBucket {
 interface UsageResponse {
   letters?: { usage: UsageBucket };
   email?: { usage: UsageBucket };
+}
+
+interface RecipientSuggestion {
+  id: string;
+  label: string;
+  type: "email" | "webform";
+  confidence: "official" | "source_extracted" | "inferred";
+  email?: string;
+  action_url?: string;
+  reason?: string;
 }
 
 /* ─── Animated Counter Hook ─── */
@@ -138,6 +149,10 @@ export default function Home() {
   const [generatingLetter, setGeneratingLetter] = useState(false);
   const [letterError, setLetterError] = useState<string | null>(null);
   const [recipientEmail, setRecipientEmail] = useState("");
+  const [letterMode, setLetterMode] = useState<"concise" | "detailed">("concise");
+  const [recipientSuggestions, setRecipientSuggestions] = useState<RecipientSuggestion[]>([]);
+  const [recipientGuidance, setRecipientGuidance] = useState<string | null>(null);
+  const [loadingRecipients, setLoadingRecipients] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailSentMessage, setEmailSentMessage] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -146,6 +161,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedMailDraft, setCopiedMailDraft] = useState(false);
   const [currentDate, setCurrentDate] = useState("");
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -278,8 +294,57 @@ export default function Home() {
       setSelectedPermit(null);
       setGeneratedLetter("");
       setRecipientEmail("");
+      setRecipientSuggestions([]);
+      setRecipientGuidance(null);
     }
   }, [hasApprovedAccess]);
+
+  useEffect(() => {
+    const loadRecipientSuggestions = async () => {
+      if (!selectedPermit || !token || !hasApprovedAccess) {
+        setRecipientSuggestions([]);
+        setRecipientGuidance(null);
+        setRecipientEmail("");
+        return;
+      }
+
+      setLoadingRecipients(true);
+      setRecipientGuidance(null);
+      setRecipientEmail("");
+      try {
+        const res = await fetchWithTimeout(`${API_BASE}/api/recipient-suggestions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ permitDetails: selectedPermit }),
+        }, 15000);
+
+        if (!res.ok) {
+          const payload = await res.json().catch(() => null);
+          throw new Error(payload?.error || "Failed to load recipient suggestions");
+        }
+
+        const payload = await res.json();
+        const suggestions = Array.isArray(payload?.suggestions) ? payload.suggestions : [];
+        setRecipientSuggestions(suggestions);
+        setRecipientGuidance(payload?.guidance || null);
+
+        const firstEmail = suggestions.find((item: RecipientSuggestion) => item.type === "email" && item.email);
+        if (firstEmail?.email) {
+          setRecipientEmail(firstEmail.email);
+        }
+      } catch (err) {
+        setRecipientSuggestions([]);
+        setRecipientGuidance(err instanceof Error ? err.message : "Could not load recipient suggestions.");
+      } finally {
+        setLoadingRecipients(false);
+      }
+    };
+
+    loadRecipientSuggestions();
+  }, [selectedPermit, token, hasApprovedAccess, API_BASE]);
 
   /* ─── Handlers ─── */
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -308,6 +373,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           permitDetails: { ...selectedPermit, ...formData, currentDate },
+          letterMode,
         }),
       }, 35000);
       if (!res.ok) {
@@ -440,6 +506,51 @@ export default function Home() {
       fetchUsage(token);
     } finally {
       setSendingEmail(false);
+    }
+  };
+
+  const buildEmailDraft = () => {
+    const to = recipientEmail.trim();
+    const subject = `Objection: ${selectedPermit?.project_title || "Permit Concern"}`;
+    const body = generatedLetter;
+    return { to, subject, body };
+  };
+
+  const useSuggestedRecipient = (suggestion: RecipientSuggestion) => {
+    if (suggestion.email) {
+      setRecipientEmail(suggestion.email);
+      setEmailError(null);
+    }
+  };
+
+  const openSuggestionLink = (suggestion: RecipientSuggestion) => {
+    if (!suggestion.action_url) return;
+    window.open(suggestion.action_url, "_blank", "noopener,noreferrer");
+  };
+
+  const openInMailApp = () => {
+    if (!generatedLetter) {
+      setEmailError("Please generate a letter first.");
+      return;
+    }
+    const draft = buildEmailDraft();
+    const mailtoUrl = `mailto:${encodeURIComponent(draft.to)}?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}`;
+    window.location.href = mailtoUrl;
+  };
+
+  const copyEmailDraft = async () => {
+    if (!generatedLetter) {
+      setEmailError("Please generate a letter first.");
+      return;
+    }
+    const draft = buildEmailDraft();
+    const text = `To: ${draft.to || "[Add recipient email]"}\nSubject: ${draft.subject}\n\n${draft.body}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMailDraft(true);
+      setTimeout(() => setCopiedMailDraft(false), 2500);
+    } catch {
+      setEmailError("Could not copy draft to clipboard.");
     }
   };
 
@@ -776,6 +887,17 @@ export default function Home() {
                     <FormInput name="yourPostalCode" label="Postal Code" value={formData.yourPostalCode} onChange={handleInputChange} />
                     <FormInput name="yourPhone" label="Phone" value={formData.yourPhone} onChange={handleInputChange} />
                   </div>
+                  <div className="mt-4">
+                    <label className="block text-xs text-gray-600 mb-1.5">Letter Style</label>
+                    <select
+                      value={letterMode}
+                      onChange={(e) => setLetterMode(e.target.value === "detailed" ? "detailed" : "concise")}
+                      className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:border-emerald-500/30 text-slate-700"
+                    >
+                      <option value="concise">Concise (Most Impactful)</option>
+                      <option value="detailed">Detailed (Full Legal Context)</option>
+                    </select>
+                  </div>
                   <button
                     onClick={generateLetter}
                     disabled={generatingLetter}
@@ -831,6 +953,36 @@ export default function Home() {
                       <Mail className="w-4 h-4 text-blue-400" />
                       Send to Authorities
                     </h4>
+                    {loadingRecipients && (
+                      <p className="text-xs text-gray-500 mb-3">Finding official recipient contacts...</p>
+                    )}
+                    {!loadingRecipients && recipientSuggestions.length > 0 && (
+                      <div className="mb-3 flex flex-wrap gap-2">
+                        {recipientSuggestions.map((suggestion) => (
+                          suggestion.type === "email" ? (
+                            <button
+                              key={suggestion.id}
+                              onClick={() => useSuggestedRecipient(suggestion)}
+                              className="text-xs px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors"
+                            >
+                              Use {suggestion.email || suggestion.label}
+                            </button>
+                          ) : (
+                            <button
+                              key={suggestion.id}
+                              onClick={() => openSuggestionLink(suggestion)}
+                              className="text-xs px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-colors flex items-center gap-1"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              {suggestion.label}
+                            </button>
+                          )
+                        ))}
+                      </div>
+                    )}
+                    {recipientGuidance && (
+                      <p className="text-xs text-gray-500 mb-3">{recipientGuidance}</p>
+                    )}
                     <div className="flex gap-3">
                       <input
                         type="email"
@@ -842,6 +994,22 @@ export default function Home() {
                       <button onClick={sendEmail} disabled={sendingEmail} className="px-6 py-2.5 bg-blue-500 hover:bg-blue-400 text-white font-semibold rounded-xl transition-all disabled:opacity-50 flex items-center gap-2 text-sm">
                         {sendingEmail ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
                         Send
+                      </button>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        onClick={openInMailApp}
+                        className="px-4 py-2 text-sm rounded-xl border border-slate-200 hover:border-blue-400/50 hover:bg-blue-50 text-slate-700 transition-colors flex items-center gap-2"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Open in Mail App
+                      </button>
+                      <button
+                        onClick={copyEmailDraft}
+                        className="px-4 py-2 text-sm rounded-xl border border-slate-200 hover:border-emerald-400/50 hover:bg-emerald-50 text-slate-700 transition-colors flex items-center gap-2"
+                      >
+                        {copiedMailDraft ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                        {copiedMailDraft ? "Email Draft Copied" : "Copy Email Draft"}
                       </button>
                     </div>
                     {emailSentMessage && <p className="mt-2 text-emerald-400 text-sm flex items-center gap-1"><CheckCircle className="w-4 h-4" /> {emailSentMessage}</p>}

@@ -15,6 +15,7 @@ const { applySourcePatch } = require('./permitSourceConfig');
 const { buildSourceValidationReport } = require('./sourceRollout');
 const { annotateAndSortPermits } = require('./permitPriority');
 const { sanitizeLetterText } = require('./letterSanitizer');
+const { getRecipientSuggestions } = require('./recipientFinder');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -1038,11 +1039,46 @@ app.post('/api/objections', authenticateToken, requireApprovedAccess, async (req
 // AI LETTER GENERATION
 // ═══════════════════════════════════════════════════
 
+function normalizeLetterMode(mode) {
+    const value = String(mode || '').trim().toLowerCase();
+    if (value === 'detailed') return 'detailed';
+    return 'concise';
+}
+
+function buildRecipientLookupPermit(reqBody, reqParamId) {
+    if (reqBody?.permitDetails && typeof reqBody.permitDetails === 'object') {
+        return reqBody.permitDetails;
+    }
+    if (reqBody?.permit && typeof reqBody.permit === 'object') {
+        return reqBody.permit;
+    }
+    if (reqParamId) {
+        const permitId = String(reqParamId);
+        return allPermits().find((permit) => String(permit.id) === permitId) || null;
+    }
+    return null;
+}
+
+app.post('/api/recipient-suggestions', authenticateToken, requireApprovedAccess, (req, res) => {
+    try {
+        const permit = buildRecipientLookupPermit(req.body, req.body?.permitId);
+        if (!permit) {
+            return res.status(400).json({ error: 'permitDetails or permitId is required' });
+        }
+        const payload = getRecipientSuggestions(permit);
+        return res.json(payload);
+    } catch (error) {
+        console.error('Recipient suggestion error:', error);
+        return res.status(500).json({ error: 'Failed to get recipient suggestions' });
+    }
+});
+
 app.post('/api/generate-letter', authenticateToken, requireApprovedAccess, letterRateLimiter, async (req, res) => {
     if (!isFeatureEnabled('letterGenerationEnabled')) {
         return res.status(503).json({ error: 'Letter generation is temporarily disabled' });
     }
     const { permitDetails } = req.body;
+    const letterMode = normalizeLetterMode(req.body?.letterMode);
     if (!permitDetails) {
         return res.status(400).json({ error: 'permitDetails is required' });
     }
@@ -1067,32 +1103,51 @@ app.post('/api/generate-letter', authenticateToken, requireApprovedAccess, lette
         // Try AI generation first
         if (genAI) {
             const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-            const prompt = buildAIPrompt(permitDetails);
+            const prompt = buildAIPrompt(permitDetails, letterMode);
             const result = await model.generateContent(prompt);
             const letter = sanitizeLetterText(result.response.text());
             recordUsage(req, 'generate_letter');
-            return res.json({ letter });
+            return res.json({ letter, mode: letterMode });
         }
 
         // Fallback: Built-in legal template engine
-        const letter = sanitizeLetterText(generateTemplatedLetter(permitDetails));
+        const letter = sanitizeLetterText(generateTemplatedLetter(permitDetails, letterMode));
         recordUsage(req, 'generate_letter');
-        res.json({ letter });
+        res.json({ letter, mode: letterMode });
     } catch (error) {
         console.error('Letter generation error:', error);
         // Even if AI fails, use template fallback
         try {
-            const letter = sanitizeLetterText(generateTemplatedLetter(permitDetails));
+            const letter = sanitizeLetterText(generateTemplatedLetter(permitDetails, letterMode));
             recordUsage(req, 'generate_letter');
-            res.json({ letter });
+            res.json({ letter, mode: letterMode });
         } catch (fallbackError) {
             res.status(500).json({ error: 'Failed to generate letter' });
         }
     }
 });
 
-function buildAIPrompt(details) {
+function buildAIPrompt(details, mode = 'concise') {
     const countryLaws = getCountryLegalFramework(details.country);
+    const modeInstructions = mode === 'detailed'
+        ? `INSTRUCTIONS:
+1. Write a formal objection letter addressed to the relevant regulatory authority
+2. Open with the objector's details and the permit reference
+3. Cite AT LEAST 4-5 specific laws/sections from the legal framework above
+4. Address environmental impact (water pollution, air quality, waste management)
+5. Address animal welfare concerns where applicable
+6. Address community health and safety concerns
+7. Address economic impact on local communities
+8. Request specific actions (denial of permit, additional environmental impact assessment, public hearing)
+9. Maintain a professional, firm tone throughout
+10. End with a formal closing`
+        : `INSTRUCTIONS:
+1. Write a concise but formal objection letter (target 220-320 words)
+2. Focus only on the TOP 3 strongest reasons the permit should be stopped
+3. Include 2-3 specific legal hooks from the framework above (not exhaustive list)
+4. Use clear, impactful language that an authority can act on quickly
+5. End with a concrete action request: deny permit / hold pending review / require public hearing`;
+
     return `You are an expert environmental lawyer and animal welfare advocate. Generate a formal, legally-grounded objection letter against a factory farm / industrial facility permit application.
 
 PERMIT DETAILS:
@@ -1114,17 +1169,7 @@ OBJECTOR DETAILS:
 APPLICABLE LEGAL FRAMEWORK FOR ${(details.country || 'India').toUpperCase()}:
 ${countryLaws}
 
-INSTRUCTIONS:
-1. Write a formal objection letter addressed to the relevant regulatory authority
-2. Open with the objector's details and the permit reference
-3. Cite AT LEAST 4-5 specific laws/sections from the legal framework above
-4. Address environmental impact (water pollution, air quality, waste management)
-5. Address animal welfare concerns where applicable
-6. Address community health and safety concerns
-7. Address economic impact on local communities
-8. Request specific actions (denial of permit, additional environmental impact assessment, public hearing)
-9. Maintain a professional, firm tone throughout
-10. End with a formal closing
+${modeInstructions}
 
 Generate the complete letter text only, no markdown formatting.`;
 }
@@ -1192,7 +1237,11 @@ function getCountryLegalFramework(country) {
     return frameworks[key] || frameworks['India'];
 }
 
-function generateTemplatedLetter(details) {
+function generateTemplatedLetter(details, mode = 'concise') {
+    if (mode !== 'detailed') {
+        return generateConciseTemplatedLetter(details);
+    }
+
     const name = details.yourName || '[Your Name]';
     const address = [details.yourAddress, details.yourCity, details.yourPostalCode].filter(Boolean).join(', ') || '[Your Address]';
     const email = details.yourEmail || '[Your Email]';
@@ -1284,6 +1333,49 @@ Yours faithfully,
 ${name}
 ${email}
 ${phone}`;
+}
+
+function generateConciseTemplatedLetter(details) {
+    const name = details.yourName || '[Your Name]';
+    const address = [details.yourAddress, details.yourCity, details.yourPostalCode].filter(Boolean).join(', ') || '[Your Address]';
+    const email = details.yourEmail || '[Your Email]';
+    const phone = details.yourPhone || '[Your Phone]';
+    const date = details.currentDate || new Date().toISOString().split('T')[0];
+    const country = details.country || 'India';
+    const laws = getCountryLegalFramework(country)
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .slice(0, 3)
+        .join('\n');
+
+    return `${name}
+${address}
+Email: ${email}
+Phone: ${phone}
+
+Date: ${date}
+
+Subject: Objection to permit — ${details.project_title || '[Project Title]'}
+
+To whom it may concern,
+
+I object to the proposed permit for "${details.project_title}" at ${details.location}, ${country}. This proposal should be paused and rejected unless strict legal and environmental compliance is proven.
+
+Key reasons for objection:
+1) Environmental risk: The proposed ${details.activity || 'industrial operation'} creates credible risks to water quality, air quality, and local public health.
+2) Welfare and community impact: The scale and model of operation raise serious welfare concerns and disproportionate burdens for nearby communities.
+3) Legal insufficiency: The current record does not demonstrate full compliance with core legal duties, including:
+${laws}
+
+Requested action:
+- Reject the permit in its current form; or
+- Hold decision until an independent impact review and public hearing are completed.
+
+Please record this objection in the official file and confirm receipt.
+
+Sincerely,
+${name}`;
 }
 
 // ═══════════════════════════════════════════════════
@@ -1908,6 +2000,7 @@ app.get('/api', (req, res) => {
             'GET  /api/permits',
             'GET  /api/permits/:id',
             'POST /api/permits',
+            'POST /api/recipient-suggestions',
             'POST /api/generate-letter',
             'POST /api/send-email',
             'GET  /api/usage',

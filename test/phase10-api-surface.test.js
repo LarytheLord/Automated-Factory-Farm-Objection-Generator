@@ -34,6 +34,7 @@ function run() {
     'GET /api/permits/:id',
     'POST /api/permits',
     'POST /api/generate-letter',
+    'POST /api/recipient-suggestions',
     'POST /api/send-email',
     'GET /api/usage',
     'GET /api/stats',
