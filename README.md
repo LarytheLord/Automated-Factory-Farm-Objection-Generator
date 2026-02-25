@@ -7,7 +7,7 @@ AFFOG is a unified Next.js + Express platform for generating legally grounded ob
 - Frontend: Next.js App Router
 - Backend API: Express
 - AI: Google Gemini (optional; template fallback built-in)
-- Email: Nodemailer (optional; simulated fallback)
+- Email delivery: client-side only (`mailto`/copy draft); server-side sending disabled
 - Persistence: JSON-first (`backend/data/*.json`), Supabase optional
 - Deployment target: Railway native (no Docker)
 
@@ -44,8 +44,6 @@ Required for production security:
 Optional:
 
 - `GEMINI_API_KEY`
-- `USER_EMAIL`
-- `USER_PASS`
 - `SUPABASE_URL`
 - `SUPABASE_KEY`
 - `REQUIRE_SUPABASE` (`true` to fail startup unless Supabase is configured; recommended for strict production mode)
@@ -55,20 +53,15 @@ Optional:
 - `NGO_DAILY_LETTERS`
 - `NGO_MONTHLY_LETTERS`
 - `ANON_DAILY_LETTERS`
-- `USER_DAILY_EMAILS`
-- `NGO_DAILY_EMAILS`
-- `ANON_DAILY_EMAILS`
 - `ENABLE_PERMIT_SYNC` (`true` to run background source sync loop)
 - `PERMIT_SYNC_INTERVAL_MINUTES` (default `360`)
 - `INCLUDE_STATIC_PERMITS` (`false` by default; set `true` only if you want bundled static permits from `backend/permits.json`)
 - `REAL_PERMITS_ONLY` (`true` by default; excludes untrusted/demo permits from `/api/permits`)
-- `EMAIL_SEND_TIMEOUT_MS` (default `20000`)
 - `ALLOWED_ORIGINS` (comma-separated CORS allowlist; required in production for browser access)
 - `TRUST_PROXY` (default enabled; set `false` only if you are not behind a proxy/load balancer)
 - `STRICT_SECURITY_HEADERS` (default enabled in production)
 - `AUTH_RATE_LIMIT_PER_HOUR` (default `20`)
 - `LETTER_RATE_LIMIT_PER_HOUR` (default `25`)
-- `EMAIL_RATE_LIMIT_PER_HOUR` (default `20`)
 - `PORT` (default `3000` in unified mode)
 - `NODE_ENV`
 
@@ -79,7 +72,6 @@ Optional:
 - `GET /api/permits/:id`
 - `POST /api/permits`
 - `POST /api/generate-letter`
-- `POST /api/send-email`
 - `GET /api/usage`
 - `GET /api/stats`
 - `GET /api/objections`
@@ -128,11 +120,18 @@ npm run test:phase13
 npm run test:all:local
 ```
 
-The contract suite validates auth, permits, letter generation, objection persistence, and email endpoint behavior.
+The contract suite validates auth, permits, letter generation, and objection persistence behavior.
+
+Project-level documentation bundle:
+
+- `docs/AFFOG_MASTER_PROJECT_DOSSIER.md` (full start-to-end project narrative)
+- `docs/EXECUTION_NOTES.md` (recent implementation log)
+- `docs/LEGAL_RISK_PLAYBOOK.md` (legal-risk controls and roadmap)
+- `docs/PROFESSIONAL_READINESS_AUDIT.md` (prioritized production/professionalism gaps)
 
 ## Access Control Model
 
-- Permit browsing and letter/email actions are protected by auth + manual approval.
+- Permit browsing and letter generation actions are protected by auth + manual approval.
 - New signups are pending by default.
 - Admins can review and approve/revoke account access through:
   - `GET /api/admin/access-requests`
@@ -177,7 +176,7 @@ Safe live rollout sequence (staging first):
 - Build: `npm install && npm run build`
 - Start: `npm start`
 - Healthcheck: `/api/health`
-3. Set env vars (at minimum `JWT_SECRET`, plus optional Gemini/email/Supabase).
+3. Set env vars (at minimum `JWT_SECRET`, plus optional Gemini/Supabase).
 4. Deploy.
 
 ## Docker Note

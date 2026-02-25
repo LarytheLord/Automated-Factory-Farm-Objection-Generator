@@ -139,18 +139,19 @@ async function run() {
   assert(objectionsFile.some((o) => String(o.id) === String(objection.data.id)), 'Objection was not persisted to JSON data store');
   console.log('✓ JSON persistence check');
 
-  // 11) Send email endpoint
+  // 11) Send email endpoint is intentionally disabled
   const email = await request('/api/send-email', {
     method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({
       to: 'authority@example.org',
       subject: `Test Objection: ${permit.project_title}`,
       text: generated.data.letter,
     }),
   });
-  assert(email.response.ok, 'POST /api/send-email failed');
-  assert(email.data && typeof email.data.message === 'string', 'Email response payload invalid');
-  console.log('✓ POST /api/send-email');
+  assert(email.response.status === 410, `POST /api/send-email should be disabled (expected 410, got ${email.response.status})`);
+  assert(email.data && typeof email.data.error === 'string', 'Disabled send-email payload invalid');
+  console.log('✓ POST /api/send-email disabled by design');
 
   console.log('\nAll AFFOG contract tests passed.');
 }

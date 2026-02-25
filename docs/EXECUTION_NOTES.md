@@ -25,7 +25,6 @@ Use it as the source of truth for what has shipped, what is configured, and what
 - Replaced one generic limiter with dedicated endpoint limiters:
   - `POST /api/auth/register` and `POST /api/auth/login` -> auth limiter
   - `POST /api/generate-letter` -> letter limiter
-  - `POST /api/send-email` -> email limiter
 - Limits are configured by env vars and keyed by client IP.
 
 ### 4) Security headers middleware
@@ -58,7 +57,6 @@ Use it as the source of truth for what has shipped, what is configured, and what
   - permit browsing endpoints
   - objection write/read endpoints
   - letter generation endpoint
-  - email send endpoint
 - Added admin review APIs:
   - `GET /api/admin/access-requests`
   - `PATCH /api/admin/access-requests/:userId`
@@ -81,7 +79,6 @@ Use it as the source of truth for what has shipped, what is configured, and what
 - `REQUIRE_SUPABASE=true` (when you are ready to enforce DB-backed production mode)
 - `AUTH_RATE_LIMIT_PER_HOUR`
 - `LETTER_RATE_LIMIT_PER_HOUR`
-- `EMAIL_RATE_LIMIT_PER_HOUR`
 
 Optional but recommended:
 - `SUPABASE_URL`
@@ -97,11 +94,17 @@ Optional but recommended:
 1. `GET /api/health` returns `200`.
 2. Browser frontend can call API successfully (confirms `ALLOWED_ORIGINS` is correct).
 3. `GET /api/admin/runtime-config` confirms expected security/rate settings.
-4. Generate-letter, login, and send-email enforce limits correctly under repeated requests.
+4. Generate-letter and login enforce limits correctly under repeated requests.
 5. Access-lock behavior check:
    - anonymous users cannot read permits
-   - pending users cannot generate/send letters
+   - pending users cannot generate letters
    - approved users can use permit + letter workflow
+
+## 2026-02-25 Update
+- Disabled direct platform email sending at API level (`POST /api/send-email` now returns `410`).
+- Removed one-click send action from the frontend. Users now send using:
+  - `Open in Mail App`
+  - `Copy Email Draft`
 
 ## Next build items (priority order)
 1. Make Supabase the primary required store for public production data paths (users, objections, usage, ingestion state).

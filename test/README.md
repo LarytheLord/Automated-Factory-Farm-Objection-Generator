@@ -44,4 +44,3 @@ API_BASE_URL=http://localhost:3000 npm run test
 - `POST /api/objections`
 - `GET /api/objections`
 - JSON persistence check (`backend/data/objections.json`)
-- `POST /api/send-email`

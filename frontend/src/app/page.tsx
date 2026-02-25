@@ -6,7 +6,6 @@ import {
   MapPin,
   Clock,
   FileText,
-  Send,
   ExternalLink,
   ArrowLeft,
   ChevronRight,
@@ -154,8 +153,6 @@ export default function Home() {
   const [recommendedRecipient, setRecommendedRecipient] = useState<RecipientSuggestion | null>(null);
   const [recipientGuidance, setRecipientGuidance] = useState<string | null>(null);
   const [loadingRecipients, setLoadingRecipients] = useState(false);
-  const [sendingEmail, setSendingEmail] = useState(false);
-  const [emailSentMessage, setEmailSentMessage] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("All");
@@ -467,59 +464,6 @@ export default function Home() {
     }
   };
 
-  const sendEmail = async () => {
-    if (!isAuthenticated) {
-      setIsAuthModalOpen(true);
-      return;
-    }
-    if (!hasApprovedAccess) {
-      setEmailError("Account pending manual approval. You cannot send letters yet.");
-      return;
-    }
-    if (!generatedLetter || !recipientEmail) {
-      setEmailError("Please generate a letter and provide a recipient email.");
-      return;
-    }
-    setSendingEmail(true);
-    setEmailError(null);
-    setEmailSentMessage("");
-    try {
-      const res = await fetchWithTimeout(`${API_BASE}/api/send-email`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          to: recipientEmail,
-          subject: `Objection: ${selectedPermit?.project_title}`,
-          text: generatedLetter,
-        }),
-      }, 30000);
-      if (!res.ok) {
-        let message = "Failed to send email";
-        try {
-          const payload = await res.json();
-          if (payload?.error) message = payload.error;
-        } catch {
-          // keep default
-        }
-        throw new Error(message);
-      }
-      setEmailSentMessage("Email sent successfully!");
-      fetchUsage(token);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        setEmailError("Email request timed out. Please try again.");
-      } else {
-        setEmailError(err instanceof Error ? err.message : "Failed to send email");
-      }
-      fetchUsage(token);
-    } finally {
-      setSendingEmail(false);
-    }
-  };
-
   const buildEmailDraft = () => {
     const to = recipientEmail.trim();
     const subject = `Objection: ${selectedPermit?.project_title || "Permit Concern"}`;
@@ -734,7 +678,7 @@ export default function Home() {
           <div className="grid md:grid-cols-3 gap-6">
             <StepCard num="01" title="Find a Violation" desc="Browse our database of factory farm permits across 8+ countries. Filter by country, location, or activity." icon={<Search className="w-5 h-5" />} />
             <StepCard num="02" title="AI Drafts Your Letter" desc="Our AI analyzes relevant laws, then writes a legally grounded objection — personalized to the specific permit." icon={<Sparkles className="w-5 h-5" />} />
-            <StepCard num="03" title="Send to Authorities" desc="Submit the objection directly to relevant authorities via email. One click, real legal impact." icon={<Send className="w-5 h-5" />} />
+            <StepCard num="03" title="Submit to Authorities" desc="Use authority contact details, review the draft, and send from your own email client." icon={<Mail className="w-5 h-5" />} />
           </div>
         </div>
       </section>
@@ -841,7 +785,6 @@ export default function Home() {
                       setSelectedPermit(permit);
                       setGeneratedLetter("");
                       setLetterError(null);
-                      setEmailSentMessage("");
                       setEmailError(null);
                     }}
                   >
@@ -971,7 +914,7 @@ export default function Home() {
                   <div className="mt-6 pt-6 border-t border-slate-200">
                     <h4 className="font-medium mb-3 flex items-center gap-2 text-sm">
                       <Mail className="w-4 h-4 text-blue-400" />
-                      Send to Authorities
+                      Prepare Authority Submission
                     </h4>
                     {loadingRecipients && (
                       <p className="text-xs text-gray-500 mb-3">Finding official recipient contacts...</p>
@@ -1014,12 +957,8 @@ export default function Home() {
                         value={recipientEmail}
                         onChange={(e) => setRecipientEmail(e.target.value)}
                         placeholder="authority@example.gov"
-                        className="flex-1 bg-white border border-slate-200 rounded-xl py-2.5 px-4 text-sm focus:outline-none focus:border-blue-500/30 transition-colors placeholder:text-gray-500"
+                        className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 text-sm focus:outline-none focus:border-blue-500/30 transition-colors placeholder:text-gray-500"
                       />
-                      <button onClick={sendEmail} disabled={sendingEmail} className="px-6 py-2.5 bg-blue-500 hover:bg-blue-400 text-white font-semibold rounded-xl transition-all disabled:opacity-50 flex items-center gap-2 text-sm">
-                        {sendingEmail ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
-                        Send
-                      </button>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
@@ -1040,7 +979,6 @@ export default function Home() {
                     <p className="mt-3 text-xs text-gray-500">
                       Note: For best deliverability, use <strong>Open in Mail App</strong>, review the draft, and send from your own email client.
                     </p>
-                    {emailSentMessage && <p className="mt-2 text-emerald-400 text-sm flex items-center gap-1"><CheckCircle className="w-4 h-4" /> {emailSentMessage}</p>}
                     {emailError && <p className="mt-2 text-red-400 text-sm">{emailError}</p>}
                   </div>
                 </div>

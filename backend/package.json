@@ -22,7 +22,6 @@
     "cors": "^2.8.5",
     "dotenv": "^17.0.1",
     "express": "^5.1.0",
-    "jsonwebtoken": "^9.0.3",
-    "nodemailer": "^7.0.4"
+    "jsonwebtoken": "^9.0.3"
   }
 }

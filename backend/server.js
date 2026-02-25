@@ -5,7 +5,6 @@ const cors = require('cors');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const nodemailer = require('nodemailer');
 const { readArrayFile, writeArrayFile, readJsonFile, writeJsonFile, nextId } = require('./dataStore');
 const { summarizeUsageEvents, detectUsageAnomalies } = require('./usageAnalytics');
 const { DEFAULT_PLATFORM_CONFIG, sanitizePlatformConfig, applyPlatformPatch } = require('./platformControls');
@@ -113,8 +112,6 @@ if (strictSecurityHeaders) {
 
 // ─── Environment variables (graceful handling) ───
 const geminiApiKey = process.env.GEMINI_API_KEY;
-const emailUser = process.env.USER_EMAIL;
-const emailPass = process.env.USER_PASS;
 const realPermitsOnly = String(process.env.REAL_PERMITS_ONLY || 'true').toLowerCase() !== 'false';
 
 let genAI = null;
@@ -126,23 +123,7 @@ if (geminiApiKey && geminiApiKey !== 'your_google_gemini_api_key_here') {
     console.warn('⚠️  GEMINI_API_KEY not set. AI generation will use built-in legal template engine.');
 }
 
-// ─── Nodemailer setup (optional) ───
-let transporter = null;
-if (emailUser && emailPass) {
-    const connectionTimeout = Number.parseInt(process.env.EMAIL_CONNECTION_TIMEOUT_MS || '15000', 10) || 15000;
-    const greetingTimeout = Number.parseInt(process.env.EMAIL_GREETING_TIMEOUT_MS || '10000', 10) || 10000;
-    const socketTimeout = Number.parseInt(process.env.EMAIL_SOCKET_TIMEOUT_MS || '20000', 10) || 20000;
-    transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user: emailUser, pass: emailPass },
-        connectionTimeout,
-        greetingTimeout,
-        socketTimeout,
-    });
-    console.log('✅ Email configured');
-} else {
-    console.warn('⚠️  Email credentials not set. Email sending will be simulated.');
-}
+console.warn('⚠️  Direct platform email sending is disabled. Users must send drafts from their own mail client.');
 
 // ─── Supabase (optional) ───
 let supabase = null;
@@ -353,12 +334,6 @@ const letterRateLimiter = createRateLimiter({
     key: 'generate-letter',
     windowMs: 60 * 60 * 1000,
     maxRequests: intFromEnv('LETTER_RATE_LIMIT_PER_HOUR', 25),
-});
-
-const emailRateLimiter = createRateLimiter({
-    key: 'send-email',
-    windowMs: 60 * 60 * 1000,
-    maxRequests: intFromEnv('EMAIL_RATE_LIMIT_PER_HOUR', 20),
 });
 
 function intFromEnv(name, fallback) {
@@ -1473,74 +1448,13 @@ ${name}`;
 }
 
 // ═══════════════════════════════════════════════════
-// EMAIL SENDING
+// DIRECT EMAIL SENDING (DISABLED)
 // ═══════════════════════════════════════════════════
 
-const EMAIL_SEND_TIMEOUT_MS = Math.max(5000, intFromEnv('EMAIL_SEND_TIMEOUT_MS', 20000));
-
-function sendMailWithTimeout(mailOptions, timeoutMs = EMAIL_SEND_TIMEOUT_MS) {
-    return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-            reject(new Error('Email send timed out'));
-        }, timeoutMs);
-
-        transporter.sendMail(mailOptions)
-            .then((info) => {
-                clearTimeout(timer);
-                resolve(info);
-            })
-            .catch((error) => {
-                clearTimeout(timer);
-                reject(error);
-            });
+app.post('/api/send-email', authenticateToken, requireApprovedAccess, (req, res) => {
+    return res.status(410).json({
+        error: 'Direct platform email sending has been disabled. Use Open in Mail App to send from your own email account.',
     });
-}
-
-app.post('/api/send-email', authenticateToken, requireApprovedAccess, emailRateLimiter, async (req, res) => {
-    if (!isFeatureEnabled('emailSendingEnabled')) {
-        return res.status(503).json({ error: 'Email sending is temporarily disabled' });
-    }
-    const { to, subject, text } = req.body;
-    const safeTo = String(to || '').trim();
-    const safeSubject = sanitizeLetterText(subject || '').slice(0, 250);
-    const safeText = sanitizeLetterText(text || '');
-    if (!safeTo || !safeSubject || !safeText) {
-        return res.status(400).json({ error: 'to, subject, and text are required' });
-    }
-    if (isFeatureEnabled('quotaEnforcementEnabled')) {
-        const quotaCheck = enforceQuota(req, 'send_email');
-        if (!quotaCheck.allowed) {
-            recordUsage(req, 'send_email', { outcome: 'blocked', reason: 'quota_limit' });
-            return res.status(429).json({
-                error: 'Daily email sending limit reached.',
-                quota: quotaCheck.status?.usage || null,
-            });
-        }
-    }
-
-    try {
-        if (transporter) {
-            await sendMailWithTimeout({
-                from: emailUser,
-                to: safeTo,
-                subject: safeSubject,
-                text: safeText,
-            });
-            recordUsage(req, 'send_email');
-            return res.json({ message: 'Email sent successfully' });
-        }
-
-        // Simulated email for demo
-        console.log(`📧 [SIMULATED EMAIL] To: ${safeTo} | Subject: ${safeSubject}`);
-        recordUsage(req, 'send_email');
-        res.json({ message: 'Email sent successfully (demo mode)' });
-    } catch (error) {
-        console.error('Email error:', error);
-        if (String(error.message || '').toLowerCase().includes('timed out')) {
-            return res.status(504).json({ error: 'Email provider timed out. Please try again.' });
-        }
-        res.status(500).json({ error: 'Failed to send email' });
-    }
 });
 
 app.get('/api/usage', optionalAuth, (req, res) => {
@@ -1595,7 +1509,6 @@ app.get('/api/admin/runtime-config', authenticateToken, requireAdmin, (req, res)
         rateLimitsPerHour: {
             auth: intFromEnv('AUTH_RATE_LIMIT_PER_HOUR', 20),
             generateLetter: intFromEnv('LETTER_RATE_LIMIT_PER_HOUR', 25),
-            sendEmail: intFromEnv('EMAIL_RATE_LIMIT_PER_HOUR', 20),
         },
         features: platformConfig,
         storage: supabase ? 'supabase' : 'json',
@@ -2125,7 +2038,6 @@ app.get('/api', (req, res) => {
             'POST /api/permits',
             'POST /api/recipient-suggestions',
             'POST /api/generate-letter',
-            'POST /api/send-email',
             'GET  /api/usage',
             'GET  /api/admin/quotas',
             'PATCH /api/admin/quotas',

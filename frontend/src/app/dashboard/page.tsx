@@ -21,18 +21,26 @@ interface LegalFramework {
     status: string;
 }
 
+interface AuthUser {
+    role?: string;
+    accessApproved?: boolean;
+}
+
 export default function Dashboard() {
     const [permits, setPermits] = useState<Permit[]>([]);
     const [frameworks, setFrameworks] = useState<LegalFramework[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     const API_BASE = '';
 
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchData = async (token: string) => {
             try {
                 const [permitsRes, legalRes] = await Promise.all([
-                    fetch(`${API_BASE}/api/permits`).then(r => r.json()).catch(() => []),
+                    fetch(`${API_BASE}/api/permits`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    }).then(r => (r.ok ? r.json() : [])),
                     fetch(`${API_BASE}/api/legal-frameworks`).then(r => r.json()).catch(() => ({ frameworks: [] })),
                 ]);
                 const permitsArray = Array.isArray(permitsRes) ? permitsRes : (permitsRes.permits || []);
@@ -40,11 +48,46 @@ export default function Dashboard() {
                 setFrameworks(legalRes.frameworks || []);
             } catch (error) {
                 console.error('Error fetching data:', error);
+                setError('Unable to load dashboard data right now.');
             } finally {
                 setLoading(false);
             }
         };
-        fetchData();
+
+        const initialize = async () => {
+            const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+            if (!token) {
+                setError('Dashboard access requires an approved account.');
+                setLoading(false);
+                return;
+            }
+
+            try {
+                const meRes = await fetch(`${API_BASE}/api/auth/me`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!meRes.ok) {
+                    setError('Session expired. Please sign in again.');
+                    setLoading(false);
+                    return;
+                }
+                const mePayload = await meRes.json();
+                const user: AuthUser | undefined = mePayload?.user;
+                const approved = !!(user && (user.role === 'admin' || user.accessApproved));
+                if (!approved) {
+                    setError('Dashboard access is pending admin approval.');
+                    setLoading(false);
+                    return;
+                }
+                await fetchData(token);
+            } catch (fetchError) {
+                console.error('Error initializing dashboard:', fetchError);
+                setError('Unable to verify account access right now.');
+                setLoading(false);
+            }
+        };
+
+        initialize();
     }, [API_BASE]);
 
     if (loading) {
@@ -53,6 +96,20 @@ export default function Dashboard() {
                 <div className="text-center">
                     <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
                     <p className="text-gray-400 text-sm">Loading Analytics...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-black p-6">
+                <div className="glass-card p-8 max-w-xl w-full text-center">
+                    <h1 className="text-2xl font-semibold mb-3">Dashboard Unavailable</h1>
+                    <p className="text-gray-500 text-sm mb-6">{error}</p>
+                    <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 text-sm hover:bg-white/5 transition-colors">
+                        <ArrowLeft className="w-4 h-4" /> Return Home
+                    </Link>
                 </div>
             </div>
         );
