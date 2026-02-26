@@ -147,6 +147,7 @@ let ingestedPermitsData = readArrayFile('ingested-permits.json');
 let usersData = readArrayFile('users.json');
 let objectionsData = readArrayFile('objections.json');
 let accessApprovalsData = readArrayFile('access-approvals.json');
+let feedbackSubmissionsData = readArrayFile('feedback-submissions.json');
 let usageEvents = readArrayFile('usage-events.json');
 let permitStatusHistoryData = readArrayFile('permit-status-history.json');
 let ingestionRunsData = readArrayFile('ingestion-runs.json');
@@ -247,6 +248,71 @@ function persistAccessApprovals() {
     writeArrayFile('access-approvals.json', accessApprovalsData);
 }
 
+let accessApprovalStoreChecked = false;
+let accessApprovalStoreReadyPromise = null;
+let useSupabaseAccessApprovals = false;
+
+function isMissingSupabaseTableError(error, tableName = '') {
+    const code = String(error?.code || '').trim();
+    const message = String(error?.message || '');
+    if (code === 'PGRST205') return true;
+    if (!tableName) return false;
+    return message.includes(`Could not find the table 'public.${tableName}'`);
+}
+
+function isMissingTableError(error) {
+    return isMissingSupabaseTableError(error, 'access_approvals');
+}
+
+async function hydrateAccessApprovalsFromSupabase() {
+    const { data, error } = await supabase
+        .from('access_approvals')
+        .select('id, user_id, email, approved, note, reviewed_by, reviewed_at, created_at, updated_at')
+        .order('updated_at', { ascending: false })
+        .range(0, 5000);
+    if (error) throw error;
+    accessApprovalsData = Array.isArray(data) ? data : [];
+}
+
+async function ensureAccessApprovalStoreReady() {
+    if (!supabase) return;
+    if (accessApprovalStoreChecked) return;
+    if (accessApprovalStoreReadyPromise) return accessApprovalStoreReadyPromise;
+
+    accessApprovalStoreReadyPromise = (async () => {
+        try {
+            await hydrateAccessApprovalsFromSupabase();
+            useSupabaseAccessApprovals = true;
+            console.log(`✅ Access approvals loaded from Supabase (${accessApprovalsData.length} records)`);
+        } catch (error) {
+            if (isMissingTableError(error)) {
+                useSupabaseAccessApprovals = false;
+                console.warn(
+                    '⚠️  Supabase access_approvals table is missing. Falling back to local JSON approvals (not persistent across redeploys).'
+                );
+                console.warn('   Run: npm --prefix backend run migrate:access-approvals');
+            } else {
+                useSupabaseAccessApprovals = false;
+                console.warn(`⚠️  Failed to initialize Supabase access approvals: ${error.message}`);
+            }
+        } finally {
+            accessApprovalStoreChecked = true;
+        }
+    })();
+
+    try {
+        await accessApprovalStoreReadyPromise;
+    } finally {
+        accessApprovalStoreReadyPromise = null;
+    }
+}
+
+if (supabase) {
+    ensureAccessApprovalStoreReady().catch((error) => {
+        console.warn(`⚠️  Access approval store warm-up failed: ${error.message}`);
+    });
+}
+
 function deepCloneJson(value) {
     return JSON.parse(JSON.stringify(value));
 }
@@ -336,6 +402,12 @@ const letterRateLimiter = createRateLimiter({
     maxRequests: intFromEnv('LETTER_RATE_LIMIT_PER_HOUR', 25),
 });
 
+const feedbackRateLimiter = createRateLimiter({
+    key: 'feedback',
+    windowMs: 60 * 60 * 1000,
+    maxRequests: intFromEnv('FEEDBACK_RATE_LIMIT_PER_HOUR', 20),
+});
+
 function intFromEnv(name, fallback) {
     const value = Number.parseInt(process.env[name] || '', 10);
     return Number.isFinite(value) ? value : fallback;
@@ -399,6 +471,21 @@ function sanitizeNote(value, maxLength = 400) {
     return trimmed.slice(0, maxLength);
 }
 
+function sanitizeOptionalText(value, maxLength = 5000) {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    return trimmed.slice(0, maxLength);
+}
+
+function normalizeFeedbackType(value) {
+    const feedbackType = String(value || '').trim().toLowerCase();
+    if (feedbackType === 'suggestion' || feedbackType === 'issue' || feedbackType === 'feedback') {
+        return feedbackType;
+    }
+    return null;
+}
+
 function findAccessApprovalByUser(user) {
     if (!user || typeof user !== 'object') return null;
     const userId = user.id === undefined || user.id === null ? '' : String(user.id);
@@ -414,7 +501,8 @@ function findAccessApprovalByUser(user) {
     );
 }
 
-function isUserAccessApproved(user) {
+async function isUserAccessApproved(user) {
+    await ensureAccessApprovalStoreReady();
     if (!user || typeof user !== 'object') return false;
     const roleState = getRoleAccessState(user.role);
     if (roleState.disabled) return false;
@@ -428,10 +516,11 @@ function isUserAccessApproved(user) {
     return approval?.approved === true;
 }
 
-function decorateUserAccess(user) {
+async function decorateUserAccess(user) {
+    await ensureAccessApprovalStoreReady();
     if (!user || typeof user !== 'object') return user;
     const roleState = getRoleAccessState(user.role);
-    const accessApproved = isUserAccessApproved(user);
+    const accessApproved = await isUserAccessApproved(user);
     return {
         ...user,
         role: roleState.effectiveRole,
@@ -480,10 +569,24 @@ async function fetchUserByEmail(email) {
     return usersData.find((entry) => normalizeEmail(entry.email) === safeEmail) || null;
 }
 
-function removeAccessApprovalForUser(user) {
+async function removeAccessApprovalForUser(user) {
+    await ensureAccessApprovalStoreReady();
     if (!user || typeof user !== 'object') return;
     const userId = user.id === undefined || user.id === null ? '' : String(user.id);
     const email = normalizeEmail(user.email);
+
+    if (supabase && useSupabaseAccessApprovals) {
+        const deleteByUserId = userId
+            ? supabase.from('access_approvals').delete().eq('user_id', userId)
+            : Promise.resolve({ error: null });
+        const deleteByEmail = email
+            ? supabase.from('access_approvals').delete().eq('email', email)
+            : Promise.resolve({ error: null });
+        const [userIdResult, emailResult] = await Promise.all([deleteByUserId, deleteByEmail]);
+        if (userIdResult?.error && !isMissingTableError(userIdResult.error)) throw userIdResult.error;
+        if (emailResult?.error && !isMissingTableError(emailResult.error)) throw emailResult.error;
+    }
+
     const originalLength = accessApprovalsData.length;
     accessApprovalsData = accessApprovalsData.filter((entry) => {
         const entryUserId = entry?.user_id === undefined || entry?.user_id === null ? '' : String(entry.user_id);
@@ -492,12 +595,15 @@ function removeAccessApprovalForUser(user) {
         if (email && entryEmail && entryEmail === email) return false;
         return true;
     });
-    if (accessApprovalsData.length !== originalLength) {
-        persistAccessApprovals();
+    if (!supabase || !useSupabaseAccessApprovals) {
+        if (accessApprovalsData.length !== originalLength) {
+            persistAccessApprovals();
+        }
     }
 }
 
-function upsertAccessApproval(user, { approved, reviewedBy = null, note = null } = {}) {
+async function upsertAccessApproval(user, { approved, reviewedBy = null, note = null } = {}) {
+    await ensureAccessApprovalStoreReady();
     if (!user || user.id === undefined || user.id === null) {
         throw new Error('Cannot update access approval without user id');
     }
@@ -506,14 +612,46 @@ function upsertAccessApproval(user, { approved, reviewedBy = null, note = null }
     const nowIso = new Date().toISOString();
     const reviewedByValue = reviewedBy === undefined || reviewedBy === null ? null : String(reviewedBy);
 
+    const safeApproved = approved === true;
+    const safeNote = sanitizeNote(note);
+
+    if (supabase && useSupabaseAccessApprovals) {
+        const upsertPayload = {
+            user_id: userId,
+            email,
+            approved: safeApproved,
+            note: safeNote,
+            reviewed_by: reviewedByValue,
+            reviewed_at: reviewedByValue ? nowIso : null,
+            updated_at: nowIso,
+        };
+
+        const { data, error } = await supabase
+            .from('access_approvals')
+            .upsert([upsertPayload], { onConflict: 'user_id' })
+            .select('id, user_id, email, approved, note, reviewed_by, reviewed_at, created_at, updated_at')
+            .single();
+
+        if (error) {
+            if (isMissingTableError(error)) {
+                useSupabaseAccessApprovals = false;
+                console.warn('⚠️  access_approvals table missing during update; falling back to local JSON approvals.');
+            } else {
+                throw error;
+            }
+        } else if (data) {
+            const existingIndex = accessApprovalsData.findIndex((entry) => String(entry?.user_id || '') === userId);
+            if (existingIndex >= 0) accessApprovalsData[existingIndex] = data;
+            else accessApprovalsData.push(data);
+            return data;
+        }
+    }
+
     const existingIndex = accessApprovalsData.findIndex((entry) => {
         const entryUserId = entry?.user_id === undefined || entry?.user_id === null ? '' : String(entry.user_id);
         const entryEmail = normalizeEmail(entry?.email);
         return (entryUserId && entryUserId === userId) || (email && entryEmail && entryEmail === email);
     });
-
-    const safeApproved = approved === true;
-    const safeNote = sanitizeNote(note);
 
     if (existingIndex < 0) {
         const newEntry = {
@@ -545,10 +683,11 @@ function upsertAccessApproval(user, { approved, reviewedBy = null, note = null }
     return existing;
 }
 
-function buildAccessRequestRecord(user) {
+async function buildAccessRequestRecord(user) {
+    await ensureAccessApprovalStoreReady();
     const approval = findAccessApprovalByUser(user);
     const roleState = getRoleAccessState(user.role);
-    const accessApproved = isUserAccessApproved(user);
+    const accessApproved = await isUserAccessApproved(user);
     return {
         id: user.id,
         email: user.email,
@@ -707,6 +846,7 @@ async function authenticateToken(req, res, next) {
     const token = extractBearerToken(req.headers['authorization']);
     if (!token) return res.status(401).json({ error: 'Access token required' });
     try {
+        await ensureAccessApprovalStoreReady();
         const decoded = jwt.verify(token, JWT_SECRET);
         const currentUser = await fetchUserById(decoded?.id);
         if (!currentUser) return res.status(401).json({ error: 'User no longer exists' });
@@ -714,7 +854,7 @@ async function authenticateToken(req, res, next) {
         if (roleState.disabled) {
             return res.status(403).json({ error: 'Account disabled' });
         }
-        req.user = decorateUserAccess(currentUser);
+        req.user = await decorateUserAccess(currentUser);
         return next();
     } catch (error) {
         return res.status(403).json({ error: 'Invalid or expired token' });
@@ -727,10 +867,11 @@ async function optionalAuth(req, res, next) {
         return next();
     }
     try {
+        await ensureAccessApprovalStoreReady();
         const decoded = jwt.verify(token, JWT_SECRET);
         const currentUser = await fetchUserById(decoded?.id);
         if (currentUser && !getRoleAccessState(currentUser.role).disabled) {
-            req.user = decorateUserAccess(currentUser);
+            req.user = await decorateUserAccess(currentUser);
         }
     } catch (error) {
         // Optional auth should not block request flow.
@@ -744,15 +885,15 @@ function requireAdmin(req, res, next) {
     next();
 }
 
-function requireApprovedAccess(req, res, next) {
+async function requireApprovedAccess(req, res, next) {
     if (!req.user) return res.status(401).json({ error: 'Authentication required' });
-    if (!isUserAccessApproved(req.user)) {
+    if (!await isUserAccessApproved(req.user)) {
         return res.status(403).json({
             error: 'Account pending manual approval',
             accessApproved: false,
         });
     }
-    next();
+    return next();
 }
 
 function persistQuotaConfig() {
@@ -817,13 +958,13 @@ app.post('/api/auth/register', authRateLimiter, async (req, res) => {
                 .select('id, email, name, role, created_at')
                 .single();
             if (error) throw error;
-            upsertAccessApproval(user, {
+            await upsertAccessApproval(user, {
                 approved: safeRole === 'admin',
                 reviewedBy: safeRole === 'admin' ? 'system' : null,
                 note: safeRole === 'admin' ? 'Auto-approved admin user' : null,
             });
             const token = generateToken(user);
-            return res.status(201).json({ user: decorateUserAccess(user), token });
+            return res.status(201).json({ user: await decorateUserAccess(user), token });
         }
 
         // JSON fallback
@@ -840,13 +981,13 @@ app.post('/api/auth/register', authRateLimiter, async (req, res) => {
         usersData.push(user);
         writeArrayFile('users.json', usersData);
         const { password_hash, ...safeUser } = user;
-        upsertAccessApproval(safeUser, {
+        await upsertAccessApproval(safeUser, {
             approved: safeRole === 'admin',
             reviewedBy: safeRole === 'admin' ? 'system' : null,
             note: safeRole === 'admin' ? 'Auto-approved admin user' : null,
         });
         const token = generateToken(safeUser);
-        res.status(201).json({ user: decorateUserAccess(safeUser), token });
+        res.status(201).json({ user: await decorateUserAccess(safeUser), token });
     } catch (error) {
         console.error('Registration error:', error);
         res.status(500).json({ error: 'Failed to register user' });
@@ -872,7 +1013,7 @@ app.post('/api/auth/login', authRateLimiter, async (req, res) => {
         if (!isValid) return res.status(401).json({ error: 'Invalid email or password' });
         const { password_hash, ...userWithoutPassword } = user;
         const token = generateToken(userWithoutPassword);
-        res.json({ user: decorateUserAccess(userWithoutPassword), token });
+        res.json({ user: await decorateUserAccess(userWithoutPassword), token });
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ error: 'Failed to login' });
@@ -886,14 +1027,119 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
                 .from('users').select('id, email, name, role, created_at')
                 .eq('id', req.user.id).single();
             if (error || !data) return res.status(404).json({ error: 'User not found' });
-            return res.json({ user: decorateUserAccess(data) });
+            return res.json({ user: await decorateUserAccess(data) });
         }
         const user = usersData.find(u => u.id === req.user.id);
         if (!user) return res.status(404).json({ error: 'User not found' });
         const { password_hash, ...safeUser } = user;
-        res.json({ user: decorateUserAccess(safeUser) });
+        res.json({ user: await decorateUserAccess(safeUser) });
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch user' });
+    }
+});
+
+app.post('/api/feedback', feedbackRateLimiter, optionalAuth, async (req, res) => {
+    const name = sanitizeOptionalText(req.body?.name, 120);
+    const email = normalizeEmail(req.body?.email);
+    const role = sanitizeOptionalText(req.body?.role, 80);
+    const feedbackType = normalizeFeedbackType(req.body?.feedbackType);
+    const suggestion = sanitizeOptionalText(req.body?.suggestion, 4000);
+    const issueDescription = sanitizeOptionalText(req.body?.issueDescription, 4000);
+    const additionalComments = sanitizeOptionalText(req.body?.additionalComments, 4000);
+
+    const ratingRaw = req.body?.rating;
+    const ratingParsed = Number.parseInt(String(ratingRaw ?? ''), 10);
+    const rating = Number.isFinite(ratingParsed) && ratingParsed >= 1 && ratingParsed <= 5 ? ratingParsed : null;
+
+    if (!name || !email) {
+        return res.status(400).json({ error: 'Name and email are required' });
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ error: 'Enter a valid email address' });
+    }
+
+    if (!feedbackType) {
+        return res.status(400).json({ error: 'feedbackType must be suggestion, issue, or feedback' });
+    }
+
+    if (feedbackType === 'suggestion' && !suggestion) {
+        return res.status(400).json({ error: 'Feature suggestion is required for suggestion feedback' });
+    }
+
+    if (feedbackType === 'issue' && !issueDescription) {
+        return res.status(400).json({ error: 'Issue description is required for issue feedback' });
+    }
+
+    if (feedbackType === 'feedback' && !additionalComments && !rating) {
+        return res.status(400).json({ error: 'Provide either a rating or comments for general feedback' });
+    }
+
+    const nowIso = new Date().toISOString();
+    const userId = req.user?.id ? String(req.user.id) : null;
+
+    const payload = {
+        user_id: userId,
+        name,
+        email,
+        role,
+        feedback_type: feedbackType,
+        suggestion,
+        issue_description: issueDescription,
+        rating,
+        additional_comments: additionalComments,
+        source: 'web_form',
+        created_at: nowIso,
+    };
+
+    try {
+        if (supabase) {
+            const { data, error } = await supabase
+                .from('feedback_submissions')
+                .insert([payload])
+                .select('id, created_at')
+                .single();
+
+            if (!error && data) {
+                return res.status(201).json({
+                    message: 'Feedback submitted',
+                    submissionId: data.id,
+                    createdAt: data.created_at,
+                });
+            }
+
+            if (error && !isMissingSupabaseTableError(error, 'feedback_submissions')) {
+                throw error;
+            }
+
+            if (error) {
+                console.warn(
+                    '⚠️  Supabase feedback_submissions table is missing. Falling back to local JSON feedback storage.'
+                );
+            }
+        }
+
+        const localRecord = {
+            id: nextId(feedbackSubmissionsData),
+            ...payload,
+            updated_at: nowIso,
+        };
+
+        feedbackSubmissionsData.push(localRecord);
+        if (feedbackSubmissionsData.length > 5000) {
+            feedbackSubmissionsData = feedbackSubmissionsData.slice(-5000);
+        }
+        writeArrayFile('feedback-submissions.json', feedbackSubmissionsData);
+
+        return res.status(201).json({
+            message: 'Feedback submitted',
+            submissionId: localRecord.id,
+            createdAt: localRecord.created_at,
+            storage: 'json-fallback',
+        });
+    } catch (error) {
+        console.error('Feedback submit error:', error.message);
+        return res.status(500).json({ error: 'Failed to submit feedback' });
     }
 });
 
@@ -1497,7 +1743,8 @@ app.get('/api/admin/platform-config', authenticateToken, requireAdmin, (req, res
     return res.json({ platformConfig });
 });
 
-app.get('/api/admin/runtime-config', authenticateToken, requireAdmin, (req, res) => {
+app.get('/api/admin/runtime-config', authenticateToken, requireAdmin, async (req, res) => {
+    await ensureAccessApprovalStoreReady();
     return res.json({
         environment: process.env.NODE_ENV || 'development',
         security: {
@@ -1505,6 +1752,10 @@ app.get('/api/admin/runtime-config', authenticateToken, requireAdmin, (req, res)
             trustProxy: process.env.TRUST_PROXY !== 'false',
             corsAllowlistConfigured: allowlistedOrigins.length > 0,
             allowlistedOriginsCount: allowlistedOrigins.length,
+        },
+        accessApprovalStore: {
+            mode: supabase && useSupabaseAccessApprovals ? 'supabase-table' : 'json-fallback',
+            recordsLoaded: accessApprovalsData.length,
         },
         rateLimitsPerHour: {
             auth: intFromEnv('AUTH_RATE_LIMIT_PER_HOUR', 20),
@@ -1536,7 +1787,7 @@ app.get('/api/admin/access-requests', authenticateToken, requireAdmin, async (re
             });
         }
 
-        let requests = users.map(buildAccessRequestRecord);
+        let requests = await Promise.all(users.map((user) => buildAccessRequestRecord(user)));
         if (statusFilter === 'pending') {
             requests = requests.filter((entry) => entry.accessPending);
         } else if (statusFilter === 'approved') {
@@ -1576,7 +1827,7 @@ app.patch('/api/admin/access-requests/:userId', authenticateToken, requireAdmin,
             return res.status(400).json({ error: 'Admin access cannot be revoked via this endpoint' });
         }
 
-        upsertAccessApproval(targetUser, {
+        await upsertAccessApproval(targetUser, {
             approved,
             reviewedBy: req.user.id,
             note,
@@ -1584,7 +1835,7 @@ app.patch('/api/admin/access-requests/:userId', authenticateToken, requireAdmin,
 
         return res.json({
             message: approved ? 'User approved' : 'User access set to pending',
-            request: buildAccessRequestRecord(targetUser),
+            request: await buildAccessRequestRecord(targetUser),
         });
     } catch (error) {
         console.error('Access request update failed:', error.message);
@@ -1621,7 +1872,7 @@ app.delete('/api/admin/users/:userId', authenticateToken, requireAdmin, async (r
             writeArrayFile('users.json', usersData);
         }
 
-        removeAccessApprovalForUser(targetUser);
+        await removeAccessApprovalForUser(targetUser);
 
         return res.json({
             message: 'User removed',
@@ -2059,6 +2310,7 @@ app.get('/api', (req, res) => {
             'GET  /api/admin/ingestion-health',
             'GET  /api/admin/permit-status-history',
             'GET  /api/stats',
+            'POST /api/feedback',
             'GET  /api/objections',
             'POST /api/objections',
             'POST /api/auth/register',

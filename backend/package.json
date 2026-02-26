@@ -5,6 +5,10 @@
   "scripts": {
     "start": "node --max-old-space-size=512 server.js",
     "dev": "node --max-old-space-size=512 server.js",
+    "migrate:access-approvals": "node scripts/migrate-access-approvals.js",
+    "migrate:feedback-submissions": "node scripts/migrate-feedback-submissions.js",
+    "migrate:json-accounts": "node scripts/migrate-json-accounts-to-supabase.js",
+    "backfill:access-approvals": "node scripts/backfill-access-approvals-from-users.js",
     "validate:sources": "node scripts/validate-permit-sources.js --remote-only",
     "validate:sources:all": "node scripts/validate-permit-sources.js --include-disabled",
     "sync:sources": "node scripts/sync-permit-sources.js --remote-only",
@@ -22,6 +26,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.0.1",
     "express": "^5.1.0",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.16.3"
   }
 }

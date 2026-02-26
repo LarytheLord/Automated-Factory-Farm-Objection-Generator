@@ -46,6 +46,7 @@ Optional:
 - `GEMINI_API_KEY`
 - `SUPABASE_URL`
 - `SUPABASE_KEY`
+- `DATABASE_URL` (required if you want to run DB migration scripts from `backend/scripts`)
 - `REQUIRE_SUPABASE` (`true` to fail startup unless Supabase is configured; recommended for strict production mode)
 - `ADMIN_BOOTSTRAP_TOKEN` (required only if you want to create admin users via register API)
 - `FREE_DAILY_LETTERS`
@@ -62,6 +63,7 @@ Optional:
 - `STRICT_SECURITY_HEADERS` (default enabled in production)
 - `AUTH_RATE_LIMIT_PER_HOUR` (default `20`)
 - `LETTER_RATE_LIMIT_PER_HOUR` (default `25`)
+- `FEEDBACK_RATE_LIMIT_PER_HOUR` (default `20`)
 - `PORT` (default `3000` in unified mode)
 - `NODE_ENV`
 
@@ -74,6 +76,7 @@ Optional:
 - `POST /api/generate-letter`
 - `GET /api/usage`
 - `GET /api/stats`
+- `POST /api/feedback`
 - `GET /api/objections`
 - `POST /api/objections`
 - `POST /api/auth/register`
@@ -128,16 +131,34 @@ Project-level documentation bundle:
 - `docs/EXECUTION_NOTES.md` (recent implementation log)
 - `docs/LEGAL_RISK_PLAYBOOK.md` (legal-risk controls and roadmap)
 - `docs/PROFESSIONAL_READINESS_AUDIT.md` (prioritized production/professionalism gaps)
+- `docs/PROFESSIONALIZATION_BACKLOG.md` (current execution backlog with priorities)
 
 ## Access Control Model
 
 - Permit browsing and letter generation actions are protected by auth + manual approval.
 - New signups are pending by default.
+- Approval state is persistent in Supabase table `access_approvals` when available.
 - Admins can review and approve/revoke account access through:
   - `GET /api/admin/access-requests`
   - `PATCH /api/admin/access-requests/:userId` with `{ "approved": true|false, "note": "..." }`
   - `DELETE /api/admin/users/:userId` to remove non-admin users
 - Admin UI path: `/admin/access` (legacy alias: `/internal-access-review-7d9f4a`)
+
+First-time setup for persistent approvals:
+
+```bash
+npm --prefix backend run migrate:access-approvals
+```
+
+First-time setup for persistent feedback submissions:
+
+```bash
+npm --prefix backend run migrate:feedback-submissions
+```
+
+If your environment cannot connect to Postgres directly, run the SQL in:
+`backend/database/access-approvals.sql` and `backend/database/feedback-submissions.sql`
+via Supabase SQL Editor, then redeploy.
 
 Permit ingestion is source-driven via `backend/data/permit-sources.json` and persists normalized records to `backend/data/ingested-permits.json`.
 The current local default runs remote sources only (`local_file` sources are disabled by default).

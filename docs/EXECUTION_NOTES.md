@@ -1,6 +1,6 @@
 # AFFOG Execution Notes
 
-Last updated: 2026-02-20
+Last updated: 2026-02-26
 
 ## Purpose
 This document is the running implementation log for production hardening and execution work.  
@@ -105,6 +105,34 @@ Optional but recommended:
 - Removed one-click send action from the frontend. Users now send using:
   - `Open in Mail App`
   - `Copy Email Draft`
+
+## 2026-02-26 Update
+- Added persistent manual-approval storage support via Supabase table `access_approvals`.
+- Access-control checks now read approval state from Supabase (with JSON fallback only when table/store is unavailable).
+- Added migration assets:
+  - `backend/database/access-approvals.sql`
+  - `backend/scripts/migrate-access-approvals.js`
+  - command: `npm --prefix backend run migrate:access-approvals`
+- If direct DB connectivity is blocked, apply `backend/database/access-approvals.sql` in Supabase SQL Editor, then redeploy.
+
+## 2026-02-26 Update (Feedback Reliability + UX)
+- Added real feedback ingestion API:
+  - `POST /api/feedback`
+  - validation for required fields + feedback type payload rules
+  - optional auth context capture (`user_id` when token is present)
+- Added persistent feedback storage migration:
+  - `backend/database/feedback-submissions.sql`
+  - `backend/scripts/migrate-feedback-submissions.js`
+  - command: `npm --prefix backend run migrate:feedback-submissions`
+- Added fallback behavior:
+  - uses Supabase table `feedback_submissions` when available
+  - falls back to `backend/data/feedback-submissions.json` if table is missing
+- Upgraded feedback page (`/survey`):
+  - added visible `Back to Home` navigation
+  - replaced mock submit with real API call to `/api/feedback`
+  - improved client-side validation and success/error handling
+- Added ongoing hardening plan artifact:
+  - `docs/PROFESSIONALIZATION_BACKLOG.md`
 
 ## Next build items (priority order)
 1. Make Supabase the primary required store for public production data paths (users, objections, usage, ingestion state).

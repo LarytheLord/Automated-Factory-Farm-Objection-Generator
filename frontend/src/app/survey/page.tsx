@@ -1,9 +1,10 @@
 "use client";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
+import Link from "next/link";
 import { useState } from "react";
-import { Send, CheckCircle, AlertCircle } from "lucide-react";
+import { Send, CheckCircle2, AlertCircle, ArrowLeft } from "lucide-react";
 
 export default function SurveyPage() {
   const [formData, setFormData] = useState({
@@ -14,19 +15,20 @@ export default function SurveyPage() {
     suggestion: "",
     issueDescription: "",
     rating: 0,
-    additionalComments: ""
+    additionalComments: "",
   });
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [successId, setSuccessId] = useState<string | number | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleRatingChange = (rating: number) => {
-    setFormData(prev => ({ ...prev, rating }));
+    setFormData((prev) => ({ ...prev, rating }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,27 +36,49 @@ export default function SurveyPage() {
     setSubmitting(true);
     setError("");
 
-    // Simple validation
     if (!formData.name || !formData.email) {
       setError("Name and email are required");
       setSubmitting(false);
       return;
     }
 
-    if ((formData.feedbackType === "suggestion" && !formData.suggestion) || 
-        (formData.feedbackType === "issue" && !formData.issueDescription)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setError("Please enter a valid email address");
+      setSubmitting(false);
+      return;
+    }
+
+    if (
+      (formData.feedbackType === "suggestion" && !formData.suggestion) ||
+      (formData.feedbackType === "issue" && !formData.issueDescription)
+    ) {
       setError("Please provide details about your feedback");
       setSubmitting(false);
       return;
     }
 
+    if (formData.feedbackType === "feedback" && !formData.additionalComments && formData.rating === 0) {
+      setError("Please provide a rating or additional comments");
+      setSubmitting(false);
+      return;
+    }
+
     try {
-      // In a real application, you would send this to your backend
-      console.log("Survey submitted:", formData);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.error || "Failed to submit feedback");
+      }
+
+      const payload = await response.json().catch(() => ({}));
+      setSuccessId(payload?.submissionId ?? null);
       setSubmitted(true);
       setFormData({
         name: "",
@@ -64,10 +88,10 @@ export default function SurveyPage() {
         suggestion: "",
         issueDescription: "",
         rating: 0,
-        additionalComments: ""
+        additionalComments: "",
       });
     } catch (err) {
-      setError("Failed to submit survey. Please try again.");
+      setError(err instanceof Error ? err.message : "Failed to submit feedback. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -75,51 +99,64 @@ export default function SurveyPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-black text-slate-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center p-4">
         <div className="glass-card max-w-2xl w-full p-8 text-center">
-          <div className="mx-auto w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-6">
-            <CheckCircle className="w-8 h-8 text-emerald-400" />
+          <div className="mx-auto w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-6">
+            <CheckCircle2 className="w-8 h-8 text-emerald-600" />
           </div>
           <h1 className="text-2xl font-bold mb-4">Thank You!</h1>
-          <p className="text-gray-400 mb-6">
+          <p className="text-slate-600 mb-2">
             Your feedback has been received. We appreciate you taking the time to help improve AFOG.
           </p>
-          <button 
+          {successId && <p className="text-sm text-slate-500 mb-6">Submission ID: {String(successId)}</p>}
+          {!successId && <div className="mb-6" />}
+          <button
             onClick={() => setSubmitted(false)}
-            className="px-6 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-medium rounded-lg transition-all"
+            className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-all mr-3"
           >
             Submit Another Response
           </button>
+          <Link
+            href="/"
+            className="inline-flex items-center px-6 py-2 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
+          >
+            Back to Home
+          </Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-slate-900 py-12 px-4">
+    <div className="min-h-screen bg-slate-50 text-slate-900 py-12 px-4">
       <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-12">
+        <div className="flex items-center justify-between mb-8">
+          <Link href="/" className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+            Back to Home
+          </Link>
+        </div>
+
+        <div className="text-center mb-10">
           <h1 className="text-4xl font-bold mb-4">Help Us Improve AFOG</h1>
-          <p className="text-gray-400 max-w-2xl mx-auto">
-            Your feedback is invaluable in helping us create the most effective tool for opposing factory farming permits. 
-            Share your suggestions, report issues, or tell us how we're doing.
+          <p className="text-slate-600 max-w-2xl mx-auto">
+            Your feedback is invaluable in helping us create the most effective tool for opposing factory farming permits.
+            Share your suggestions, report issues, or tell us how we&apos;re doing.
           </p>
         </div>
 
         <div className="glass-card p-8">
           {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-              <p className="text-red-400">{error}</p>
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-red-700">{error}</p>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Full Name *
-                </label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Full Name *</label>
                 <input
                   type="text"
                   name="name"
@@ -129,11 +166,9 @@ export default function SurveyPage() {
                   placeholder="Your name"
                 />
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Email *
-                </label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Email *</label>
                 <input
                   type="email"
                   name="email"
@@ -146,9 +181,7 @@ export default function SurveyPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Your Role
-              </label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Your Role</label>
               <select
                 name="role"
                 value={formData.role}
@@ -166,21 +199,19 @@ export default function SurveyPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Feedback Type
-              </label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Feedback Type</label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {[
                   { value: "suggestion", label: "Feature Suggestion" },
                   { value: "issue", label: "Report Issue" },
-                  { value: "feedback", label: "General Feedback" }
+                  { value: "feedback", label: "General Feedback" },
                 ].map((option) => (
-                  <label 
+                  <label
                     key={option.value}
                     className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all ${
                       formData.feedbackType === option.value
-                        ? "border-emerald-500/50 bg-emerald-500/5"
-                        : "border-slate-200 hover:border-white/[0.1]"
+                        ? "border-emerald-500 bg-emerald-50"
+                        : "border-slate-200 hover:border-slate-300"
                     }`}
                   >
                     <input
@@ -199,9 +230,7 @@ export default function SurveyPage() {
 
             {formData.feedbackType === "suggestion" && (
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Feature Suggestion *
-                </label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Feature Suggestion *</label>
                 <textarea
                   name="suggestion"
                   value={formData.suggestion}
@@ -215,9 +244,7 @@ export default function SurveyPage() {
 
             {formData.feedbackType === "issue" && (
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Issue Description *
-                </label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Issue Description *</label>
                 <textarea
                   name="issueDescription"
                   value={formData.issueDescription}
@@ -231,7 +258,7 @@ export default function SurveyPage() {
 
             {formData.feedbackType === "feedback" && (
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
                   How would you rate AFOG? (1-5 stars)
                 </label>
                 <div className="flex gap-2 mb-4">
@@ -241,7 +268,7 @@ export default function SurveyPage() {
                       type="button"
                       onClick={() => handleRatingChange(star)}
                       className={`text-2xl transition-colors ${
-                        star <= formData.rating ? "text-yellow-400" : "text-gray-600"
+                        star <= formData.rating ? "text-yellow-500" : "text-slate-300"
                       }`}
                     >
                       ★
@@ -252,9 +279,7 @@ export default function SurveyPage() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Additional Comments
-              </label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Additional Comments</label>
               <textarea
                 name="additionalComments"
                 value={formData.additionalComments}
@@ -269,16 +294,16 @@ export default function SurveyPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full md:w-auto px-8 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
               >
                 {submitting ? (
                   <>
-                    <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     Submitting...
                   </>
                 ) : (
                   <>
-                    <Send className="w-5 h-5" />
+                    <Send className="w-4 h-4" />
                     Submit Feedback
                   </>
                 )}
@@ -287,9 +312,8 @@ export default function SurveyPage() {
           </form>
         </div>
 
-        <div className="mt-12 text-center text-gray-500 text-sm">
+        <div className="mt-8 text-center text-sm text-slate-500">
           <p>Your feedback helps us create a more effective tool for opposing factory farming permits.</p>
-          <p className="mt-2">All responses are confidential and used solely for improvement purposes.</p>
         </div>
       </div>
     </div>
