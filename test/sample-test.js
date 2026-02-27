@@ -98,6 +98,14 @@ async function run() {
   assert(generated.data && typeof generated.data.letter === 'string' && generated.data.letter.length > 50, 'Generated letter invalid');
   console.log('✓ POST /api/generate-letter');
 
+  // 6.1) Usage visibility
+  const usage = await request('/api/usage', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  assert(usage.response.ok, 'GET /api/usage failed');
+  assert(usage.data && usage.data.letters && usage.data.letters.usage, 'Usage payload invalid');
+  console.log('✓ GET /api/usage');
+
   // 7) Save objection
   const objection = await request('/api/objections', {
     method: 'POST',
@@ -131,18 +139,19 @@ async function run() {
   assert(objectionsFile.some((o) => String(o.id) === String(objection.data.id)), 'Objection was not persisted to JSON data store');
   console.log('✓ JSON persistence check');
 
-  // 10) Send email endpoint
+  // 11) Send email endpoint is intentionally disabled
   const email = await request('/api/send-email', {
     method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({
       to: 'authority@example.org',
       subject: `Test Objection: ${permit.project_title}`,
       text: generated.data.letter,
     }),
   });
-  assert(email.response.ok, 'POST /api/send-email failed');
-  assert(email.data && typeof email.data.message === 'string', 'Email response payload invalid');
-  console.log('✓ POST /api/send-email');
+  assert(email.response.status === 410, `POST /api/send-email should be disabled (expected 410, got ${email.response.status})`);
+  assert(email.data && typeof email.data.error === 'string', 'Disabled send-email payload invalid');
+  console.log('✓ POST /api/send-email disabled by design');
 
   console.log('\nAll AFFOG contract tests passed.');
 }

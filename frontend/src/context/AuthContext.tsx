@@ -3,10 +3,12 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 
 interface User {
-    id: number;
+    id: number | string;
     email: string;
     name: string;
     role: string;
+    accessApproved?: boolean;
+    accessPending?: boolean;
 }
 
 interface AuthContextType {

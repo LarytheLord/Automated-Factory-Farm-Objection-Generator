@@ -1,0 +1,24 @@
+[
+  {
+    "external_id": "us-cafo-2026-001",
+    "project_title": "Delta Valley Hog Expansion",
+    "location": "Sacramento County, California",
+    "country": "United States",
+    "activity": "Swine CAFO Expansion",
+    "status": "Pending",
+    "category": "Red",
+    "notes": "Newly filed expansion permit with public hearing scheduled.",
+    "source_url": "https://example.gov/permits/us-cafo-2026-001"
+  },
+  {
+    "external_id": "uk-poultry-2025-777",
+    "project_title": "Wye Valley Poultry Unit",
+    "location": "Herefordshire, England",
+    "country": "United Kingdom",
+    "activity": "Intensive Poultry Rearing",
+    "status": "Approved",
+    "category": "Orange",
+    "notes": "Decision updated from in process to approved.",
+    "source_url": "https://example.gov/permits/uk-poultry-2025-777"
+  }
+]

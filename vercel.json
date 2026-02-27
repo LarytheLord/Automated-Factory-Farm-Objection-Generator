@@ -1,4 +1,5 @@
 {
-  "buildCommand": "npm install --prefix backend && npm install --prefix frontend && npm run build",
-  "outputDirectory": "frontend/.next"
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "npm run build"
 }

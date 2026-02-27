@@ -3,6 +3,15 @@
 import { useState } from "react";
 import { X, AlertCircle, Shield } from "lucide-react";
 
+interface User {
+    id: number | string;
+    email: string;
+    name: string;
+    role: string;
+    accessApproved?: boolean;
+    accessPending?: boolean;
+}
+
 interface AuthModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -50,11 +59,11 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/30 backdrop-blur-md animate-fade-in">
             <div className="glass-card w-full max-w-md overflow-hidden relative animate-slide-up">
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 text-gray-600 hover:text-white transition-colors z-10"
+                    className="absolute top-4 right-4 text-gray-500 hover:text-slate-900 transition-colors z-10"
                 >
                     <X className="w-5 h-5" />
                 </button>
@@ -63,11 +72,11 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
                     <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
                         <Shield className="w-6 h-6 text-emerald-400" />
                     </div>
-                    <h2 className="text-2xl font-bold text-white mb-1">
+                    <h2 className="text-2xl font-bold text-slate-900 mb-1">
                         {isLogin ? "Welcome back" : "Join AFFOG"}
                     </h2>
                     <p className="text-gray-500 text-sm">
-                        {isLogin ? "Sign in to your account" : "Create an account to start filing objections"}
+                        {isLogin ? "Sign in to your account" : "Create an account and request manual access review"}
                     </p>
                 </div>
 
@@ -88,7 +97,7 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:border-emerald-500/30 transition-colors placeholder:text-gray-700"
+                                className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 text-slate-900 text-sm focus:outline-none focus:border-emerald-500/30 transition-colors placeholder:text-gray-400"
                                 placeholder="John Doe"
                                 required
                             />
@@ -103,7 +112,7 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:border-emerald-500/30 transition-colors placeholder:text-gray-700"
+                            className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 text-slate-900 text-sm focus:outline-none focus:border-emerald-500/30 transition-colors placeholder:text-gray-400"
                             placeholder="you@example.com"
                             required
                         />
@@ -117,7 +126,7 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:border-emerald-500/30 transition-colors placeholder:text-gray-700"
+                            className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 text-slate-900 text-sm focus:outline-none focus:border-emerald-500/30 transition-colors placeholder:text-gray-400"
                             placeholder="••••••••"
                             required
                         />
@@ -139,7 +148,7 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
                         <button
                             type="button"
                             onClick={() => { setIsLogin(!isLogin); setError(null); }}
-                            className="text-sm text-gray-500 hover:text-white transition-colors"
+                            className="text-sm text-gray-500 hover:text-slate-900 transition-colors"
                         >
                             {isLogin ? "Don\u2019t have an account? Sign up" : "Already have an account? Sign in"}
                         </button>

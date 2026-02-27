@@ -50,9 +50,9 @@ export default function ImpactPage() {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white hero-gradient">
+        <div className="min-h-screen bg-black text-slate-900 hero-gradient">
             <div className="max-w-5xl mx-auto px-6 py-16">
-                <Link href="/" className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-sm mb-10">
+                <Link href="/" className="flex items-center gap-2 text-gray-500 hover:text-slate-900 transition-colors text-sm mb-10">
                     <ArrowLeft className="w-4 h-4" /> Back to Home
                 </Link>
 
@@ -313,7 +313,7 @@ function LegalRow({ country, law, detail }: { country: string; law: string; deta
                 <span className="text-emerald-400 font-medium text-xs">{country}</span>
             </div>
             <div>
-                <div className="font-medium text-sm text-white">{law}</div>
+                <div className="font-medium text-sm text-slate-900">{law}</div>
                 <div className="text-gray-500 text-xs mt-0.5">{detail}</div>
             </div>
         </div>

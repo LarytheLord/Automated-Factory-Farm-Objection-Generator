@@ -1,0 +1,6 @@
+{
+  "signupEnabled": true,
+  "letterGenerationEnabled": true,
+  "emailSendingEnabled": true,
+  "quotaEnforcementEnabled": true
+}
