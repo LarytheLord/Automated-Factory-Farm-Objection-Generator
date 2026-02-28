@@ -32,6 +32,17 @@ function sanitizeLetterText(text) {
   // Drop replacement chars from malformed decoding.
   output = output.replace(/\uFFFD/g, '');
 
+  // Remove common markdown artifacts from LLM output.
+  output = output
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/^#{1,6}\s*/gm, '')
+    .replace(/^\s*>\s?/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/\*([^*\n]+)\*/g, '$1')
+    .replace(/_([^_\n]+)_/g, '$1')
+    .replace(/^\s*[-*]\s+/gm, '- ');
+
   // Collapse repeated blank lines.
   output = output.replace(/\n{3,}/g, '\n\n');
 

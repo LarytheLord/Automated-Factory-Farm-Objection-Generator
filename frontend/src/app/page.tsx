@@ -91,7 +91,6 @@ interface ParsedPermitNotes {
   reference?: string;
   publishedAt?: string;
   consultationDeadline?: string;
-  payload?: unknown;
   plainNotes?: string;
 }
 
@@ -167,11 +166,24 @@ function parseDateForDisplay(value?: string) {
   return parsed.toLocaleDateString();
 }
 
+function stripMarkdownArtifacts(text: string) {
+  let output = String(text || "");
+  output = output.replace(/```[\s\S]*?```/g, "");
+  output = output.replace(/^#{1,6}\s*/gm, "");
+  output = output.replace(/^\s*>\s?/gm, "");
+  output = output.replace(/\*\*([^*]+)\*\*/g, "$1");
+  output = output.replace(/__([^_]+)__/g, "$1");
+  output = output.replace(/\*([^*\n]+)\*/g, "$1");
+  output = output.replace(/_([^_\n]+)_/g, "$1");
+  output = output.replace(/^\s*[-*]\s+/gm, "- ");
+  output = output.replace(/\n{3,}/g, "\n\n");
+  return output.trim();
+}
+
 function parsePermitNotes(permit: Permit | null): ParsedPermitNotes {
   if (!permit) return {};
   const rawNotes = String(permit.notes || "").trim();
-  const payload = permit.source_payload ?? null;
-  if (!rawNotes && !payload) return {};
+  if (!rawNotes) return {};
 
   const markerIndex = rawNotes.indexOf(ORIGINAL_PAYLOAD_MARKER);
   const noteBody =
@@ -192,6 +204,11 @@ function parsePermitNotes(permit: Permit | null): ParsedPermitNotes {
     "Reference",
   ];
 
+  const normalizedNoteBody = noteBody.replace(
+    /\s+[|/]\s*(?=(Source Key|Source Name|Source URL|External ID|Published at|Consultation deadline|Summary|Reference):)/gi,
+    "\n",
+  );
+
   const extractLabel = (label: string) => {
     const otherLabels = labels
       .filter((item) => item !== label)
@@ -201,7 +218,7 @@ function parsePermitNotes(permit: Permit | null): ParsedPermitNotes {
       `${escapeRegExp(label)}:\\s*([\\s\\S]*?)(?=\\s*(?:${otherLabels}):|$)`,
       "i",
     );
-    const match = noteBody.match(pattern);
+    const match = normalizedNoteBody.match(pattern);
     return match ? normalizeInlineText(match[1]) : "";
   };
 
@@ -215,17 +232,8 @@ function parsePermitNotes(permit: Permit | null): ParsedPermitNotes {
   const summary = extractLabel("Summary");
   const reference = extractLabel("Reference");
 
-  let parsedPayload: unknown = payload;
-  if (!parsedPayload && payloadText) {
-    try {
-      parsedPayload = JSON.parse(payloadText);
-    } catch {
-      parsedPayload = payloadText;
-    }
-  }
-
   const plainNotes = normalizeInlineText(
-    noteBody
+    normalizedNoteBody
       .replace(/\bSource Key:\s*[\s\S]*$/i, "")
       .replace(/\bSource Name:\s*[\s\S]*$/i, "")
       .replace(/\bSource URL:\s*[\s\S]*$/i, "")
@@ -233,7 +241,9 @@ function parsePermitNotes(permit: Permit | null): ParsedPermitNotes {
       .replace(/\bPublished at:\s*[\s\S]*$/i, "")
       .replace(/\bConsultation deadline:\s*[\s\S]*$/i, "")
       .replace(/\bSummary:\s*[\s\S]*$/i, "")
-      .replace(/\bReference:\s*[\s\S]*$/i, ""),
+      .replace(/\bReference:\s*[\s\S]*$/i, "")
+      .replace(/\bOriginal Payload JSON:\s*[\s\S]*$/i, "")
+      .replace(/^\s*Official pending permit record \(trusted source\)\.?\s*/i, ""),
   );
 
   const headline = noteBody.split("\n").map((line) => line.trim()).find(Boolean) || "";
@@ -248,8 +258,8 @@ function parsePermitNotes(permit: Permit | null): ParsedPermitNotes {
     reference: reference || undefined,
     publishedAt: publishedAt || undefined,
     consultationDeadline: consultationDeadline || undefined,
-    payload: parsedPayload || undefined,
-    plainNotes: plainNotes || undefined,
+    plainNotes:
+      (plainNotes && plainNotes !== payloadText ? plainNotes : "") || undefined,
   };
 }
 
@@ -270,6 +280,7 @@ export default function Home() {
   const [generatingLetter, setGeneratingLetter] = useState(false);
   const [letterError, setLetterError] = useState<string | null>(null);
   const [recipientEmail, setRecipientEmail] = useState("");
+  const [emailSubject, setEmailSubject] = useState("");
   const [letterMode, setLetterMode] = useState<"concise" | "detailed">("concise");
   const [recipientSuggestions, setRecipientSuggestions] = useState<RecipientSuggestion[]>([]);
   const [recommendedRecipient, setRecommendedRecipient] = useState<RecipientSuggestion | null>(null);
@@ -414,11 +425,20 @@ export default function Home() {
       setSelectedPermit(null);
       setGeneratedLetter("");
       setRecipientEmail("");
+      setEmailSubject("");
       setRecipientSuggestions([]);
       setRecommendedRecipient(null);
       setRecipientGuidance(null);
     }
   }, [hasApprovedAccess]);
+
+  useEffect(() => {
+    if (!selectedPermit) {
+      setEmailSubject("");
+      return;
+    }
+    setEmailSubject(`Objection to permit: ${selectedPermit.project_title}`);
+  }, [selectedPermit]);
 
   useEffect(() => {
     const loadRecipientSuggestions = async () => {
@@ -511,7 +531,7 @@ export default function Home() {
         throw new Error(err.error || "Failed to generate letter");
       }
       const data = await res.json();
-      setGeneratedLetter(data.letter);
+      setGeneratedLetter(stripMarkdownArtifacts(data.letter || ""));
       fetchUsage(token);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
@@ -588,8 +608,10 @@ export default function Home() {
 
   const buildEmailDraft = () => {
     const to = recipientEmail.trim();
-    const subject = `Objection: ${selectedPermit?.project_title || "Permit Concern"}`;
-    const body = generatedLetter;
+    const subject =
+      emailSubject.trim() ||
+      `Objection to permit: ${selectedPermit?.project_title || "Permit Concern"}`;
+    const body = stripMarkdownArtifacts(generatedLetter);
     return { to, subject, body };
   };
 
@@ -608,6 +630,10 @@ export default function Home() {
   const openInMailApp = () => {
     if (!generatedLetter) {
       setEmailError("Please generate a letter first.");
+      return;
+    }
+    if (!recipientEmail.trim()) {
+      setEmailError("Please enter the authority email first.");
       return;
     }
     const draft = buildEmailDraft();
@@ -985,27 +1011,9 @@ export default function Home() {
                       />
                     )}
                     {selectedPermitNotes.summary && <DetailRow label="Summary" value={selectedPermitNotes.summary} />}
-                    {selectedPermitNotes.plainNotes && (
-                      <DetailRow label="Notes" value={selectedPermitNotes.plainNotes} />
-                    )}
-                    {!selectedPermitNotes.plainNotes && selectedPermitNotes.headline && (
+                    {selectedPermitNotes.plainNotes && <DetailRow label="Notes" value={selectedPermitNotes.plainNotes} />}
+                    {!selectedPermitNotes.summary && !selectedPermitNotes.plainNotes && selectedPermitNotes.headline && (
                       <DetailRow label="Notes" value={selectedPermitNotes.headline} />
-                    )}
-                    {selectedPermitNotes.payload && (
-                      <div className="pt-2">
-                        <details className="rounded-xl border border-slate-200 bg-slate-50">
-                          <summary className="cursor-pointer px-3 py-2 text-xs font-medium uppercase tracking-wider text-slate-600">
-                            View original source payload
-                          </summary>
-                          <div className="px-3 pb-3">
-                            <pre className="max-h-64 overflow-auto rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700 whitespace-pre-wrap break-words">
-                              {typeof selectedPermitNotes.payload === "string"
-                                ? selectedPermitNotes.payload
-                                : JSON.stringify(selectedPermitNotes.payload, null, 2)}
-                            </pre>
-                          </div>
-                        </details>
-                      </div>
                     )}
                   </div>
                 </div>
@@ -1124,12 +1132,19 @@ export default function Home() {
                         Recommended: {recommendedRecipient.label} ({recommendedRecipient.email})
                       </p>
                     )}
-                    <div className="flex gap-3">
+                    <div className="grid gap-3">
                       <input
                         type="email"
                         value={recipientEmail}
                         onChange={(e) => setRecipientEmail(e.target.value)}
                         placeholder="authority@example.gov"
+                        className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 text-sm focus:outline-none focus:border-blue-500/30 transition-colors placeholder:text-gray-500"
+                      />
+                      <input
+                        type="text"
+                        value={emailSubject}
+                        onChange={(e) => setEmailSubject(e.target.value)}
+                        placeholder="Subject line"
                         className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 text-sm focus:outline-none focus:border-blue-500/30 transition-colors placeholder:text-gray-500"
                       />
                     </div>
@@ -1150,7 +1165,7 @@ export default function Home() {
                       </button>
                     </div>
                     <p className="mt-3 text-xs text-gray-500">
-                      Note: For best deliverability, use <strong>Open in Mail App</strong>, review the draft, and send from your own email client.
+                      One click flow: set recipient + subject, then use <strong>Open in Mail App</strong>. Subject and body are auto-filled.
                     </p>
                     {emailError && <p className="mt-2 text-red-400 text-sm">{emailError}</p>}
                   </div>
