@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
+  --background: #f3f7fb;
   --foreground: #0f172a;
   --accent-green: #0f766e;
-  --accent-blue: #2563eb;
+  --accent-blue: #0b5fff;
 }
 
 @theme inline {
@@ -63,7 +63,7 @@ textarea::placeholder {
 
 /* ── Gradient Text ── */
 .gradient-text {
-  background: linear-gradient(135deg, #0f766e 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #0b5fff 0%, #0f766e 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -72,8 +72,8 @@ textarea::placeholder {
 /* ── Hero Gradient ── */
 .hero-gradient {
   background:
-    radial-gradient(ellipse at 20% 50%, rgba(15, 118, 110, 0.08) 0%, transparent 52%),
-    radial-gradient(ellipse at 80% 20%, rgba(37, 99, 235, 0.07) 0%, transparent 55%);
+    radial-gradient(ellipse at 20% 50%, rgba(11, 95, 255, 0.08) 0%, transparent 52%),
+    radial-gradient(ellipse at 80% 20%, rgba(15, 118, 110, 0.07) 0%, transparent 55%);
 }
 
 /* ── Section Divider ── */
@@ -92,7 +92,7 @@ textarea::placeholder {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #0f766e;
+  background: #0b5fff;
   animation: pulse-glow 2s infinite;
 }
 

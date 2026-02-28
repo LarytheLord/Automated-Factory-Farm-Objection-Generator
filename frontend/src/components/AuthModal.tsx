@@ -73,7 +73,7 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
                         <Shield className="w-6 h-6 text-emerald-400" />
                     </div>
                     <h2 className="text-2xl font-bold text-slate-900 mb-1">
-                        {isLogin ? "Welcome back" : "Join AFFOG"}
+                        {isLogin ? "Welcome back" : "Join Open Permit"}
                     </h2>
                     <p className="text-gray-500 text-sm">
                         {isLogin ? "Sign in to your account" : "Create an account and request manual access review"}

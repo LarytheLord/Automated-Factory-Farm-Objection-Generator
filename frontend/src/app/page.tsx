@@ -572,7 +572,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
           <Link href="/" className="flex items-center gap-2.5">
             <Shield className="w-6 h-6 text-emerald-400" />
-            <span className="font-bold text-lg tracking-tight">AFFOG</span>
+            <span className="font-bold text-lg tracking-tight">Open Permit</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-8 text-sm text-gray-500">
@@ -623,13 +623,13 @@ export default function Home() {
           </div>
 
           <h1 className="animate-fade-in-up text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.1] mb-6" style={{ animationDelay: "100ms" }}>
-            Fight Factory Farming
+            Open Permit
             <br />
-            <span className="gradient-text">With AI-Powered Law</span>
+            <span className="gradient-text">for Legal Objections</span>
           </h1>
 
           <p className="animate-fade-in-up text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed" style={{ animationDelay: "200ms" }}>
-            Generate legally grounded objection letters against factory farming violations — in under 2 minutes. Backed by 37+ laws across 8 countries.
+            Track high-impact farm-industry permits and generate legally grounded objection letters in under two minutes. Backed by 37+ laws across 8 countries.
           </p>
 
           <div className="animate-fade-in-up flex flex-wrap justify-center gap-4 mb-16" style={{ animationDelay: "300ms" }}>
@@ -676,7 +676,7 @@ export default function Home() {
             <h2 className="text-3xl md:text-4xl font-bold">Three steps to real impact</h2>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
-            <StepCard num="01" title="Find a Violation" desc="Browse our database of factory farm permits across 8+ countries. Filter by country, location, or activity." icon={<Search className="w-5 h-5" />} />
+            <StepCard num="01" title="Find a Permit" desc="Browse the Open Permit intelligence feed across 8+ countries. Filter by country, location, or activity." icon={<Search className="w-5 h-5" />} />
             <StepCard num="02" title="AI Drafts Your Letter" desc="Our AI analyzes relevant laws, then writes a legally grounded objection — personalized to the specific permit." icon={<Sparkles className="w-5 h-5" />} />
             <StepCard num="03" title="Submit to Authorities" desc="Use authority contact details, review the draft, and send from your own email client." icon={<Mail className="w-5 h-5" />} />
           </div>
@@ -1041,9 +1041,9 @@ export default function Home() {
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-3">
                 <Shield className="w-5 h-5 text-emerald-400" />
-                <span className="font-bold">AFFOG</span>
+                <span className="font-bold">Open Permit</span>
               </div>
-              <p className="text-gray-600 text-sm leading-relaxed">AI-powered legal objections against factory farming.</p>
+              <p className="text-gray-600 text-sm leading-relaxed">Permit intelligence and legal objection drafting for advocates.</p>
             </div>
             <div>
               <h4 className="text-[11px] uppercase tracking-wider text-gray-600 mb-3 font-medium">Platform</h4>
@@ -1072,8 +1072,8 @@ export default function Home() {
             </div>
           </div>
           <div className="pt-8 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
-            <span className="text-xs text-gray-700">&copy; 2026 AFFOG. All rights reserved.</span>
-            <span className="text-xs text-gray-700">Automated Factory Farm Objection Generator</span>
+            <span className="text-xs text-gray-700">&copy; 2026 Open Permit. All rights reserved.</span>
+            <span className="text-xs text-gray-700">Open Permit for civic legal action</span>
           </div>
         </div>
       </footer>

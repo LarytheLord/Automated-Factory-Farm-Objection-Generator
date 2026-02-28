@@ -125,7 +125,7 @@ export default function ImpactPage() {
                         </div>
                     </div>
                     <p className="text-gray-400 text-sm">
-                        The gap between public concern and actual legal action is the core problem AFFOG solves. People want to oppose factory farming — they just don&apos;t know how to navigate the legal process.
+                        The gap between public concern and actual legal action is the core problem Open Permit solves. People want to oppose factory farming — they just don&apos;t know how to navigate the legal process.
                     </p>
                 </section>
 
@@ -220,7 +220,7 @@ export default function ImpactPage() {
                     </div>
                 </section>
 
-                {/* ─── WHY AFFOG ─── */}
+                {/* ─── WHY OPEN PERMIT ─── */}
                 <section className="mb-16">
                     <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
                         <BookOpen className="w-6 h-6 text-purple-400" />
@@ -239,7 +239,7 @@ export default function ImpactPage() {
                                 </ul>
                             </div>
                             <div>
-                                <h3 className="font-bold text-lg mb-3 text-emerald-400">AFFOG&apos;s Solution</h3>
+                                <h3 className="font-bold text-lg mb-3 text-emerald-400">Open Permit&apos;s Solution</h3>
                                 <ul className="space-y-2 text-sm text-gray-300">
                                     <li className="flex gap-2"><span className="text-emerald-400 mt-0.5">+</span> AI generates unique, legally-cited letters in under 2 minutes</li>
                                     <li className="flex gap-2"><span className="text-emerald-400 mt-0.5">+</span> 37+ laws across 6 jurisdictions, automatically matched to each permit</li>
@@ -261,7 +261,7 @@ export default function ImpactPage() {
                         <Zap className="w-10 h-10 text-emerald-400 mx-auto mb-4" />
                         <h2 className="text-2xl font-bold mb-3">First of Its Kind</h2>
                         <p className="text-gray-300 max-w-2xl mx-auto mb-4">
-                            No automated factory farm objection generator exists anywhere in the world. AFFOG is the first tool to combine AI-powered legal letter generation with a comprehensive, multi-jurisdictional legal citation library — specifically designed to help communities fight factory farming.
+                            No automated factory farm objection generator exists anywhere in the world. Open Permit is the first tool to combine AI-powered legal letter generation with a comprehensive, multi-jurisdictional legal citation library — specifically designed to help communities fight factory farming.
                         </p>
                         <div className="flex flex-wrap justify-center gap-6 mt-6 text-sm">
                             <div className="text-center">

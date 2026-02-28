@@ -106,7 +106,7 @@ export default function SurveyPage() {
           </div>
           <h1 className="text-2xl font-bold mb-4">Thank You!</h1>
           <p className="text-slate-600 mb-2">
-            Your feedback has been received. We appreciate you taking the time to help improve AFOG.
+            Your feedback has been received. We appreciate you taking the time to help improve Open Permit.
           </p>
           {successId && <p className="text-sm text-slate-500 mb-6">Submission ID: {String(successId)}</p>}
           {!successId && <div className="mb-6" />}
@@ -138,7 +138,7 @@ export default function SurveyPage() {
         </div>
 
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold mb-4">Help Us Improve AFOG</h1>
+          <h1 className="text-4xl font-bold mb-4">Help Us Improve Open Permit</h1>
           <p className="text-slate-600 max-w-2xl mx-auto">
             Your feedback is invaluable in helping us create the most effective tool for opposing factory farming permits.
             Share your suggestions, report issues, or tell us how we&apos;re doing.
@@ -259,7 +259,7 @@ export default function SurveyPage() {
             {formData.feedbackType === "feedback" && (
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  How would you rate AFOG? (1-5 stars)
+                  How would you rate Open Permit? (1-5 stars)
                 </label>
                 <div className="flex gap-2 mb-4">
                   {[1, 2, 3, 4, 5].map((star) => (

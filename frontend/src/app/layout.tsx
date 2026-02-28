@@ -13,9 +13,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "AFFOG — Automated Factory Farm Objection Generator",
+  title: "Open Permit — Civic Permit Intelligence",
   description:
-    "AI-powered civic-tech platform enabling citizens, NGOs, and legal advocates to generate legally grounded objections against factory farming violations.",
+    "Open Permit helps citizens, NGOs, and legal advocates track high-impact permits and draft legally grounded objections.",
 };
 
 export default function RootLayout({
