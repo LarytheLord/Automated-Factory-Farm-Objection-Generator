@@ -15,6 +15,18 @@ const HOP_BY_HOP_HEADERS = new Set([
   "host",
 ]);
 
+const STRIP_FORWARD_HEADERS = new Set([
+  "origin",
+  "referer",
+  "sec-fetch-site",
+  "sec-fetch-mode",
+  "sec-fetch-dest",
+  "sec-fetch-user",
+  "sec-ch-ua",
+  "sec-ch-ua-mobile",
+  "sec-ch-ua-platform",
+]);
+
 function normalizeBackendBase(value: string | undefined): string {
   const raw = String(value || "").trim();
   if (!raw) return "";
@@ -50,6 +62,9 @@ function buildTargetUrl(req: NextRequest, path: string[]): string {
 function buildForwardHeaders(req: NextRequest): Headers {
   const headers = new Headers(req.headers);
   for (const key of HOP_BY_HOP_HEADERS) {
+    headers.delete(key);
+  }
+  for (const key of STRIP_FORWARD_HEADERS) {
     headers.delete(key);
   }
   return headers;
@@ -108,4 +123,3 @@ async function handler(req: NextRequest, context: { params: { path: string[] } }
 }
 
 export { handler as GET, handler as POST, handler as PUT, handler as PATCH, handler as DELETE, handler as OPTIONS, handler as HEAD };
-

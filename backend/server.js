@@ -222,6 +222,7 @@ const FALLBACK_TRUSTED_SOURCE_KEYS = new Set([
     'nc_deq_application_tracker',
     'uk_ea_public_register',
     'uk_gov_environment_agency_notice',
+    'uk_ea_citizenspace_permit_consultations',
     'us_arkansas_deq_pds',
     'us_nc_deq_application_tracker',
     'au_epbc_referrals',
@@ -273,7 +274,8 @@ function hasTrustedSourceUrl(permit) {
                 host === 'data.epa.ie' ||
                 host === 'www.data.epa.ie' ||
                 host === 'leap.epa.ie' ||
-                host === 'ero.ontario.ca'
+                host === 'ero.ontario.ca' ||
+                host === 'consult.environment-agency.gov.uk'
             );
         } catch (_error) {
             return false;

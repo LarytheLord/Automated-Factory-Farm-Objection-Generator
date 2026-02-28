@@ -9,6 +9,7 @@ Only ingest pending permits from official, trusted public registers with machine
 ## Current trusted feeds in global sync
 - United Kingdom:
   - GOV.UK Environment Agency permit application notices API (`www.gov.uk/api/search.json` + `www.gov.uk/api/content/*`)
+  - Environment Agency Citizen Space open permit consultations (`consult.environment-agency.gov.uk/consultation_finder`)
 - United States:
   - North Carolina DEQ Application Tracker (official ArcGIS endpoint)
   - Arkansas DEQ Permit Data System CSV (official table download)
@@ -22,6 +23,9 @@ Only ingest pending permits from official, trusted public registers with machine
 ## Safety filters
 - Pending-state filtering is applied per source (status-based).
 - Factory-farm/intensive-animal filtering is applied with strict keyword + activity logic.
+- UK Citizen Space ingestion is additionally constrained to:
+  - Open permit consultations only (`st=open` + `in=Permit pages`)
+  - Farm-specific signals in consultation content (animal/intensive markers)
 - Ontario ERO ingestion is additionally constrained to:
   - Notice type `Instrument`
   - Notice stage `Proposal`

@@ -81,6 +81,20 @@ interface RecipientSuggestion {
   reason?: string;
 }
 
+interface ParsedPermitNotes {
+  headline?: string;
+  summary?: string;
+  sourceKey?: string;
+  sourceName?: string;
+  sourceUrl?: string;
+  externalId?: string;
+  reference?: string;
+  publishedAt?: string;
+  consultationDeadline?: string;
+  payload?: unknown;
+  plainNotes?: string;
+}
+
 /* ─── Animated Counter Hook ─── */
 function useAnimatedCounter(target: number, duration = 2000) {
   const [count, setCount] = useState(0);
@@ -129,6 +143,114 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
   } finally {
     clearTimeout(timeout);
   }
+}
+
+const ORIGINAL_PAYLOAD_MARKER = "Original Payload JSON:";
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeInlineText(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function getSourceUrlFromNotes(notes?: string) {
+  const match = String(notes || "").match(/Source URL:\s*(https?:\/\/\S+)/i);
+  return match ? match[1].trim() : "";
+}
+
+function parseDateForDisplay(value?: string) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString();
+}
+
+function parsePermitNotes(permit: Permit | null): ParsedPermitNotes {
+  if (!permit) return {};
+  const rawNotes = String(permit.notes || "").trim();
+  const payload = permit.source_payload ?? null;
+  if (!rawNotes && !payload) return {};
+
+  const markerIndex = rawNotes.indexOf(ORIGINAL_PAYLOAD_MARKER);
+  const noteBody =
+    markerIndex >= 0 ? rawNotes.slice(0, markerIndex).trim() : rawNotes;
+  const payloadText =
+    markerIndex >= 0
+      ? rawNotes.slice(markerIndex + ORIGINAL_PAYLOAD_MARKER.length).trim()
+      : "";
+
+  const labels = [
+    "Source Key",
+    "Source Name",
+    "Source URL",
+    "External ID",
+    "Published at",
+    "Consultation deadline",
+    "Summary",
+    "Reference",
+  ];
+
+  const extractLabel = (label: string) => {
+    const otherLabels = labels
+      .filter((item) => item !== label)
+      .map((item) => escapeRegExp(item))
+      .join("|");
+    const pattern = new RegExp(
+      `${escapeRegExp(label)}:\\s*([\\s\\S]*?)(?=\\s*(?:${otherLabels}):|$)`,
+      "i",
+    );
+    const match = noteBody.match(pattern);
+    return match ? normalizeInlineText(match[1]) : "";
+  };
+
+  const sourceKey = extractLabel("Source Key");
+  const sourceName = extractLabel("Source Name");
+  const sourceUrl = extractLabel("Source URL") || permit.source_url || getSourceUrlFromNotes(rawNotes);
+  const externalId = extractLabel("External ID") || permit.external_id || "";
+  const publishedAt = extractLabel("Published at") || permit.published_at || "";
+  const consultationDeadline =
+    extractLabel("Consultation deadline") || permit.consultation_deadline || "";
+  const summary = extractLabel("Summary");
+  const reference = extractLabel("Reference");
+
+  let parsedPayload: unknown = payload;
+  if (!parsedPayload && payloadText) {
+    try {
+      parsedPayload = JSON.parse(payloadText);
+    } catch {
+      parsedPayload = payloadText;
+    }
+  }
+
+  const plainNotes = normalizeInlineText(
+    noteBody
+      .replace(/\bSource Key:\s*[\s\S]*$/i, "")
+      .replace(/\bSource Name:\s*[\s\S]*$/i, "")
+      .replace(/\bSource URL:\s*[\s\S]*$/i, "")
+      .replace(/\bExternal ID:\s*[\s\S]*$/i, "")
+      .replace(/\bPublished at:\s*[\s\S]*$/i, "")
+      .replace(/\bConsultation deadline:\s*[\s\S]*$/i, "")
+      .replace(/\bSummary:\s*[\s\S]*$/i, "")
+      .replace(/\bReference:\s*[\s\S]*$/i, ""),
+  );
+
+  const headline = noteBody.split("\n").map((line) => line.trim()).find(Boolean) || "";
+
+  return {
+    headline,
+    summary: summary || undefined,
+    sourceKey: sourceKey || undefined,
+    sourceName: sourceName || undefined,
+    sourceUrl: sourceUrl || undefined,
+    externalId: externalId || undefined,
+    reference: reference || undefined,
+    publishedAt: publishedAt || undefined,
+    consultationDeadline: consultationDeadline || undefined,
+    payload: parsedPayload || undefined,
+    plainNotes: plainNotes || undefined,
+  };
 }
 
 /* ─── Main Component ─── */
@@ -530,6 +652,7 @@ export default function Home() {
   const animAnimals = useAnimatedCounter(stats?.potentialAnimalsProtected || 0, 2500);
   const animObjections = useAnimatedCounter(stats?.objectionsGenerated || 0);
   const lettersUsage = usage?.letters?.usage;
+  const selectedPermitNotes = parsePermitNotes(selectedPermit);
 
   /* ─── Loading ─── */
   if (loading) {
@@ -833,7 +956,57 @@ export default function Home() {
                     <DetailRow label="Activity" value={selectedPermit.activity} />
                     {selectedPermit.category && <DetailRow label="Category" value={selectedPermit.category} />}
                     {selectedPermit.capacity && <DetailRow label="Capacity" value={selectedPermit.capacity} />}
-                    {selectedPermit.notes && <DetailRow label="Notes" value={selectedPermit.notes} />}
+                    {selectedPermitNotes.reference && <DetailRow label="Reference" value={selectedPermitNotes.reference} />}
+                    {selectedPermitNotes.externalId && <DetailRow label="External ID" value={selectedPermitNotes.externalId} />}
+                    {selectedPermitNotes.consultationDeadline && (
+                      <DetailRow
+                        label="Deadline"
+                        value={parseDateForDisplay(selectedPermitNotes.consultationDeadline)}
+                      />
+                    )}
+                    {selectedPermitNotes.publishedAt && (
+                      <DetailRow label="Published" value={parseDateForDisplay(selectedPermitNotes.publishedAt)} />
+                    )}
+                    {selectedPermitNotes.sourceKey && <DetailRow label="Source Key" value={selectedPermitNotes.sourceKey} />}
+                    {selectedPermitNotes.sourceName && <DetailRow label="Source Name" value={selectedPermitNotes.sourceName} />}
+                    {selectedPermitNotes.sourceUrl && (
+                      <DetailRow
+                        label="Source URL"
+                        value={
+                          <a
+                            href={selectedPermitNotes.sourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-700 hover:text-blue-800 underline underline-offset-2 break-all"
+                          >
+                            {selectedPermitNotes.sourceUrl}
+                          </a>
+                        }
+                      />
+                    )}
+                    {selectedPermitNotes.summary && <DetailRow label="Summary" value={selectedPermitNotes.summary} />}
+                    {selectedPermitNotes.plainNotes && (
+                      <DetailRow label="Notes" value={selectedPermitNotes.plainNotes} />
+                    )}
+                    {!selectedPermitNotes.plainNotes && selectedPermitNotes.headline && (
+                      <DetailRow label="Notes" value={selectedPermitNotes.headline} />
+                    )}
+                    {selectedPermitNotes.payload && (
+                      <div className="pt-2">
+                        <details className="rounded-xl border border-slate-200 bg-slate-50">
+                          <summary className="cursor-pointer px-3 py-2 text-xs font-medium uppercase tracking-wider text-slate-600">
+                            View original source payload
+                          </summary>
+                          <div className="px-3 pb-3">
+                            <pre className="max-h-64 overflow-auto rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700 whitespace-pre-wrap break-words">
+                              {typeof selectedPermitNotes.payload === "string"
+                                ? selectedPermitNotes.payload
+                                : JSON.stringify(selectedPermitNotes.payload, null, 2)}
+                            </pre>
+                          </div>
+                        </details>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1105,7 +1278,7 @@ function StepCard({ num, title, desc, icon }: { num: string; title: string; desc
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex gap-3">
       <span className="text-gray-600 w-24 flex-shrink-0 text-xs uppercase tracking-wider">{label}</span>

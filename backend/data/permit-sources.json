@@ -100,6 +100,17 @@
     "notes": "Official GOV.UK notices used for pending consultation permit applications."
   },
   {
+    "key": "uk_ea_citizenspace_permit_consultations",
+    "name": "Environment Agency Citizen Space Permit Consultations",
+    "country": "United Kingdom",
+    "trust_level": "official",
+    "type": "html_search",
+    "url": "https://consult.environment-agency.gov.uk/consultation_finder/?st=open&in=Permit+pages&sort_on=iconsultable_enddate&sort_order=ascending",
+    "enabled": false,
+    "poll_interval_hours": 12,
+    "notes": "Official Environment Agency Citizen Space open permit consultations (used by UK pending sync script)."
+  },
+  {
     "key": "us_arkansas_deq_pds",
     "name": "Arkansas DEQ Permit Data System",
     "country": "United States",
