@@ -1,5 +1,27 @@
+function normalizeApiProxyTarget(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const parsed = new URL(withScheme);
+    let pathname = (parsed.pathname || "").replace(/\/+$/g, "");
+    if (pathname.toLowerCase() === "/api") {
+      pathname = "";
+    }
+    return `${parsed.protocol}//${parsed.host}${pathname}`;
+  } catch {
+    return raw.replace(/\/+$/g, "").replace(/\/api$/i, "");
+  }
+}
+
 /** @type {import('next').NextConfig} */
-const apiProxyTarget = process.env.API_PROXY_TARGET || process.env.NEXT_PUBLIC_API_BASE_URL || "";
+const apiProxyTarget = normalizeApiProxyTarget(
+  process.env.API_PROXY_TARGET ||
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    ""
+);
 
 const nextConfig = {
   typescript: { ignoreBuildErrors: true },

@@ -43,12 +43,29 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
                 body: JSON.stringify(body),
             });
 
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Authentication failed");
+            let data: Record<string, unknown> | null = null;
+            try {
+                data = await res.json();
+            } catch (_error) {
+                data = null;
+            }
+
+            if (!res.ok) {
+                const responseError = typeof data?.error === "string" ? data.error : null;
+                if (responseError) throw new Error(responseError);
+                if (res.status === 404) {
+                    throw new Error("API endpoint unavailable. On Vercel, set API_PROXY_TARGET to your Railway backend origin.");
+                }
+                throw new Error("Authentication failed");
+            }
+
+            if (!data || typeof data.token !== "string" || typeof data.user !== "object" || !data.user) {
+                throw new Error("Invalid authentication response from server");
+            }
 
             // Use onLogin callback if provided, otherwise use context
             if (onLogin) {
-                onLogin(data.token, data.user);
+                onLogin(data.token, data.user as User);
             }
             onClose();
         } catch (err: unknown) {

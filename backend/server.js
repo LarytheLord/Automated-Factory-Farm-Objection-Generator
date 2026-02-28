@@ -65,6 +65,43 @@ function isSameHostOrigin(req, origin) {
     }
 }
 
+function requestOrigin(req) {
+    const host = requestHost(req);
+    if (!host) return '';
+    const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+    const protocol = forwardedProto || req.protocol || (isProduction ? 'https' : 'http');
+    return `${protocol}://${host}`;
+}
+
+function parseHostFromUrl(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return null;
+    const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    try {
+        return new URL(withScheme).host.toLowerCase();
+    } catch {
+        return null;
+    }
+}
+
+function inferSupabaseKeyRole(rawKey) {
+    const key = String(rawKey || '').trim();
+    if (!key) return null;
+    if (key.startsWith('sb_secret_')) return 'service_role';
+    if (key.startsWith('sb_publishable_')) return 'publishable_or_anon';
+
+    const parts = key.split('.');
+    if (parts.length !== 3) return 'unknown';
+
+    try {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+        const role = String(payload?.role || payload?.user_role || '').trim();
+        return role || 'unknown';
+    } catch (_error) {
+        return 'unknown';
+    }
+}
+
 const allowlistedOrigins = parseCsvEnv(process.env.ALLOWED_ORIGINS).map(normalizeOrigin).filter(Boolean);
 const strictSecurityHeaders = parseBooleanEnv('STRICT_SECURITY_HEADERS', isProduction);
 if (process.env.TRUST_PROXY !== 'false') {
@@ -181,6 +218,16 @@ function loadPermits() {
 }
 loadPermits();
 const includeStaticPermits = String(process.env.INCLUDE_STATIC_PERMITS || 'false').toLowerCase() === 'true';
+const FALLBACK_TRUSTED_SOURCE_KEYS = new Set([
+    'nc_deq_application_tracker',
+    'uk_ea_public_register',
+    'uk_gov_environment_agency_notice',
+    'us_arkansas_deq_pds',
+    'us_nc_deq_application_tracker',
+    'au_epbc_referrals',
+    'ie_epa_leap',
+    'ca_on_ero_instruments',
+]);
 
 function allPermits() {
     return [
@@ -191,21 +238,59 @@ function allPermits() {
 }
 
 function buildTrustedSourceSet() {
-    return new Set(
-        (Array.isArray(permitSourcesData) ? permitSourcesData : [])
-            .filter((source) => source.type !== 'local_file' && source.trust_level !== 'demo')
-            .map((source) => source.key)
-    );
+    const keys = new Set(FALLBACK_TRUSTED_SOURCE_KEYS);
+    for (const source of Array.isArray(permitSourcesData) ? permitSourcesData : []) {
+        if (source.type === 'local_file' || source.trust_level === 'demo') continue;
+        const key = String(source.key || '').trim();
+        if (key) keys.add(key);
+    }
+    return keys;
+}
+
+function hasTrustedSourceUrl(permit) {
+    const directUrl = String(permit?.source_url || '').trim();
+    const notes = String(permit?.notes || '');
+    const notesUrlMatch = notes.match(/Source URL:\s*(https?:\/\/\S+)/i);
+    const notesUrl = notesUrlMatch ? String(notesUrlMatch[1]).trim() : '';
+    const candidates = [directUrl, notesUrl].filter(Boolean);
+    if (candidates.length === 0) return false;
+
+    return candidates.some((rawUrl) => {
+        try {
+            const parsed = new URL(rawUrl);
+            const host = parsed.hostname.toLowerCase();
+            return (
+                host === 'www.gov.uk' ||
+                host === 'gov.uk' ||
+                host === 'environment.data.gov.uk' ||
+                host === 'maps.deq.nc.gov' ||
+                host === 'www.adeq.state.ar.us' ||
+                host === 'adeq.state.ar.us' ||
+                host === 'gis.environment.gov.au' ||
+                host === 'www.environment.gov.au' ||
+                host === 'environment.gov.au' ||
+                host === 'epbcnotices.environment.gov.au' ||
+                host === 'data.epa.ie' ||
+                host === 'www.data.epa.ie' ||
+                host === 'leap.epa.ie' ||
+                host === 'ero.ontario.ca'
+            );
+        } catch (_error) {
+            return false;
+        }
+    });
 }
 
 function isTrustedPermitRecord(permit, trustedSources) {
     if (!permit || typeof permit !== 'object') return false;
     const sourceKey = String(permit.source_key || '').trim();
-    if (sourceKey) return trustedSources.has(sourceKey);
+    if (sourceKey && trustedSources.has(sourceKey)) return true;
     const ingestKey = String(permit.ingest_key || permit.id || '').trim();
-    if (!ingestKey.includes(':')) return false;
-    const prefix = ingestKey.split(':')[0];
-    return trustedSources.has(prefix);
+    if (ingestKey.includes(':')) {
+        const prefix = ingestKey.split(':')[0];
+        if (trustedSources.has(prefix)) return true;
+    }
+    return hasTrustedSourceUrl(permit);
 }
 
 function buildPermitDedupKey(permit) {
@@ -1745,8 +1830,10 @@ app.get('/api/admin/platform-config', authenticateToken, requireAdmin, (req, res
 
 app.get('/api/admin/runtime-config', authenticateToken, requireAdmin, async (req, res) => {
     await ensureAccessApprovalStoreReady();
+    const supabaseConfigured = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_KEY);
     return res.json({
         environment: process.env.NODE_ENV || 'development',
+        requestOrigin: requestOrigin(req),
         security: {
             strictSecurityHeaders,
             trustProxy: process.env.TRUST_PROXY !== 'false',
@@ -1760,6 +1847,12 @@ app.get('/api/admin/runtime-config', authenticateToken, requireAdmin, async (req
         rateLimitsPerHour: {
             auth: intFromEnv('AUTH_RATE_LIMIT_PER_HOUR', 20),
             generateLetter: intFromEnv('LETTER_RATE_LIMIT_PER_HOUR', 25),
+        },
+        supabase: {
+            configured: supabaseConfigured,
+            clientEnabled: Boolean(supabase),
+            projectHost: parseHostFromUrl(process.env.SUPABASE_URL),
+            keyRole: inferSupabaseKeyRole(process.env.SUPABASE_KEY),
         },
         features: platformConfig,
         storage: supabase ? 'supabase' : 'json',

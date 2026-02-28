@@ -87,5 +87,71 @@
       "notes",
       "location"
     ]
+  },
+  {
+    "key": "uk_gov_environment_agency_notice",
+    "name": "GOV.UK Environment Agency Permit Application Notices",
+    "country": "United Kingdom",
+    "trust_level": "official",
+    "type": "govuk_search_api",
+    "url": "https://www.gov.uk/api/search.json?q=%22environmental%20permit%20application%20advertisement%22",
+    "enabled": true,
+    "poll_interval_hours": 12,
+    "notes": "Official GOV.UK notices used for pending consultation permit applications."
+  },
+  {
+    "key": "us_arkansas_deq_pds",
+    "name": "Arkansas DEQ Permit Data System",
+    "country": "United States",
+    "trust_level": "official",
+    "type": "csv_url",
+    "url": "https://www.adeq.state.ar.us/downloads/WebDatabases/PDS/FacAndPmtSummary.csv",
+    "enabled": false,
+    "poll_interval_hours": 24,
+    "notes": "Official Arkansas DEQ permit table download used by the global pending sync script."
+  },
+  {
+    "key": "us_nc_deq_application_tracker",
+    "name": "North Carolina DEQ Application Tracker",
+    "country": "United States",
+    "trust_level": "official",
+    "type": "arcgis_mapserver",
+    "url": "https://maps.deq.nc.gov/arcgis/rest/services/DEQ/ApplicationTracker/MapServer/2/query",
+    "enabled": false,
+    "poll_interval_hours": 12,
+    "notes": "Official NC DEQ ArcGIS application tracker used by the global pending sync script."
+  },
+  {
+    "key": "au_epbc_referrals",
+    "name": "Australian EPBC Referrals Public Register",
+    "country": "Australia",
+    "trust_level": "official",
+    "type": "arcgis_mapserver",
+    "url": "https://gis.environment.gov.au/gispubmap/rest/services/ogc_services/EPBC_Referrals/MapServer/0/query",
+    "enabled": false,
+    "poll_interval_hours": 24,
+    "notes": "Official EPBC referrals feed used by the global pending sync script."
+  },
+  {
+    "key": "ie_epa_leap",
+    "name": "Ireland EPA LEAP Licensing API",
+    "country": "Ireland",
+    "trust_level": "official",
+    "type": "json_url",
+    "url": "https://data.epa.ie/leap/api/v1/Licence/licencesearchlistfilters",
+    "enabled": false,
+    "poll_interval_hours": 24,
+    "notes": "Official LEAP API source used by the global pending sync script."
+  },
+  {
+    "key": "ca_on_ero_instruments",
+    "name": "Ontario Environmental Registry (ERO) Instruments",
+    "country": "Canada",
+    "trust_level": "official",
+    "type": "html_search",
+    "url": "https://ero.ontario.ca/search?f%5B0%5D=ero_notice_type%3Ad",
+    "enabled": false,
+    "poll_interval_hours": 24,
+    "notes": "Official Ontario ERO instrument notices used by the global pending sync script for open proposal comment periods."
   }
 ]

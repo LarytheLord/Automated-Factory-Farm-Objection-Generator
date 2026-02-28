@@ -7,11 +7,21 @@ import Link from 'next/link';
 import { ArrowLeft, BarChart3, Globe, Scale, TrendingUp, Shield } from 'lucide-react';
 
 interface Permit {
+    id?: string | number;
     country: string;
     category?: string;
     status: string;
     project_title: string;
     activity?: string;
+    location?: string;
+    notes?: string;
+    source_url?: string;
+    source_payload?: unknown;
+    external_id?: string;
+    consultation_deadline?: string;
+    published_at?: string;
+    updated_at?: string;
+    created_at?: string;
 }
 
 interface LegalFramework {
@@ -31,6 +41,7 @@ export default function Dashboard() {
     const [frameworks, setFrameworks] = useState<LegalFramework[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [selectedPermit, setSelectedPermit] = useState<Permit | null>(null);
 
     const API_BASE = '';
 
@@ -115,13 +126,54 @@ export default function Dashboard() {
         );
     }
 
+    const normalizeStatus = (status?: string) => String(status || '').trim().toLowerCase().replace(/_/g, ' ');
+    const isActionableStatus = (status?: string) => {
+        const normalized = normalizeStatus(status);
+        return normalized === 'pending' || normalized === 'in process' || normalized === 'under review';
+    };
+    const titleCase = (value?: string) => {
+        const normalized = normalizeStatus(value);
+        if (!normalized) return 'Unknown';
+        return normalized
+            .split(' ')
+            .filter(Boolean)
+            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(' ');
+    };
+    const parseSourceUrlFromNotes = (notes?: string) => {
+        const match = String(notes || '').match(/Source URL:\s*(https?:\/\/\S+)/i);
+        return match ? match[1] : '';
+    };
+    const getPermitSourceUrl = (permit: Permit) => permit.source_url || parseSourceUrlFromNotes(permit.notes);
+    const getPermitPayload = (permit: Permit) => {
+        if (permit.source_payload) return permit.source_payload;
+        const marker = 'Original Payload JSON:';
+        const notes = String(permit.notes || '');
+        const markerIndex = notes.indexOf(marker);
+        if (markerIndex < 0) return null;
+        const jsonText = notes.slice(markerIndex + marker.length).trim();
+        if (!jsonText) return null;
+        try {
+            return JSON.parse(jsonText);
+        } catch (_error) {
+            return jsonText;
+        }
+    };
+    const formatDate = (value?: string) => {
+        if (!value) return 'n/a';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return date.toLocaleDateString();
+    };
+
     const countryData = Object.entries(permits.reduce((acc, curr) => {
         acc[curr.country] = (acc[curr.country] || 0) + 1;
         return acc;
     }, {} as Record<string, number>)).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
 
     const statusData = Object.entries(permits.reduce((acc, curr) => {
-        acc[curr.status] = (acc[curr.status] || 0) + 1;
+        const label = titleCase(curr.status);
+        acc[label] = (acc[label] || 0) + 1;
         return acc;
     }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
 
@@ -152,9 +204,20 @@ export default function Dashboard() {
     const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899'];
     const CATEGORY_COLORS: Record<string, string> = { 'Red': '#EF4444', 'Orange': '#F97316', 'Green': '#22C55E', 'Unknown': '#6B7280' };
     const STATUS_COLORS: Record<string, string> = {
-        'Approved': '#22C55E', 'Pending': '#F59E0B', 'In Process': '#3B82F6',
-        'Rejected': '#EF4444', 'Under Review': '#8B5CF6'
+        approved: '#22C55E', pending: '#F59E0B', 'in process': '#3B82F6',
+        rejected: '#EF4444', 'under review': '#8B5CF6'
     };
+    const pendingPermits = [...permits]
+        .filter((permit) => isActionableStatus(permit.status))
+        .sort((a, b) => {
+            const deadlineA = a.consultation_deadline ? new Date(a.consultation_deadline).getTime() : Number.MAX_SAFE_INTEGER;
+            const deadlineB = b.consultation_deadline ? new Date(b.consultation_deadline).getTime() : Number.MAX_SAFE_INTEGER;
+            if (deadlineA !== deadlineB) return deadlineA - deadlineB;
+            const updatedA = new Date(a.updated_at || a.created_at || 0).getTime();
+            const updatedB = new Date(b.updated_at || b.created_at || 0).getTime();
+            return updatedB - updatedA;
+        })
+        .slice(0, 18);
 
     return (
         <div className="min-h-screen bg-black text-slate-900 p-8">
@@ -191,7 +254,7 @@ export default function Dashboard() {
                     </div>
                     <div className="glass-card p-5 text-center">
                         <Shield className="w-5 h-5 text-amber-400 mx-auto mb-2" />
-                        <div className="text-2xl font-bold">{permits.filter(p => p.status === 'Pending' || p.status === 'In Process').length}</div>
+                        <div className="text-2xl font-bold">{permits.filter((p) => isActionableStatus(p.status)).length}</div>
                         <div className="text-gray-500 text-xs">Actionable Permits</div>
                     </div>
                 </div>
@@ -232,7 +295,7 @@ export default function Dashboard() {
                                         <div className="flex items-center gap-3">
                                             <div
                                                 className="w-3 h-3 rounded-full"
-                                                style={{ backgroundColor: STATUS_COLORS[item.name] || '#6B7280' }}
+                                                style={{ backgroundColor: STATUS_COLORS[normalizeStatus(item.name)] || '#6B7280' }}
                                             />
                                             <span className="text-sm">{item.name}</span>
                                         </div>
@@ -242,7 +305,7 @@ export default function Dashboard() {
                                                     className="h-1.5 rounded-full"
                                                     style={{
                                                         width: `${percentage}%`,
-                                                        backgroundColor: STATUS_COLORS[item.name] || '#6B7280'
+                                                        backgroundColor: STATUS_COLORS[normalizeStatus(item.name)] || '#6B7280'
                                                     }}
                                                 />
                                             </div>
@@ -255,7 +318,7 @@ export default function Dashboard() {
                         </div>
                         <div className="mt-6 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                             <p className="text-amber-400 text-xs font-medium">
-                                {permits.filter(p => p.status === 'Pending' || p.status === 'In Process').length} permits are currently actionable — objections can be filed now.
+                                {permits.filter((p) => isActionableStatus(p.status)).length} permits are currently actionable — objections can be filed now.
                             </p>
                         </div>
                     </div>
@@ -317,6 +380,65 @@ export default function Dashboard() {
                     </div>
                 </div>
 
+                <div className="glass-card p-6 mb-6">
+                    <div className="flex items-center justify-between gap-4 mb-4">
+                        <div>
+                            <h2 className="text-lg font-semibold">Pending Permits: Original Source Data</h2>
+                            <p className="text-xs text-gray-500 mt-1">
+                                Showing actionable permits. Use the button to inspect full source payload from official notices.
+                            </p>
+                        </div>
+                        <span className="text-xs text-gray-500">{pendingPermits.length} shown</span>
+                    </div>
+                    {pendingPermits.length === 0 ? (
+                        <div className="p-4 rounded-lg bg-gray-900/50 border border-gray-800/50 text-sm text-gray-500">
+                            No pending permits are currently available in the filtered dataset.
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {pendingPermits.map((permit, idx) => {
+                                const payload = getPermitPayload(permit);
+                                const sourceUrl = getPermitSourceUrl(permit);
+                                return (
+                                    <div key={`${permit.id || permit.project_title}-${idx}`} className="p-4 rounded-lg bg-gray-900/50 border border-gray-800/50">
+                                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                                            <div>
+                                                <p className="text-sm font-medium">{permit.project_title}</p>
+                                                <p className="text-xs text-gray-500 mt-1">
+                                                    {permit.location || permit.country} • Status: {titleCase(permit.status)} • Deadline: {formatDate(permit.consultation_deadline)}
+                                                </p>
+                                                {permit.external_id && (
+                                                    <p className="text-xs text-gray-500 mt-1">Reference: {permit.external_id}</p>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSelectedPermit(permit)}
+                                                    className="px-3 py-1.5 rounded-lg text-xs border border-blue-400/40 text-blue-300 hover:bg-blue-500/10 transition-colors"
+                                                    disabled={!payload}
+                                                >
+                                                    View Original Data
+                                                </button>
+                                                {sourceUrl && (
+                                                    <a
+                                                        href={sourceUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="px-3 py-1.5 rounded-lg text-xs border border-gray-700 text-gray-300 hover:bg-gray-800/70 transition-colors"
+                                                    >
+                                                        Open Source
+                                                    </a>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
                 {/* Legal Frameworks */}
                 {frameworks.length > 0 && (
                     <div className="glass-card p-6">
@@ -338,6 +460,31 @@ export default function Dashboard() {
                     </div>
                 )}
             </div>
+
+            {selectedPermit && (
+                <div className="fixed inset-0 z-50 bg-black/70 p-4 flex items-center justify-center">
+                    <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-xl border border-gray-700 bg-[#0b1118]">
+                        <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-sm font-semibold">Original Permit Source Payload</h3>
+                                <p className="text-xs text-gray-400 mt-1">{selectedPermit.project_title}</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedPermit(null)}
+                                className="px-3 py-1.5 rounded-lg text-xs border border-gray-600 text-gray-300 hover:bg-gray-800 transition-colors"
+                            >
+                                Close
+                            </button>
+                        </div>
+                        <div className="p-4 overflow-auto max-h-[78vh]">
+                            <pre className="text-xs whitespace-pre-wrap break-words text-gray-200">
+                                {JSON.stringify(getPermitPayload(selectedPermit), null, 2)}
+                            </pre>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

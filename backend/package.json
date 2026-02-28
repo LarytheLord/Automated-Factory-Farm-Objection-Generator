@@ -13,7 +13,10 @@
     "validate:sources:all": "node scripts/validate-permit-sources.js --include-disabled",
     "sync:sources": "node scripts/sync-permit-sources.js --remote-only",
     "sync:sources:all": "node scripts/sync-permit-sources.js --include-disabled",
-    "sync:recipients": "node scripts/sync-recipient-directory.js"
+    "sync:recipients": "node scripts/sync-recipient-directory.js",
+    "migrate:permits-source-metadata": "node scripts/migrate-permits-source-metadata.js",
+    "sync:uk-pending-permits": "node scripts/sync-uk-pending-permits-to-supabase.js",
+    "sync:global-pending-permits": "node scripts/sync-global-pending-permits-to-supabase.js"
   },
   "keywords": [],
   "author": "",
