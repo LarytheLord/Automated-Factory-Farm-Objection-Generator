@@ -1,7 +1,7 @@
-# 8-Hour Hackathon Plan: Automated Factory Farm Objection Generator (AFOG)
+# 8-Hour Hackathon Plan: Open Permit (Open Permit)
 
 ## Project Overview
-The Automated Factory Farm Objection Generator (AFOG) is a platform that auto-detects permit filings, generates compelling objection letters with legal citations, and scales objection capacity for NGOs and communities.
+The Open Permit (Open Permit) is a platform that auto-detects permit filings, generates compelling objection letters with legal citations, and scales objection capacity for NGOs and communities.
 
 ## Team Members & Responsibilities
 - **Lead (You)**: Full Stack, AI engineer - Overall architecture, integration, deployment

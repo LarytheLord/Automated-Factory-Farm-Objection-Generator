@@ -1,4 +1,4 @@
--- AFFOG PostgreSQL Database Schema
+-- Open Permit PostgreSQL Database Schema
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

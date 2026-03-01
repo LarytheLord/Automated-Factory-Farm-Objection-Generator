@@ -917,7 +917,7 @@ function recordUsage(req, action, metadata = {}) {
 }
 
 // ─── JWT Auth Middleware ───
-const JWT_SECRET = process.env.JWT_SECRET || (isProduction ? '' : 'affog-demo-secret-2026');
+const JWT_SECRET = process.env.JWT_SECRET || (isProduction ? '' : 'open-permit-demo-secret-2026');
 
 if (!JWT_SECRET) {
     throw new Error('JWT_SECRET must be set in production');
@@ -2298,14 +2298,18 @@ app.get('/api/stats', async (req, res) => {
             return sum + cap;
         }, 0);
 
-        const baseActivity = [
-            { action: 'Objection Generated', target: 'Smithfield Hog Farm #42', country: 'United States', time: '2 min ago' },
-            { action: 'Permit Flagged', target: 'Wye Valley Poultry Unit', country: 'United Kingdom', time: '8 min ago' },
-            { action: 'Objection Generated', target: 'Miki Exports International', country: 'India', time: '15 min ago' },
-            { action: 'RTI Filed', target: 'Green Valley Poultry', country: 'India', time: '32 min ago' },
-            { action: 'Objection Sent', target: 'Mega Dairy CAFO', country: 'United States', time: '1 hr ago' },
-            { action: 'Permit Analyzed', target: 'Riverina Piggery Expansion', country: 'Australia', time: '2 hrs ago' },
-        ];
+        // Derive activity from real ingested permits
+        const titleCase = (s) => s.replace(/\b\w+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase());
+        const actionTypes = ['Permit Ingested', 'Permit Analyzed', 'Permit Flagged'];
+        const recentPermits = [...ingestedPermitsData]
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            .slice(0, 6);
+        const baseActivity = recentPermits.map((p, i) => ({
+            action: p.status === 'Pending' ? 'Permit Flagged' : actionTypes[i % actionTypes.length],
+            target: /^[A-Z\s]+$/.test(p.project_title) ? titleCase(p.project_title) : p.project_title,
+            country: p.country,
+            time: getRelativeTime(new Date(p.created_at))
+        }));
 
         const dynamicActivity = activityLog.slice(-3).map(a => ({
             action: a.action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
@@ -2356,7 +2360,7 @@ app.get('/api/health', (req, res) => {
     const trustedSources = buildTrustedSourceSet();
     res.json({
         status: 'ok',
-        service: 'affog-api',
+        service: 'open-permit-api',
         timestamp: new Date().toISOString(),
         storage: supabase ? 'supabase' : 'json',
         requireSupabase,
@@ -2375,7 +2379,7 @@ app.get('/api/health', (req, res) => {
 // Root route
 app.get('/api', (req, res) => {
     res.json({
-        name: 'AFFOG Backend',
+        name: 'Open Permit Backend',
         status: 'running',
         version: '2.0.0',
         endpoints: [

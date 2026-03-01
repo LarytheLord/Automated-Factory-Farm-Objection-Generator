@@ -1,4 +1,4 @@
-# AFFOG Execution Notes
+# Open Permit Execution Notes
 
 Last updated: 2026-02-26
 

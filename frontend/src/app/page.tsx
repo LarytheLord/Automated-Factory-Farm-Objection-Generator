@@ -19,11 +19,12 @@ import {
   Mail,
   Sparkles,
   User,
-  LogOut,
   Save,
 } from "lucide-react";
 import Link from "next/link";
 import AuthModal from "../components/AuthModal";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -300,7 +301,6 @@ export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const [scrolled, setScrolled] = useState(false);
   const [usage, setUsage] = useState<UsageResponse | null>(null);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
 
@@ -310,40 +310,19 @@ export default function Home() {
   const isAuthenticated = !!user;
   const hasApprovedAccess = !!(user && (user.role === "admin" || user.accessApproved));
 
+  const handleNavAuthChange = (navUser: User | null, navToken: string | null) => {
+    setUser(navUser);
+    setToken(navToken);
+    if (navUser && !(navUser.role === "admin" || navUser.accessApproved)) {
+      setAuthNotice("Account pending manual approval. You'll get access once an admin approves your profile.");
+    } else {
+      setAuthNotice(null);
+    }
+  };
+
   useEffect(() => {
     setIsMounted(true);
-    const storedToken = getTokenFromStorage();
-    const storedUser = getUserFromStorage();
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      fetch(`${API_BASE}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${storedToken}` },
-      })
-        .then((res) => {
-          if (!res.ok) throw new Error("Session expired");
-          return res.json();
-        })
-        .then((payload) => {
-          if (payload?.user) {
-            setUser(payload.user);
-            localStorage.setItem("user", JSON.stringify(payload.user));
-            if (!(payload.user.role === "admin" || payload.user.accessApproved)) {
-              setAuthNotice("Account pending manual approval. You'll get access once an admin approves your profile.");
-            }
-          }
-        })
-        .catch(() => {
-          setUser(null);
-          setToken(null);
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-        });
-    }
-
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [API_BASE]);
+  }, []);
 
   useEffect(() => {
     setCurrentDate(new Date().toISOString().split("T")[0]);
@@ -583,15 +562,6 @@ export default function Home() {
     }
   };
 
-  const handleLogout = () => {
-    setUser(null);
-    setToken(null);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-    }
-  };
-
   const handleLogin = (newToken: string, newUser: User) => {
     setToken(newToken);
     setUser(newUser);
@@ -717,51 +687,7 @@ export default function Home() {
       </div>
 
       {/* ════════════ NAV ════════════ */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? "nav-glass" : ""}`}>
-        <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-2.5">
-            <Shield className="w-6 h-6 text-emerald-400" />
-            <span className="font-bold text-lg tracking-tight">Open Permit</span>
-          </Link>
-
-          <div className="hidden md:flex items-center gap-8 text-sm text-gray-500">
-            <a href="#how-it-works" className="hover:text-slate-900 transition-colors">How it works</a>
-            <a href="#permits" className="hover:text-slate-900 transition-colors">Permits</a>
-            <Link href="/dashboard" className="hover:text-slate-900 transition-colors">Analytics</Link>
-            <Link href="/impact" className="hover:text-slate-900 transition-colors">Impact</Link>
-            <Link href="/survey" className="hover:text-slate-900 transition-colors">Feedback</Link>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {isMounted && isAuthenticated ? (
-              <>
-                <span className="hidden md:block text-sm text-gray-500">{user?.name}</span>
-                {user?.role === "admin" && (
-                  <Link
-                    href="/admin/access"
-                    className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-slate-900 transition-colors"
-                    title="Admin Access Console"
-                  >
-                    <Shield className="w-4 h-4" />
-                  </Link>
-                )}
-                <Link href="/my-objections" className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-slate-900 transition-colors" title="My Objections">
-                  <FileText className="w-4 h-4" />
-                </Link>
-                <button onClick={handleLogout} className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-red-400 transition-colors" title="Sign Out">
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </>
-            ) : isMounted ? (
-              <button onClick={() => setIsAuthModalOpen(true)} className="px-4 py-2 text-sm font-medium text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg transition-all">
-                Sign In
-              </button>
-            ) : (
-              <div className="px-4 py-2 text-sm">Loading...</div>
-            )}
-          </div>
-        </div>
-      </nav>
+      <Navbar onAuthChange={handleNavAuthChange} />
 
       {/* ════════════ HERO ════════════ */}
       <section className="relative z-10 pt-36 pb-24 px-6">
@@ -778,7 +704,7 @@ export default function Home() {
           </h1>
 
           <p className="animate-fade-in-up text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed" style={{ animationDelay: "200ms" }}>
-            Track high-impact farm-industry permits and generate legally grounded objection letters in under two minutes. Backed by 37+ laws across 8 countries.
+            Track high-impact development permits and generate legally grounded objection letters in under two minutes. Backed by 37+ laws across 8 countries.
           </p>
 
           <div className="animate-fade-in-up flex flex-wrap justify-center gap-4 mb-16" style={{ animationDelay: "300ms" }}>
@@ -807,7 +733,7 @@ export default function Home() {
       <div className="section-divider" />
       <section className="relative z-10 py-12 px-6">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-gray-600 mb-6">Monitoring factory farms across</p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-gray-600 mb-6">Monitoring development permits across</p>
           <div className="flex flex-wrap justify-center gap-x-8 gap-y-3 text-sm text-gray-500">
             {["United States", "United Kingdom", "India", "Australia", "Canada", "European Union", "Brazil", "New Zealand"].map((c) => (
               <span key={c} className="hover:text-gray-700 transition-colors">{c}</span>
@@ -1190,7 +1116,7 @@ export default function Home() {
             </div>
             <div className="glass-card p-6">
               <div className="text-3xl font-bold text-blue-400 mb-2">$574M</div>
-              <div className="text-sm font-medium mb-1">in verdicts against factory farms</div>
+              <div className="text-sm font-medium mb-1">in verdicts against industrial farms</div>
               <p className="text-gray-600 text-xs">North Carolina, 5 jury cases</p>
             </div>
             <div className="glass-card p-6">
@@ -1211,7 +1137,7 @@ export default function Home() {
             <div className="glass-card p-12 text-center relative">
               <h2 className="text-3xl font-bold mb-4">Your objection could tip the balance</h2>
               <p className="text-gray-600 mb-8 max-w-lg mx-auto leading-relaxed">
-                Every legally grounded objection forces authorities to respond. Join advocates in 8 countries fighting factory farming through law.
+                Every legally grounded objection forces authorities to respond. Join advocates in 8 countries fighting harmful developments through law.
               </p>
               <a href="#permits" className="group inline-flex items-center gap-2 px-8 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-emerald-500/20">
                 Generate Your First Objection
@@ -1223,48 +1149,7 @@ export default function Home() {
       </section>
 
       {/* ════════════ FOOTER ════════════ */}
-      <footer className="relative z-10 border-t border-slate-200 py-12 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
-            <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center gap-2 mb-3">
-                <Shield className="w-5 h-5 text-emerald-400" />
-                <span className="font-bold">Open Permit</span>
-              </div>
-              <p className="text-gray-600 text-sm leading-relaxed">Permit intelligence and legal objection drafting for advocates.</p>
-            </div>
-            <div>
-              <h4 className="text-[11px] uppercase tracking-wider text-gray-600 mb-3 font-medium">Platform</h4>
-              <div className="space-y-2 text-sm">
-                <a href="#permits" className="block text-gray-500 hover:text-slate-900 transition-colors">Permits</a>
-                <Link href="/dashboard" className="block text-gray-500 hover:text-slate-900 transition-colors">Analytics</Link>
-                <Link href="/impact" className="block text-gray-500 hover:text-slate-900 transition-colors">Impact</Link>
-                <Link href="/submit-permit" className="block text-gray-500 hover:text-slate-900 transition-colors">Submit Permit</Link>
-            <Link href="/survey" className="block text-gray-500 hover:text-slate-900 transition-colors">Share Feedback</Link>
-              </div>
-            </div>
-            <div>
-              <h4 className="text-[11px] uppercase tracking-wider text-gray-600 mb-3 font-medium">Legal</h4>
-              <div className="space-y-2 text-sm text-gray-500">
-                <span className="block">37+ Laws Integrated</span>
-                <span className="block">8 Countries</span>
-                <span className="block">6 Jurisdictions</span>
-              </div>
-            </div>
-            <div>
-              <h4 className="text-[11px] uppercase tracking-wider text-gray-600 mb-3 font-medium">About</h4>
-              <div className="space-y-2 text-sm text-gray-500">
-                <span className="block">Built for AARC 2026</span>
-                <span className="block">Code for Compassion</span>
-              </div>
-            </div>
-          </div>
-          <div className="pt-8 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
-            <span className="text-xs text-gray-700">&copy; 2026 Open Permit. All rights reserved.</span>
-            <span className="text-xs text-gray-700">Open Permit for civic legal action</span>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </main>
   );
 }

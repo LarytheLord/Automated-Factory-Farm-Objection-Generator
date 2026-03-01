@@ -57,7 +57,7 @@ async function fetchText(url, timeoutMs = 15000) {
   try {
     const response = await fetch(url, {
       headers: {
-        'user-agent': 'AFFOG-recipient-sync/1.0 (+https://github.com/LarytheLord/Automated-Factory-Farm-Objection-Generator)',
+        'user-agent': 'OpenPermit-recipient-sync/1.0 (+https://github.com/LarytheLord/Open-Permit)',
       },
       signal: controller.signal,
     });

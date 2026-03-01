@@ -84,7 +84,7 @@ export default function SubmitPermit() {
 
                 <div className="glass-card p-8">
                     <h1 className="text-2xl font-bold mb-2">Submit New Permit</h1>
-                    <p className="text-gray-400 mb-8 text-sm">Report a new factory farm project for monitoring.</p>
+                    <p className="text-gray-400 mb-8 text-sm">Report a new development project or permit for monitoring.</p>
 
                     {error && (
                         <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-4 rounded-xl mb-6 flex items-start gap-3">
@@ -111,7 +111,7 @@ export default function SubmitPermit() {
                                     value={formData.project_title}
                                     onChange={handleChange}
                                     className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-slate-900 focus:outline-none focus:border-emerald-500 transition-colors"
-                                    placeholder="e.g. Mega Dairy Farm Expansion"
+                                    placeholder="e.g. Riverside Industrial Development"
                                     required
                                 />
                             </div>

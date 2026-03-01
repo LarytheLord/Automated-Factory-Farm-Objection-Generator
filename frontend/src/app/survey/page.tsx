@@ -140,7 +140,7 @@ export default function SurveyPage() {
         <div className="text-center mb-10">
           <h1 className="text-4xl font-bold mb-4">Help Us Improve Open Permit</h1>
           <p className="text-slate-600 max-w-2xl mx-auto">
-            Your feedback is invaluable in helping us create the most effective tool for opposing factory farming permits.
+            Your feedback is invaluable in helping us create the most effective civic permit intelligence platform.
             Share your suggestions, report issues, or tell us how we&apos;re doing.
           </p>
         </div>
@@ -313,7 +313,7 @@ export default function SurveyPage() {
         </div>
 
         <div className="mt-8 text-center text-sm text-slate-500">
-          <p>Your feedback helps us create a more effective tool for opposing factory farming permits.</p>
+          <p>Your feedback helps us create better civic permit intelligence tools for communities worldwide.</p>
         </div>
       </div>
     </div>

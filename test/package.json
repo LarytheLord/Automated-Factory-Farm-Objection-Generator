@@ -1,7 +1,7 @@
 {
-  "name": "afog-test-suite",
+  "name": "open-permit-test-suite",
   "version": "2.0.0",
-  "description": "Contract tests for Automated Factory Farm Objection Generator",
+  "description": "Contract tests for Open Permit API",
   "main": "sample-test.js",
   "scripts": {
     "test": "node sample-test.js",
@@ -23,10 +23,10 @@
   },
   "keywords": [
     "testing",
-    "factory-farm",
-    "objection-generator",
+    "open-permit",
+    "civic-intelligence",
     "contract-testing"
   ],
-  "author": "AFOG Team",
+  "author": "Open Permit Team",
   "license": "ISC"
 }

@@ -1,4 +1,4 @@
-# AFFOG Professional Readiness Audit
+# Open Permit Professional Readiness Audit
 
 Last updated: 2026-02-25
 

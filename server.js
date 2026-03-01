@@ -46,7 +46,7 @@ try {
 
     app.listen(port, (err) => {
       if (err) throw err;
-      console.log(`\n🚀 AFFOG running on port ${port}`);
+      console.log(`\n🚀 Open Permit running on port ${port}`);
       console.log(`   Frontend: http://localhost:${port}`);
       console.log(`   Backend API: http://localhost:${port}/api\n`);
     });
@@ -60,7 +60,7 @@ try {
 
   app.listen(port, (err) => {
     if (err) throw err;
-    console.log(`\n🚀 AFFOG Backend running on port ${port}`);
+    console.log(`\n🚀 Open Permit Backend running on port ${port}`);
     console.log('   Frontend not available\n');
   });
 }

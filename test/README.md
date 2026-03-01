@@ -1,6 +1,6 @@
-# AFFOG Contract Test Suite
+# Open Permit Contract Test Suite
 
-This suite validates the currently implemented API contracts for AFFOG.
+This suite validates the currently implemented API contracts for Open Permit.
 
 ## Run
 

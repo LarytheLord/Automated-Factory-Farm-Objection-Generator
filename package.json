@@ -1,7 +1,7 @@
 {
-  "name": "automated-factory-farm-objection-generator",
+  "name": "open-permit",
   "version": "2.0.0",
-  "description": "A platform that auto-detects permit filings, generates compelling objection letters with legal citations, and scales objection capacity for NGOs and communities.",
+  "description": "AI-powered civic intelligence platform for permit monitoring, impact analysis, and citizen advocacy.",
   "main": "server.js",
   "scripts": {
     "dev": "NODE_ENV=development node --max-old-space-size=512 server.js",
@@ -16,14 +16,14 @@
     "start": "NODE_ENV=production node --max-old-space-size=512 server.js"
   },
   "keywords": [
-    "factory-farm",
-    "objection-generator",
+    "civic-intelligence",
+    "permit-monitoring",
     "ai",
     "legal",
     "environmental",
     "activism"
   ],
-  "author": "AFOG Team",
+  "author": "Open Permit Team",
   "license": "ISC",
   "dependencies": {
     "express": "^4.18.2",
