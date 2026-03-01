@@ -13,7 +13,7 @@ function writeJson(filePath, value) {
 }
 
 async function run() {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'affog-ingestion-'));
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'op-ingestion-'));
   const sourceFile = path.join(tempDir, 'demo-source.json');
 
   const firstBatch = [

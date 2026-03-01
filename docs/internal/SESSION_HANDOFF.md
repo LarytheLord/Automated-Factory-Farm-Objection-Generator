@@ -1,7 +1,7 @@
-# AFOG Project - Session Handoff Document
+# Open Permit Project - Session Handoff Document
 
 ## Project Overview
-**Automated Factory Farm Objection Generator (AFOG)** - A platform that auto-detects permit filings, generates AI-powered objection letters with legal citations, and scales objection capacity for NGOs and communities.
+**Open Permit (Open Permit)** - A platform that auto-detects permit filings, generates AI-powered objection letters with legal citations, and scales objection capacity for NGOs and communities.
 
 **Current Status**: ✅ Deployed on Railway (frontend working, backend integrated)
 

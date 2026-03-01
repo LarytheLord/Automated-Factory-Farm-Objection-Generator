@@ -30,7 +30,7 @@ async function request(pathname, options = {}) {
 }
 
 async function run() {
-  console.log(`Running AFFOG contract tests against: ${BASE_URL}`);
+  console.log(`Running Open Permit contract tests against: ${BASE_URL}`);
 
   // 1) Health
   const health = await request('/api/health');
@@ -54,7 +54,7 @@ async function run() {
     body: JSON.stringify({
       email: uniqueEmail,
       password: 'StrongPass123!',
-      name: 'AFFOG Test User',
+      name: 'Open Permit Test User',
     }),
   });
   assert(register.response.status === 201, `POST /api/auth/register failed: ${register.response.status}`);
@@ -85,7 +85,7 @@ async function run() {
     body: JSON.stringify({
       permitDetails: {
         ...permit,
-        yourName: 'AFFOG Test User',
+        yourName: 'Open Permit Test User',
         yourEmail: uniqueEmail,
         yourAddress: '123 Test St',
         yourCity: 'Bengaluru',
@@ -153,7 +153,7 @@ async function run() {
   assert(email.data && typeof email.data.error === 'string', 'Disabled send-email payload invalid');
   console.log('✓ POST /api/send-email disabled by design');
 
-  console.log('\nAll AFFOG contract tests passed.');
+  console.log('\nAll Open Permit contract tests passed.');
 }
 
 run().catch((error) => {

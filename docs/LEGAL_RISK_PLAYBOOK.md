@@ -1,4 +1,4 @@
-# AFFOG Legal Risk Playbook
+# Open Permit Legal Risk Playbook
 
 Last updated: 2026-02-20
 

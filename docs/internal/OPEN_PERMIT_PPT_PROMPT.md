@@ -1,10 +1,10 @@
-# AFFOG — Pitch Deck Presentation Generation Prompt
+# Open Permit — Pitch Deck Presentation Generation Prompt
 
 ## MASTER PROMPT FOR GENERATING A PROFESSIONAL PITCH DECK PRESENTATION
 
 ---
 
-You are a world-class pitch deck designer and startup presentation strategist. Your task is to generate a comprehensive, visually stunning, and investor-ready pitch deck presentation for **AFFOG — the Automated Factory Farm Objection Generator**. This is the world's first AI-powered legal objection generator specifically designed to help communities fight factory farming through automated, legally-cited objection letters.
+You are a world-class pitch deck designer and startup presentation strategist. Your task is to generate a comprehensive, visually stunning, and investor-ready pitch deck presentation for **Open Permit — the Open Permit**. This is the world's first AI-powered legal objection generator specifically designed to help communities fight factory farming through automated, legally-cited objection letters.
 
 This presentation is being prepared for **AARC 2026** (Animal Rights / Advocacy Conference) and must be compelling enough to secure ₹5,00,000 (~$6,000 USD) in grant funding for a 6-month runway to take the product from working MVP to full production launch.
 
@@ -13,10 +13,10 @@ This presentation is being prepared for **AARC 2026** (Animal Rights / Advocacy 
 ## SECTION 1: PRESENTATION STRUCTURE AND SLIDE-BY-SLIDE SPECIFICATIONS
 
 ### SLIDE 1 — TITLE SLIDE
-**Title:** AFFOG — Automated Factory Farm Objection Generator
+**Title:** Open Permit — Open Permit
 **Subtitle:** The World's First AI-Powered Legal Tool to Fight Factory Farming
 **Tagline:** "Every objection counts. Now everyone can file one."
-**Visual Direction:** Pure black background (#000000) with a single emerald green accent gradient orb (top-right). The AFFOG logo or wordmark should be centered, large, bold, and in white. Below it, the subtitle in a lighter gray (#9CA3AF). At the bottom, include the presenter's name, title, date (February 2026), and event name (AARC 2026). Use minimalist, premium design language inspired by Y Combinator startup pitch decks — large typography, maximum whitespace, zero clutter.
+**Visual Direction:** Pure black background (#000000) with a single emerald green accent gradient orb (top-right). The Open Permit logo or wordmark should be centered, large, bold, and in white. Below it, the subtitle in a lighter gray (#9CA3AF). At the bottom, include the presenter's name, title, date (February 2026), and event name (AARC 2026). Use minimalist, premium design language inspired by Y Combinator startup pitch decks — large typography, maximum whitespace, zero clutter.
 **Key Design Notes:** No stock images on this slide. Let the typography breathe. The emerald (#10B981) accent color should be used sparingly — just the gradient orb and perhaps an underline beneath the title. The overall aesthetic should feel like a dark-mode SaaS landing page, not a corporate PowerPoint.
 
 ---
@@ -67,14 +67,14 @@ This presentation is being prepared for **AARC 2026** (Animal Rights / Advocacy 
 ---
 
 ### SLIDE 5 — THE SOLUTION
-**Headline:** "Meet AFFOG"
+**Headline:** "Meet Open Permit"
 **Subheadline:** "The world's first automated factory farm objection generator."
 **Core Value Proposition (3 feature cards):**
 1. **AI-Powered Legal Letters** — Google Gemini AI generates unique, legally-cited objection letters in under 2 minutes. Each letter is substantive and permit-specific — not a generic template.
 2. **37+ Laws, 6 Jurisdictions** — Comprehensive legal citation library covering the United States, United Kingdom, European Union, India, Australia, and Canada. Laws are automatically matched to each specific permit.
 3. **One-Click Submission** — Users browse live permits, generate an objection, and email it directly to the relevant regulatory authority — all from one platform.
-**Visual Direction:** Clean dark slide with three horizontal feature cards. Each card has a subtle glass effect and a left-aligned icon (a brain/AI icon for #1, a scale/law icon for #2, a send/mail icon for #3). The headline "Meet AFFOG" should be large and bold at the top, with the subheadline in emerald green below it. The three cards should be evenly spaced vertically with generous padding.
-**App Screenshot:** Include a screenshot or mockup of the AFFOG homepage showing the dark UI, the hero section, and the permit browser. This should be placed to the right of the feature cards or below them, slightly rotated (2-3 degrees) with a subtle drop shadow to create depth.
+**Visual Direction:** Clean dark slide with three horizontal feature cards. Each card has a subtle glass effect and a left-aligned icon (a brain/AI icon for #1, a scale/law icon for #2, a send/mail icon for #3). The headline "Meet Open Permit" should be large and bold at the top, with the subheadline in emerald green below it. The three cards should be evenly spaced vertically with generous padding.
+**App Screenshot:** Include a screenshot or mockup of the Open Permit homepage showing the dark UI, the hero section, and the permit browser. This should be placed to the right of the feature cards or below them, slightly rotated (2-3 degrees) with a subtle drop shadow to create depth.
 
 ---
 
@@ -132,7 +132,7 @@ This presentation is being prepared for **AARC 2026** (Animal Rights / Advocacy 
 5. **North Carolina: $574M in Verdicts** — Five jury cases against Smithfield hog operations (2018-2024)
 6. **Washington: NGOs Win at Hearings Board** — Coalition forced revision of CAFO general permits (March 2025)
 **Visual Direction:** Six cards in a 3x2 grid. Each card has a thin emerald-green left border (like a vertical accent line), the title in bold white, the detail in gray, and the date/impact in small emerald text. The most impressive case (NC $574M) should be visually highlighted — perhaps with a slightly brighter background or a golden accent.
-**Bottom Callout:** "AFFOG automates what these communities did manually — at 100x the speed and scale."
+**Bottom Callout:** "Open Permit automates what these communities did manually — at 100x the speed and scale."
 
 ---
 
@@ -147,13 +147,13 @@ This presentation is being prepared for **AARC 2026** (Animal Rights / Advocacy 
 - 74% of Americans favor banning new factory farms (ASPCA)
 - 93% of Gen Z express concern for animal and environmental issues (Faunalytics)
 - 1.4M EU signatures for "End the Cage Age" campaign
-**Visual Direction:** The three large stats should dominate the top half of the slide — massive numbers in emerald/blue/purple with labels below. The public support data should be in the bottom half as a horizontal bar chart or four smaller stat badges. Include a quote callout: "The gap between public concern and legal action is the core problem AFFOG solves."
+**Visual Direction:** The three large stats should dominate the top half of the slide — massive numbers in emerald/blue/purple with labels below. The public support data should be in the bottom half as a horizontal bar chart or four smaller stat badges. Include a quote callout: "The gap between public concern and legal action is the core problem Open Permit solves."
 **Competitive Landscape Note:** "Adjacent tools exist (DoNotPay for parking tickets, EarthJustice for litigation) but nothing combines AI + legal citations + factory farm permits in a single automated pipeline."
 
 ---
 
 ### SLIDE 11 — BUSINESS MODEL & SUSTAINABILITY
-**Headline:** "How AFFOG Sustains Itself"
+**Headline:** "How Open Permit Sustains Itself"
 **Revenue Streams (3 tiers):**
 1. **Free Tier (Core Mission):** Individual citizens can generate and send objection letters for free. This is the social impact layer — it must always remain free to maximize objection volume.
 2. **NGO / Advocacy Organization Tier ($50-200/month):** Bulk generation for campaigns, custom branding on letters, analytics dashboard showing objection volume by region, API access for integration into existing platforms (e.g., CIWF, Mercy for Animals, Humane Society campaigns).
@@ -220,7 +220,7 @@ This presentation is being prepared for **AARC 2026** (Animal Rights / Advocacy 
 **Headline:** "Every Objection Counts"
 **Subheadline:** "15,000 objections blocked a megafarm. 30 voices stopped a CAFO. Your support could generate 10,000 more."
 **Call to Action:** "Let's talk. [email] | [website URL]"
-**Visual Direction:** Return to the opening aesthetic — pure black background, single emerald gradient orb, large bold typography. This slide should mirror Slide 1 to create a visual bookend effect. The headline should be the largest text on the slide. Include a subtle QR code in the bottom-right corner linking to the AFFOG website or demo. End with the tagline: "The law is on our side. Now the technology is too."
+**Visual Direction:** Return to the opening aesthetic — pure black background, single emerald gradient orb, large bold typography. This slide should mirror Slide 1 to create a visual bookend effect. The headline should be the largest text on the slide. Include a subtle QR code in the bottom-right corner linking to the Open Permit website or demo. End with the tagline: "The law is on our side. Now the technology is too."
 
 ---
 
@@ -260,7 +260,7 @@ This presentation is being prepared for **AARC 2026** (Animal Rights / Advocacy 
 - Use high-quality, high-resolution images only (minimum 1920x1080)
 - All factory farm images should show the *industrial scale* — aerial shots, long rows of barns, waste lagoons, not individual animals in close-up
 - Apply dark overlays (60-80% black) on all background images so text remains readable
-- App screenshots should be actual mockups or screenshots of the AFFOG interface with the dark theme
+- App screenshots should be actual mockups or screenshots of the Open Permit interface with the dark theme
 - Icons should be from Lucide (the icon library used in the app) or a similar minimal line-icon set
 
 ---
@@ -268,7 +268,7 @@ This presentation is being prepared for **AARC 2026** (Animal Rights / Advocacy 
 ## SECTION 3: SPEAKER NOTES AND TALKING POINTS
 
 ### Slide 1 — Title
-"Good [morning/afternoon]. I'm [Name], and I built AFFOG — the Automated Factory Farm Objection Generator. It's the world's first AI-powered legal tool that helps anyone, anywhere, file a formal objection against factory farm permits."
+"Good [morning/afternoon]. I'm [Name], and I built Open Permit — the Open Permit. It's the world's first AI-powered legal tool that helps anyone, anywhere, file a formal objection against factory farm permits."
 
 ### Slide 2 — The Hook
 "Here's what most people don't know: public objections actually work. 15,000 people objected to a UK megafarm — and the council rejected it. In Indiana, just 30 community members showed up and unanimously blocked an 8,000-head calf CAFO. The problem isn't that objections don't work. The problem is that most communities never file one. Because it takes hours of legal research, knowledge of specific environmental laws, and access to lawyers that rural communities simply don't have."
@@ -280,7 +280,7 @@ This presentation is being prepared for **AARC 2026** (Animal Rights / Advocacy 
 "And it's not just the animals. 941 billion pounds of manure — twice the entire human waste output of the United States — with zero government regulation. 80% of all antibiotics sold in this country go to livestock, driving resistance that kills 23,000 people a year. And here's the kicker: when communities try to fight back through the legal system, generic mass comments only influence outcomes 19% of the time. The system is designed to be impenetrable."
 
 ### Slide 5 — The Solution
-"That's why I built AFFOG. It's an AI-powered platform that generates unique, legally-cited objection letters in under 2 minutes. Not templates. Not form letters. Each objection is tailored to the specific permit, citing 4-5 relevant laws from that country's legal framework. We currently cover 37 laws across 6 jurisdictions — India, US, UK, EU, Australia, and Canada. And you can email the objection directly to the authority from our platform."
+"That's why I built Open Permit. It's an AI-powered platform that generates unique, legally-cited objection letters in under 2 minutes. Not templates. Not form letters. Each objection is tailored to the specific permit, citing 4-5 relevant laws from that country's legal framework. We currently cover 37 laws across 6 jurisdictions — India, US, UK, EU, Australia, and Canada. And you can email the objection directly to the authority from our platform."
 
 ### Slide 6 — How It Works
 "The user flow is simple. Browse our permit database — we have 18 permits across 8 countries right now, scaling to 500+. Select a permit. Enter your details. Hit generate. The AI analyzes the permit against that country's legal framework, generates a substantive objection, and you send it with one click. The whole process takes less than 2 minutes."
@@ -292,10 +292,10 @@ This presentation is being prepared for **AARC 2026** (Animal Rights / Advocacy 
 "The legal library is our core moat. 37 laws across 6 jurisdictions — and every citation is real. Environment Protection Act Section 6, Clean Water Act Section 402, Aarhus Convention Article 6. These aren't made up. And here's the critical part: filing public comments and objections is constitutionally protected in every jurisdiction we cover. First Amendment in the US. Aarhus Convention in the EU. Planning Acts in the UK and Australia. This is not a gray area."
 
 ### Slide 9 — Traction
-"And here's proof that this approach works. 15,000 objections blocked the Cranswick megafarm in the UK. Norfolk megafarm was rejected — Sustain called it a 'turning point for industrial livestock in the UK.' In Indiana, 30 community voices unanimously blocked an 8,000-head CAFO. In North Carolina, five jury cases awarded $574 million to communities harmed by Smithfield hog operations. What AFFOG does is automate what these communities did manually — at 100x the speed."
+"And here's proof that this approach works. 15,000 objections blocked the Cranswick megafarm in the UK. Norfolk megafarm was rejected — Sustain called it a 'turning point for industrial livestock in the UK.' In Indiana, 30 community voices unanimously blocked an 8,000-head CAFO. In North Carolina, five jury cases awarded $574 million to communities harmed by Smithfield hog operations. What Open Permit does is automate what these communities did manually — at 100x the speed."
 
 ### Slide 10 — Market
-"We have zero direct competitors. No automated factory farm objection generator exists anywhere in the world. The broader market is massive — $50.7 billion plant-based market, $23 million in annual EA animal welfare grants. And the public is overwhelmingly on our side: 89% of Americans are concerned about industrial agriculture, 74% favor banning new CAFOs. The gap between concern and action is exactly what AFFOG bridges."
+"We have zero direct competitors. No automated factory farm objection generator exists anywhere in the world. The broader market is massive — $50.7 billion plant-based market, $23 million in annual EA animal welfare grants. And the public is overwhelmingly on our side: 89% of Americans are concerned about industrial agriculture, 74% favor banning new CAFOs. The gap between concern and action is exactly what Open Permit bridges."
 
 ### Slide 11 — Business Model
 "The core product — generating and sending objection letters — will always be free. That's the mission. Revenue comes from NGO tiers: bulk generation for advocacy campaigns, analytics, API access for organizations like CIWF or Mercy for Animals to integrate into their platforms. And there's a legal professional tier for environmental law firms. In parallel, we're actively pursuing grants from the EA Animal Welfare Fund, Open Philanthropy, and other mission-aligned funders."
@@ -323,7 +323,7 @@ Full list of all 37+ laws with sections, articles, and descriptions for each of 
 Comparison with adjacent tools: DoNotPay (parking tickets, not environmental), EarthJustice (litigation, not automated), Change.org (petitions, not legal objections), various RTI tools (information requests, not objections).
 
 ### Appendix C — Sample Generated Letter
-A full-length sample objection letter generated by AFFOG, showing the legal citations, formal structure, and permit-specific content.
+A full-length sample objection letter generated by Open Permit, showing the legal citations, formal structure, and permit-specific content.
 
 ### Appendix D — Research Citations
 - Brookings Institution: Analysis of ~1,000 mass comment campaigns
@@ -350,7 +350,7 @@ A full-length sample objection letter generated by AFFOG, showing the legal cita
 
 ## WORD COUNT TARGET
 
-This prompt contains approximately 4,900 words of comprehensive instructions, covering every aspect of the AFFOG pitch deck — from slide-by-slide content and visual direction to speaker notes, design specifications, and appendix materials. When used with an AI presentation tool (Gamma.app, Beautiful.ai, Canva AI, or ChatGPT + DALL-E), this prompt should generate a complete, presentation-ready pitch deck that requires minimal manual adjustment.
+This prompt contains approximately 4,900 words of comprehensive instructions, covering every aspect of the Open Permit pitch deck — from slide-by-slide content and visual direction to speaker notes, design specifications, and appendix materials. When used with an AI presentation tool (Gamma.app, Beautiful.ai, Canva AI, or ChatGPT + DALL-E), this prompt should generate a complete, presentation-ready pitch deck that requires minimal manual adjustment.
 
 ---
 

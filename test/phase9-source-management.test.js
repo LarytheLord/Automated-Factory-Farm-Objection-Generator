@@ -37,7 +37,7 @@ async function run() {
   }
   assert(invalidTypeError, 'invalid type should throw');
 
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'affog-preview-'));
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'op-preview-'));
   const sourceFile = path.join(tempDir, 'demo.json');
   fs.writeFileSync(
     sourceFile,

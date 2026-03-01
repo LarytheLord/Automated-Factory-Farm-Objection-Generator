@@ -1,8 +1,8 @@
-# AFFOG Deployment Solution (Definitive)
+# Open Permit Deployment Solution (Definitive)
 
 ## Decision
 
-AFFOG deploys on Railway using the native Node.js build/runtime path.
+Open Permit deploys on Railway using the native Node.js build/runtime path.
 
 - No Docker in primary workflow.
 - Unified server (`server.js`) serves frontend and API.

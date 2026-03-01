@@ -1,4 +1,4 @@
-# Automated Factory Farm Objection Generator (AFOG) - Project Status
+# Open Permit (Open Permit) - Project Status
 
 ## ✅ **RESOLVED ISSUES FROM PREVIOUS ATTEMPTS**
 

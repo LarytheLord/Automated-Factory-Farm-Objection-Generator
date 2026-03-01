@@ -1,15 +1,15 @@
-# AFFOG Master Project Dossier
+# Open Permit Master Project Dossier
 
 Version: 1.0  
 Last updated: February 24, 2026
 
 ## 1) Project Summary
 
-**Project name**: AFFOG (Automated Factory Farm Objection Generator)  
+**Project name**: Open Permit (Open Permit)  
 **Project type**: Civic-tech advocacy platform  
 **Mission**: Help trusted advocates respond to factory-farm permit filings quickly with legally grounded objection drafts and structured workflows.
 
-AFFOG exists to close the execution gap between public concern and timely legal participation in permit processes.
+Open Permit exists to close the execution gap between public concern and timely legal participation in permit processes.
 
 ## 2) Problem Statement
 
@@ -24,7 +24,7 @@ Result: low participation in high-impact permit windows, even when community con
 
 ## 3) Solution
 
-AFFOG combines:
+Open Permit combines:
 
 1. Permit discovery and structured permit records.
 2. Legal-framework-backed draft generation for objections.
@@ -214,10 +214,10 @@ Detailed risk framework is in `docs/LEGAL_RISK_PLAYBOOK.md`.
 ## 14) Pitch (Meeting-ready)
 
 ### One-line pitch
-AFFOG is a controlled-access advocacy platform that helps trusted campaigners respond to factory-farm permits faster with legally grounded objection workflows.
+Open Permit is a controlled-access advocacy platform that helps trusted campaigners respond to factory-farm permits faster with legally grounded objection workflows.
 
 ### 60-second pitch
-Factory-farm permits often move faster than communities can respond, because legal drafting is technical and time-sensitive. AFFOG reduces that gap by combining permit data, legal-framework-supported drafting, and objection workflows in one platform. We are not running this as an open public generator: permit and generation access is restricted to manually approved users to reduce misuse and legal risk. The platform is deployed, ingestion is live, and core tests are passing. The next milestone is a controlled pilot that proves adoption and objection throughput with vetted users and clear legal safeguards.
+Factory-farm permits often move faster than communities can respond, because legal drafting is technical and time-sensitive. Open Permit reduces that gap by combining permit data, legal-framework-supported drafting, and objection workflows in one platform. We are not running this as an open public generator: permit and generation access is restricted to manually approved users to reduce misuse and legal risk. The platform is deployed, ingestion is live, and core tests are passing. The next milestone is a controlled pilot that proves adoption and objection throughput with vetted users and clear legal safeguards.
 
 ### Funder ask framing
 - Request: **$2,150** microgrant for a 90-day controlled pilot.

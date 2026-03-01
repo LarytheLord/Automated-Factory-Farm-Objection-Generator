@@ -1,4 +1,4 @@
-# Automated Factory Farm Objection Generator (AFOG)
+# Open Permit (Open Permit)
 ## Project Presentation
 
 ### Mission Statement
@@ -37,7 +37,7 @@ A comprehensive platform that:
 - Scales objection capacity by 100x compared to manual processes
 
 ### Team
-- **Lead**: Full Stack, AI engineer - Original AFOG creator, whole MVP created in Mumbai
+- **Lead**: Full Stack, AI engineer - Original Open Permit creator, whole MVP created in Mumbai
 - **Ard**: Python, AI/ML, NLP - Legal text generation specialist
 - **Alle**: LLM integration - Passionate about defensive AI tools
 - **Rya**: Full stack - Backend enhancements and API development

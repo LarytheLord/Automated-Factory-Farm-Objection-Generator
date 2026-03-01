@@ -58,9 +58,9 @@ export default function ImpactPage() {
 
                 <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-400/80 mb-3">Why this matters</p>
                 <h1 className="text-4xl md:text-5xl font-bold mb-4">
-                    The Data Behind <span className="gradient-text">Factory Farming</span>
+                    The Data Behind <span className="gradient-text">Civic Permit Intelligence</span>
                 </h1>
-                <p className="text-gray-400 mb-14 text-lg max-w-2xl leading-relaxed">
+                <p className="text-slate-500 mb-14 text-lg max-w-2xl leading-relaxed">
                     Why automated legal tools are urgently needed — and why objections work.
                 </p>
 
@@ -81,19 +81,19 @@ export default function ImpactPage() {
                         <div className="glass-card p-5">
                             <Droplets className="w-5 h-5 text-blue-400 mb-3" />
                             <div className="text-lg font-bold mb-1">941 Billion lbs</div>
-                            <p className="text-gray-400 text-sm">of manure produced annually by US factory farms — twice the nation&apos;s human waste output, none regulated by a government agency.</p>
+                            <p className="text-slate-500 text-sm">of manure produced annually by US factory farms — twice the nation&apos;s human waste output, none regulated by a government agency.</p>
                             <p className="text-gray-600 text-xs mt-2">Source: Food &amp; Water Watch</p>
                         </div>
                         <div className="glass-card p-5">
                             <Wind className="w-5 h-5 text-amber-400 mb-3" />
                             <div className="text-lg font-bold mb-1">~10,000 Large Farms</div>
-                            <p className="text-gray-400 text-sm">discharge pollution without required permits. The EPA still lacks comprehensive data on CAFO locations.</p>
+                            <p className="text-slate-500 text-sm">discharge pollution without required permits. The EPA still lacks comprehensive data on CAFO locations.</p>
                             <p className="text-gray-600 text-xs mt-2">Source: EPA via Food &amp; Water Watch</p>
                         </div>
                         <div className="glass-card p-5">
                             <Heart className="w-5 h-5 text-red-400 mb-3" />
                             <div className="text-lg font-bold mb-1">80% of Antibiotics</div>
-                            <p className="text-gray-400 text-sm">sold in the US go to livestock, driving antibiotic resistance that causes 23,000+ deaths and costs $55-70 billion annually.</p>
+                            <p className="text-slate-500 text-sm">sold in the US go to livestock, driving antibiotic resistance that causes 23,000+ deaths and costs $55-70 billion annually.</p>
                             <p className="text-gray-600 text-xs mt-2">Source: Sentient Media / CDC</p>
                         </div>
                     </div>
@@ -109,23 +109,23 @@ export default function ImpactPage() {
                         <div className="grid md:grid-cols-3 gap-8">
                             <div>
                                 <div className="text-4xl font-bold text-emerald-400 mb-1">89%</div>
-                                <p className="text-gray-300 text-sm">of Americans are concerned about industrial animal agriculture</p>
+                                <p className="text-slate-600 text-sm">of Americans are concerned about industrial animal agriculture</p>
                                 <p className="text-gray-600 text-xs mt-1">ASPCA Survey, 2020</p>
                             </div>
                             <div>
                                 <div className="text-4xl font-bold text-blue-400 mb-1">74%</div>
-                                <p className="text-gray-300 text-sm">of Americans favor banning new factory farms (CAFOs)</p>
+                                <p className="text-slate-600 text-sm">of Americans favor banning new factory farms (CAFOs)</p>
                                 <p className="text-gray-600 text-xs mt-1">ASPCA Survey</p>
                             </div>
                             <div>
                                 <div className="text-4xl font-bold text-purple-400 mb-1">93%</div>
-                                <p className="text-gray-300 text-sm">of Gen Z express concern for animal and environmental issues</p>
+                                <p className="text-slate-600 text-sm">of Gen Z express concern for animal and environmental issues</p>
                                 <p className="text-gray-600 text-xs mt-1">Faunalytics Multi-Country Study</p>
                             </div>
                         </div>
                     </div>
-                    <p className="text-gray-400 text-sm">
-                        The gap between public concern and actual legal action is the core problem Open Permit solves. People want to oppose factory farming — they just don&apos;t know how to navigate the legal process.
+                    <p className="text-slate-500 text-sm">
+                        The gap between public concern and actual legal action is the core problem Open Permit solves. People want to oppose harmful developments — they just don&apos;t know how to navigate the legal process.
                     </p>
                 </section>
 
@@ -229,23 +229,23 @@ export default function ImpactPage() {
                     <div className="glass-card p-6">
                         <div className="grid md:grid-cols-2 gap-8">
                             <div>
-                                <h3 className="font-bold text-lg mb-3 text-red-400">The Problem</h3>
-                                <ul className="space-y-2 text-sm text-gray-300">
-                                    <li className="flex gap-2"><span className="text-red-400 mt-0.5">x</span> Legal objections take hours of research per letter</li>
-                                    <li className="flex gap-2"><span className="text-red-400 mt-0.5">x</span> Rural communities lack access to environmental lawyers</li>
-                                    <li className="flex gap-2"><span className="text-red-400 mt-0.5">x</span> Generic mass comments are ineffective (Brookings: only 19% influence outcomes)</li>
-                                    <li className="flex gap-2"><span className="text-red-400 mt-0.5">x</span> CAFOs disproportionately harm low-income communities of color</li>
-                                    <li className="flex gap-2"><span className="text-red-400 mt-0.5">x</span> Permit processes are complex and time-limited</li>
+                                <h3 className="font-bold text-lg mb-3 text-red-500">The Problem</h3>
+                                <ul className="space-y-2 text-sm text-slate-600">
+                                    <li className="flex gap-2"><span className="text-red-500 mt-0.5 font-bold">x</span> Legal objections take hours of research per letter</li>
+                                    <li className="flex gap-2"><span className="text-red-500 mt-0.5 font-bold">x</span> Rural communities lack access to environmental lawyers</li>
+                                    <li className="flex gap-2"><span className="text-red-500 mt-0.5 font-bold">x</span> Generic mass comments are ineffective (Brookings: only 19% influence outcomes)</li>
+                                    <li className="flex gap-2"><span className="text-red-500 mt-0.5 font-bold">x</span> CAFOs disproportionately harm low-income communities of color</li>
+                                    <li className="flex gap-2"><span className="text-red-500 mt-0.5 font-bold">x</span> Permit processes are complex and time-limited</li>
                                 </ul>
                             </div>
                             <div>
-                                <h3 className="font-bold text-lg mb-3 text-emerald-400">Open Permit&apos;s Solution</h3>
-                                <ul className="space-y-2 text-sm text-gray-300">
-                                    <li className="flex gap-2"><span className="text-emerald-400 mt-0.5">+</span> AI generates unique, legally-cited letters in under 2 minutes</li>
-                                    <li className="flex gap-2"><span className="text-emerald-400 mt-0.5">+</span> 37+ laws across 6 jurisdictions, automatically matched to each permit</li>
-                                    <li className="flex gap-2"><span className="text-emerald-400 mt-0.5">+</span> Each objection is substantive and permit-specific — what regulators must consider</li>
-                                    <li className="flex gap-2"><span className="text-emerald-400 mt-0.5">+</span> Democratizes legal capacity for underserved communities</li>
-                                    <li className="flex gap-2"><span className="text-emerald-400 mt-0.5">+</span> 20-year meta-analysis confirms digital tools increase civic participation</li>
+                                <h3 className="font-bold text-lg mb-3 text-emerald-600">Open Permit&apos;s Solution</h3>
+                                <ul className="space-y-2 text-sm text-slate-600">
+                                    <li className="flex gap-2"><span className="text-emerald-500 mt-0.5 font-bold">+</span> AI generates unique, legally-cited letters in under 2 minutes</li>
+                                    <li className="flex gap-2"><span className="text-emerald-500 mt-0.5 font-bold">+</span> 37+ laws across 6 jurisdictions, automatically matched to each permit</li>
+                                    <li className="flex gap-2"><span className="text-emerald-500 mt-0.5 font-bold">+</span> Each objection is substantive and permit-specific — what regulators must consider</li>
+                                    <li className="flex gap-2"><span className="text-emerald-500 mt-0.5 font-bold">+</span> Democratizes legal capacity for underserved communities</li>
+                                    <li className="flex gap-2"><span className="text-emerald-500 mt-0.5 font-bold">+</span> 20-year meta-analysis confirms digital tools increase civic participation</li>
                                 </ul>
                             </div>
                         </div>
@@ -260,8 +260,8 @@ export default function ImpactPage() {
                     <div className="glass-card p-8 text-center" style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.1), rgba(59,130,246,0.1))' }}>
                         <Zap className="w-10 h-10 text-emerald-400 mx-auto mb-4" />
                         <h2 className="text-2xl font-bold mb-3">First of Its Kind</h2>
-                        <p className="text-gray-300 max-w-2xl mx-auto mb-4">
-                            No automated factory farm objection generator exists anywhere in the world. Open Permit is the first tool to combine AI-powered legal letter generation with a comprehensive, multi-jurisdictional legal citation library — specifically designed to help communities fight factory farming.
+                        <p className="text-slate-600 max-w-2xl mx-auto mb-4">
+                            No automated civic permit objection platform exists anywhere in the world. Open Permit is the first tool to combine AI-powered legal letter generation with a comprehensive, multi-jurisdictional legal citation library — designed to help communities respond to factory farms, industrial developments, and harmful permits of all kinds.
                         </p>
                         <div className="flex flex-wrap justify-center gap-6 mt-6 text-sm">
                             <div className="text-center">
@@ -283,7 +283,7 @@ export default function ImpactPage() {
                 {/* ─── CTA ─── */}
                 <div className="glass-card p-8 text-center">
                     <h2 className="text-2xl font-bold mb-3">Every Objection Counts</h2>
-                    <p className="text-gray-400 mb-6 max-w-xl mx-auto">
+                    <p className="text-slate-500 mb-6 max-w-xl mx-auto">
                         15,000 objections blocked a UK megafarm. 30 voices blocked an Indiana CAFO.
                         Your objection could be the one that tips the balance.
                     </p>
@@ -300,7 +300,7 @@ function StatCard({ value, label, sub, highlight }: { value: string; label: stri
     return (
         <div className={`glass-card p-5 text-center ${highlight ? 'border-emerald-500/30' : ''}`}>
             <div className={`text-2xl font-bold ${highlight ? 'text-emerald-400' : ''}`}>{value}</div>
-            <div className="text-gray-400 text-xs mt-1">{label}</div>
+            <div className="text-slate-500 text-xs mt-1">{label}</div>
             {sub && <div className="text-gray-600 text-[10px] mt-1">{sub}</div>}
         </div>
     );
@@ -308,13 +308,13 @@ function StatCard({ value, label, sub, highlight }: { value: string; label: stri
 
 function LegalRow({ country, law, detail }: { country: string; law: string; detail: string }) {
     return (
-        <div className="flex gap-4 p-3 rounded-lg bg-gray-900/50">
+        <div className="flex gap-4 p-3 rounded-lg bg-slate-50 border border-slate-200/60">
             <div className="w-28 flex-shrink-0">
-                <span className="text-emerald-400 font-medium text-xs">{country}</span>
+                <span className="text-emerald-500 font-semibold text-xs bg-emerald-50 px-2 py-0.5 rounded">{country}</span>
             </div>
             <div>
-                <div className="font-medium text-sm text-slate-900">{law}</div>
-                <div className="text-gray-500 text-xs mt-0.5">{detail}</div>
+                <div className="font-semibold text-sm text-slate-800">{law}</div>
+                <div className="text-slate-500 text-xs mt-0.5">{detail}</div>
             </div>
         </div>
     );
@@ -329,7 +329,7 @@ function WinCard({ title, detail, date, impact }: { title: string; detail: strin
                     <h3 className="font-bold text-base">{title}</h3>
                     <span className="text-xs text-gray-500 flex-shrink-0">{date}</span>
                 </div>
-                <p className="text-gray-400 text-sm mt-1">{detail}</p>
+                <p className="text-slate-500 text-sm mt-1">{detail}</p>
                 <p className="text-emerald-400/80 text-xs mt-2 font-medium">{impact}</p>
             </div>
         </div>

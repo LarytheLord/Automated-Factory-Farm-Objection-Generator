@@ -15,7 +15,11 @@ build
 
 # Misc
 .DS_Store
+Thumbs.db
 *.pem
+
+# Claude Code local
+.claude/
 
 # Debug
 npm-debug.log*
