@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Navbar from "../../../components/Navbar";
+import Footer from "../../../components/Footer";
 
 export const dynamic = "force-dynamic";
 
@@ -220,8 +222,9 @@ export default function AdminAccessPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 p-6 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <Navbar />
+      <div className="max-w-6xl mx-auto px-6 md:px-8 pt-28 pb-8 space-y-6">
         <div className="glass-card p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
@@ -350,6 +353,7 @@ export default function AdminAccessPage() {
           )}
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

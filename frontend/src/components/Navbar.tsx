@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Shield, FileText, LogOut, CheckCircle, Clock } from "lucide-react";
+import { Shield, FileText, LogOut, CheckCircle, Clock, Menu, X } from "lucide-react";
 import Link from "next/link";
 import AuthModal from "./AuthModal";
 
@@ -39,6 +39,7 @@ export default function Navbar({ onAuthChange }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [approvalToast, setApprovalToast] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const wasPending = useRef(false);
 
   const isAuthenticated = !!user;
@@ -173,6 +174,14 @@ export default function Navbar({ onAuthChange }: NavbarProps) {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Mobile hamburger */}
+            <button
+              className="md:hidden p-2 rounded-lg text-gray-500 hover:text-slate-900 hover:bg-white/10 transition-colors"
+              onClick={() => setMobileOpen((o) => !o)}
+              aria-label="Toggle menu"
+            >
+              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
             {isMounted && isAuthenticated ? (
               <>
                 <span className="hidden md:block text-sm text-gray-500">{user?.name}</span>
@@ -213,6 +222,32 @@ export default function Navbar({ onAuthChange }: NavbarProps) {
           </div>
         </div>
       </nav>
+
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 md:hidden" onClick={() => setMobileOpen(false)}>
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+          <div
+            className="absolute top-[68px] left-0 right-0 bg-white border-b border-slate-200 shadow-lg px-6 py-4 space-y-1"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Link href="/how-it-works" className="block py-2.5 text-sm text-gray-600 hover:text-slate-900 transition-colors" onClick={() => setMobileOpen(false)}>How It Works</Link>
+            <Link href="/about" className="block py-2.5 text-sm text-gray-600 hover:text-slate-900 transition-colors" onClick={() => setMobileOpen(false)}>About</Link>
+            <Link href="/impact" className="block py-2.5 text-sm text-gray-600 hover:text-slate-900 transition-colors" onClick={() => setMobileOpen(false)}>Impact</Link>
+            <Link href="/contact" className="block py-2.5 text-sm text-gray-600 hover:text-slate-900 transition-colors" onClick={() => setMobileOpen(false)}>Contact</Link>
+            {isMounted && !user && (
+              <div className="pt-3 border-t border-slate-100">
+                <button
+                  onClick={() => { setIsAuthModalOpen(true); setMobileOpen(false); }}
+                  className="w-full px-4 py-2 text-sm font-medium text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg transition-all"
+                >
+                  Sign In
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }

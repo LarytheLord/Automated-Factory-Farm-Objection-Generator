@@ -8,6 +8,8 @@ import {
     ArrowLeft, Zap, Scale, Users,
     TrendingUp, AlertTriangle, Heart, Droplets, Wind, BookOpen
 } from 'lucide-react';
+import Navbar from "../../components/Navbar";
+import Footer from "../../components/Footer";
 
 function useAnimatedCounter(target: number, duration = 2000) {
     const [count, setCount] = useState(0);
@@ -51,7 +53,8 @@ export default function ImpactPage() {
 
     return (
         <div className="min-h-screen bg-black text-slate-900 hero-gradient">
-            <div className="max-w-5xl mx-auto px-6 py-16">
+            <Navbar />
+            <div className="max-w-5xl mx-auto px-6 pt-28 pb-16">
                 <Link href="/" className="flex items-center gap-2 text-gray-500 hover:text-slate-900 transition-colors text-sm mb-10">
                     <ArrowLeft className="w-4 h-4" /> Back to Home
                 </Link>
@@ -292,6 +295,7 @@ export default function ImpactPage() {
                     </Link>
                 </div>
             </div>
+            <Footer />
         </div>
     );
 }

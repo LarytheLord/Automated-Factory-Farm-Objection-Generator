@@ -5,6 +5,8 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { useState } from "react";
 import { Send, CheckCircle2, AlertCircle, ArrowLeft } from "lucide-react";
+import Navbar from "../../components/Navbar";
+import Footer from "../../components/Footer";
 
 export default function SurveyPage() {
   const [formData, setFormData] = useState({
@@ -128,8 +130,9 @@ export default function SurveyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <Navbar />
+      <div className="max-w-4xl mx-auto pt-28 pb-12 px-4">
         <div className="flex items-center justify-between mb-8">
           <Link href="/" className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors">
             <ArrowLeft className="w-4 h-4" />
@@ -316,6 +319,7 @@ export default function SurveyPage() {
           <p>Your feedback helps us create better civic permit intelligence tools for communities worldwide.</p>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
