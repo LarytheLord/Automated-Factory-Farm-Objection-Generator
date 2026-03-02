@@ -5,6 +5,8 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, BarChart3, Globe, Scale, TrendingUp, Shield } from 'lucide-react';
+import Navbar from "../../components/Navbar";
+import Footer from "../../components/Footer";
 
 interface Permit {
     id?: string | number;
@@ -220,8 +222,9 @@ export default function Dashboard() {
         .slice(0, 18);
 
     return (
-        <div className="min-h-screen bg-black text-slate-900 p-8">
-            <div className="max-w-7xl mx-auto">
+        <div className="min-h-screen bg-black text-slate-900">
+            <Navbar />
+            <div className="max-w-7xl mx-auto px-8 pt-28 pb-8">
                 <div className="flex justify-between items-center mb-8">
                     <div>
                         <h1 className="text-3xl font-bold gradient-text flex items-center gap-3">
@@ -485,6 +488,7 @@ export default function Dashboard() {
                     </div>
                 </div>
             )}
+            <Footer />
         </div>
     );
 }

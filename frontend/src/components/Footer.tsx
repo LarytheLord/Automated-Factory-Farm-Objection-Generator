@@ -55,6 +55,8 @@ export default function Footer() {
             <div className="space-y-2 text-sm">
               <Link href="/contact" className="block text-gray-500 hover:text-slate-900 transition-colors">Email</Link>
               <Link href="/dashboard" className="block text-gray-500 hover:text-slate-900 transition-colors">Analytics</Link>
+              <a href="https://github.com/LarytheLord/Automated-Factory-Farm-Objection-Generator" target="_blank" rel="noopener noreferrer" className="block text-gray-500 hover:text-slate-900 transition-colors">GitHub</a>
+              <a href="https://www.linkedin.com/in/abidkhan-/" target="_blank" rel="noopener noreferrer" className="block text-gray-500 hover:text-slate-900 transition-colors">LinkedIn</a>
             </div>
           </div>
         </div>

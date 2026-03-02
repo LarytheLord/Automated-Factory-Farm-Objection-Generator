@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Save, AlertCircle, CheckCircle, MapPin, FileText, Activity } from "lucide-react";
+import Navbar from "../../components/Navbar";
+import Footer from "../../components/Footer";
 
 export default function SubmitPermit() {
     const router = useRouter();
@@ -76,8 +78,9 @@ export default function SubmitPermit() {
     }
 
     return (
-        <div className="min-h-screen bg-black text-slate-900 p-8 hero-gradient">
-            <div className="max-w-2xl mx-auto">
+        <div className="min-h-screen bg-black text-slate-900 hero-gradient">
+            <Navbar />
+            <div className="max-w-2xl mx-auto px-8 pt-28 pb-8">
                 <Link href="/" className="inline-flex items-center text-gray-400 hover:text-slate-900 mb-8 transition-colors">
                     <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
                 </Link>
@@ -216,6 +219,7 @@ export default function SubmitPermit() {
                     </form>
                 </div>
             </div>
+            <Footer />
         </div>
     );
 }

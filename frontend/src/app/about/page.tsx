@@ -18,10 +18,10 @@ import Footer from "../../components/Footer";
 
 const timeline = [
   {
-    date: "July 2025",
+    date: "July 6–7, 2025",
     title: "The Spark",
     description:
-      "Built AFOG in 10 hours at Code 4 Compassion Mumbai, hosted by Open Paws & Electric Sheep. A team of 5 built a working prototype that generates AI-powered objection letters against factory farm permits.",
+      "Built AFOG in 10 hours at Code 4 Compassion Mumbai Hackathon, hosted by Open Paws & Electric Sheep. A team of 5 built a working prototype in a single weekend — AI-powered objection letters against factory farm permits.",
   },
   {
     date: "November 2025",
