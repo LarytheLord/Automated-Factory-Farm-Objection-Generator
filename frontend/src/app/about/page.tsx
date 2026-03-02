@@ -113,18 +113,36 @@ export default function AboutPage() {
         </Link>
 
         {/* ─── HERO ─── */}
-        <div className="text-center mb-20">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-xs font-medium mb-6">
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 text-xs font-medium mb-6">
             Our Story
           </div>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
             From Hackathon to{" "}
             <span className="gradient-text">Global Platform</span>
           </h1>
-          <p className="text-gray-400 text-lg max-w-2xl mx-auto leading-relaxed">
-            Open Permit started as a 10-hour prototype. Now it&apos;s becoming the
-            civic intelligence layer for permits worldwide.
+          <p className="text-gray-500 text-lg max-w-2xl mx-auto leading-relaxed">
+            Open Permit started as a 10-hour prototype built to challenge factory farm permits. It&apos;s become the civic intelligence layer for communities everywhere.
           </p>
+        </div>
+
+        {/* ─── MISSION STRIP ─── */}
+        <div className="grid md:grid-cols-3 gap-5 mb-20">
+          <div className="glass-card p-6 text-center">
+            <div className="text-3xl mb-3">🏭</div>
+            <h3 className="font-semibold text-sm mb-2">The Problem</h3>
+            <p className="text-gray-500 text-sm leading-relaxed">Thousands of harmful permits get approved every year — not because communities approve, but because the objection process is too hard.</p>
+          </div>
+          <div className="glass-card p-6 text-center border-emerald-500/20">
+            <div className="text-3xl mb-3">⚖️</div>
+            <h3 className="font-semibold text-sm mb-2">Our Solution</h3>
+            <p className="text-gray-500 text-sm leading-relaxed">AI that turns permit data into legally grounded objections in under 2 minutes — making it as easy to fight a permit as it is to file one.</p>
+          </div>
+          <div className="glass-card p-6 text-center">
+            <div className="text-3xl mb-3">🌍</div>
+            <h3 className="font-semibold text-sm mb-2">The Vision</h3>
+            <p className="text-gray-500 text-sm leading-relaxed">A world where every community — not just those with lawyers — has a voice in what gets built in their neighbourhood.</p>
+          </div>
         </div>
 
         {/* ─── TIMELINE ─── */}
@@ -294,7 +312,7 @@ export default function AboutPage() {
                 "linear-gradient(135deg, rgba(16,185,129,0.1), rgba(59,130,246,0.1))",
             }}
           >
-            <blockquote className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed italic">
+            <blockquote className="text-lg md:text-xl text-slate-700 max-w-3xl mx-auto leading-relaxed italic">
               &ldquo;We believe communities shouldn&apos;t need lawyers and lobbyists to
               have a voice in what gets built in their neighbourhoods. Open
               Permit makes permit data accessible, objection letters intelligent,

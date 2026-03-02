@@ -214,15 +214,14 @@ export default function HowItWorksPage() {
 
         {/* ─── HERO ─── */}
         <div className="text-center mb-20">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-xs font-medium mb-6">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 text-xs font-medium mb-6">
             Platform Overview
           </div>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
             How <span className="gradient-text">Open Permit</span> Works
           </h1>
-          <p className="text-gray-400 text-lg max-w-2xl mx-auto leading-relaxed">
-            A four-sided civic intelligence platform serving citizens, NGOs,
-            organisations, and governments. One platform, four perspectives.
+          <p className="text-gray-500 text-lg max-w-2xl mx-auto leading-relaxed">
+            From permit filing to community response — in under 2 minutes. One platform for citizens, NGOs, organisations, and governments.
           </p>
         </div>
 
@@ -268,7 +267,7 @@ export default function HowItWorksPage() {
                 </div>
                 <h2 className="text-2xl font-bold">{audience.title}</h2>
               </div>
-              <p className="text-gray-400 mb-8 ml-12">{audience.subtitle}</p>
+              <p className="text-gray-500 mb-8 ml-12">{audience.subtitle}</p>
 
               <div className="grid md:grid-cols-2 gap-4 ml-0 md:ml-12">
                 {audience.steps.map((step, j) => {
@@ -305,7 +304,7 @@ export default function HowItWorksPage() {
           >
             <Zap className="w-10 h-10 text-emerald-400 mx-auto mb-4" />
             <h2 className="text-2xl font-bold mb-3">Ready to get started?</h2>
-            <p className="text-gray-400 max-w-lg mx-auto mb-6">
+            <p className="text-gray-500 max-w-lg mx-auto mb-6">
               Join the growing community of citizens and organisations using Open
               Permit to make civic participation accessible.
             </p>

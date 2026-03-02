@@ -690,37 +690,59 @@ export default function Home() {
       <Navbar onAuthChange={handleNavAuthChange} />
 
       {/* ════════════ HERO ════════════ */}
-      <section className="relative z-10 pt-36 pb-24 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="animate-fade-in-up inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-xs font-medium mb-8">
-            <span className="live-dot" />
-            Live — {stats?.objectionsGenerated || 0} objections generated
+      <section className="relative z-10 pt-32 pb-16 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid lg:grid-cols-[1fr_400px] gap-16 items-center">
+
+            {/* ── Left: Copy ── */}
+            <div>
+              <div className="animate-fade-in-up inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 text-xs font-medium mb-7">
+                <span className="live-dot" />
+                {stats?.totalPermits || 207} active permits · 8 countries
+              </div>
+
+              <h1 className="animate-fade-in-up text-5xl sm:text-6xl md:text-[3.75rem] font-extrabold tracking-tight leading-[1.08] mb-6 text-slate-900" style={{ animationDelay: "80ms" }}>
+                Object before<br />
+                <span className="gradient-text">it&apos;s built.</span>
+              </h1>
+
+              <p className="animate-fade-in-up text-lg text-gray-500 max-w-xl mb-8 leading-relaxed" style={{ animationDelay: "160ms" }}>
+                Open Permit monitors planning applications for industrial developments across 8 countries. When a permit is filed, we help communities generate legally grounded objection letters — in under 2 minutes, backed by 37+ laws.
+              </p>
+
+              <div className="animate-fade-in-up flex flex-wrap gap-3 mb-9" style={{ animationDelay: "240ms" }}>
+                <a
+                  href="#permits"
+                  className="group px-7 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-emerald-500/20 inline-flex items-center gap-2 text-sm"
+                >
+                  {hasApprovedAccess ? "Browse Permits" : "Request Access"}
+                  <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </a>
+                <a href="#how-it-works" className="px-7 py-3.5 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 font-medium rounded-xl transition-all inline-flex items-center gap-2 text-sm text-slate-700">
+                  How it works
+                </a>
+              </div>
+
+              <div className="animate-fade-in-up flex flex-wrap items-center gap-x-4 gap-y-2 text-xs" style={{ animationDelay: "320ms" }}>
+                <span className="text-gray-400">Backed by</span>
+                <a href="https://www.openpaws.ai/" target="_blank" rel="noopener noreferrer" className="font-medium text-gray-600 hover:text-emerald-600 transition-colors">Open Paws</a>
+                <span className="text-gray-300">·</span>
+                <a href="https://www.codeforcompassion.com/" target="_blank" rel="noopener noreferrer" className="font-medium text-gray-600 hover:text-emerald-600 transition-colors">Code 4 Compassion</a>
+                <span className="text-gray-300">·</span>
+                <span className="font-medium text-gray-600">AARC Pre-Accelerator</span>
+              </div>
+            </div>
+
+            {/* ── Right: Permit Preview Card ── */}
+            <div className="animate-fade-in-up hidden lg:flex flex-col gap-3" style={{ animationDelay: "200ms" }}>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-gray-400 text-center">Live permit analysis</p>
+              <PermitPreviewCard />
+            </div>
+
           </div>
 
-          <h1 className="animate-fade-in-up text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.1] mb-6" style={{ animationDelay: "100ms" }}>
-            Open Permit
-            <br />
-            <span className="gradient-text">for Legal Objections</span>
-          </h1>
-
-          <p className="animate-fade-in-up text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed" style={{ animationDelay: "200ms" }}>
-            Track high-impact development permits and generate legally grounded objection letters in under two minutes. Backed by 37+ laws across 8 countries.
-          </p>
-
-          <div className="animate-fade-in-up flex flex-wrap justify-center gap-4 mb-16" style={{ animationDelay: "300ms" }}>
-            <a
-              href="#permits"
-              className="group px-8 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-emerald-500/20 inline-flex items-center gap-2"
-            >
-              {hasApprovedAccess ? "Generate Objection" : "Request Access"}
-              <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-            </a>
-            <Link href="/impact" className="px-8 py-3.5 bg-white hover:bg-slate-100 border border-slate-200 hover:border-slate-300 font-medium rounded-xl transition-all inline-flex items-center gap-2 text-sm">
-              See the Impact
-            </Link>
-          </div>
-
-          <div className="animate-fade-in-up grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto" style={{ animationDelay: "400ms" }}>
+          {/* ── Stats Row ── */}
+          <div className="animate-fade-in-up grid grid-cols-2 md:grid-cols-4 gap-4 mt-16" style={{ animationDelay: "400ms" }}>
             <StatCard icon={<FileText className="w-4 h-4" />} value={animPermits} label="Permits Monitored" />
             <StatCard icon={<Globe className="w-4 h-4" />} value={animCountries} label="Countries" />
             <StatCard icon={<Shield className="w-4 h-4" />} value={animAnimals.toLocaleString()} label="Animals at Risk" />
@@ -729,15 +751,55 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ════════════ TRUST BAR ════════════ */}
+      {/* ════════════ PARTNER STRIP ════════════ */}
       <div className="section-divider" />
-      <section className="relative z-10 py-12 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-gray-600 mb-6">Monitoring development permits across</p>
-          <div className="flex flex-wrap justify-center gap-x-8 gap-y-3 text-sm text-gray-500">
-            {["United States", "United Kingdom", "India", "Australia", "Canada", "European Union", "Brazil", "New Zealand"].map((c) => (
-              <span key={c} className="hover:text-gray-700 transition-colors">{c}</span>
-            ))}
+      <section className="relative z-10 py-8 px-6">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-5">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-gray-400 flex-shrink-0">Supported by</p>
+          <div className="flex flex-wrap justify-center sm:justify-end items-center gap-x-8 gap-y-2">
+            {([
+              { name: "Open Paws", url: "https://www.openpaws.ai/" },
+              { name: "Code 4 Compassion", url: "https://www.codeforcompassion.com/" },
+              { name: "AARC Pre-Accelerator", url: null },
+              { name: "Electric Sheep", url: null },
+            ] as { name: string; url: string | null }[]).map(({ name, url }) =>
+              url ? (
+                <a key={name} href={url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-gray-400 hover:text-slate-700 transition-colors">
+                  {name}
+                </a>
+              ) : (
+                <span key={name} className="text-sm font-medium text-gray-400">{name}</span>
+              )
+            )}
+          </div>
+        </div>
+      </section>
+      <div className="section-divider" />
+
+      {/* ════════════ REAL IMPACT ════════════ */}
+      <section className="relative z-10 py-20 px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-400/80 mb-3">Proof it works</p>
+            <h2 className="text-3xl md:text-4xl font-bold">Communities are already winning</h2>
+            <p className="text-gray-500 mt-3 max-w-xl mx-auto text-sm leading-relaxed">Permit objections work — when they&apos;re legally grounded. Here&apos;s what organised communities have achieved.</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="glass-card p-6">
+              <div className="text-3xl font-bold text-emerald-500 mb-3">15,000</div>
+              <div className="text-sm font-semibold mb-1 text-slate-800">objections blocked a UK megafarm</div>
+              <p className="text-gray-500 text-xs leading-relaxed">Cranswick poultry facility, April 2025. Community response forced a full planning review.</p>
+            </div>
+            <div className="glass-card p-6">
+              <div className="text-3xl font-bold text-blue-500 mb-3">$574M</div>
+              <div className="text-sm font-semibold mb-1 text-slate-800">in verdicts against industrial farms</div>
+              <p className="text-gray-500 text-xs leading-relaxed">North Carolina, 5 jury cases. Legal grounding was key to every winning argument.</p>
+            </div>
+            <div className="glass-card p-6">
+              <div className="text-3xl font-bold text-cyan-600 mb-3">30</div>
+              <div className="text-sm font-semibold mb-1 text-slate-800">voices blocked an Indiana CAFO</div>
+              <p className="text-gray-500 text-xs leading-relaxed">8,000-head facility denied unanimously. Thirty coordinated objections made the difference.</p>
+            </div>
           </div>
         </div>
       </section>
@@ -1102,32 +1164,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ════════════ REAL IMPACT ════════════ */}
-      <div className="section-divider" />
-      <section className="relative z-10 py-24 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-400/80 mb-3">Real impact</p>
-          <h2 className="text-3xl md:text-4xl font-bold mb-12">Communities are already winning</h2>
-          <div className="grid md:grid-cols-3 gap-6 text-left">
-            <div className="glass-card p-6">
-              <div className="text-3xl font-bold text-emerald-400 mb-2">15,000</div>
-              <div className="text-sm font-medium mb-1">objections blocked a UK megafarm</div>
-              <p className="text-gray-600 text-xs">Cranswick poultry facility, April 2025</p>
-            </div>
-            <div className="glass-card p-6">
-              <div className="text-3xl font-bold text-blue-400 mb-2">$574M</div>
-              <div className="text-sm font-medium mb-1">in verdicts against industrial farms</div>
-              <p className="text-gray-600 text-xs">North Carolina, 5 jury cases</p>
-            </div>
-            <div className="glass-card p-6">
-              <div className="text-3xl font-bold text-cyan-600 mb-2">30</div>
-              <div className="text-sm font-medium mb-1">voices blocked an Indiana CAFO</div>
-              <p className="text-gray-600 text-xs">8,000-head facility denied unanimously</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ════════════ CTA ════════════ */}
       <div className="section-divider" />
       <section className="relative z-10 py-24 px-6">
@@ -1155,6 +1191,78 @@ export default function Home() {
 }
 
 /* ─── Sub-components ─── */
+function PermitPreviewCard() {
+  return (
+    <div className="glass-card p-5 space-y-4 shadow-xl border border-slate-100/80">
+      {/* Permit header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+          <span className="text-[11px] text-gray-400 font-mono">APP/2024/00892</span>
+        </div>
+        <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 text-[10px] rounded-full font-medium border border-amber-200/50">
+          Pending Review
+        </span>
+      </div>
+
+      {/* Title + location */}
+      <div>
+        <h4 className="font-semibold text-slate-900 text-sm leading-snug">
+          Riverside Intensive Poultry Unit Expansion
+        </h4>
+        <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-1">
+          <MapPin className="w-3 h-3" />
+          North Yorkshire, UK · 85,000 birds
+        </div>
+      </div>
+
+      {/* Impact metrics */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-slate-50 rounded-lg p-3">
+          <div className="text-[10px] text-gray-400 mb-1">Animals at risk</div>
+          <div className="text-xl font-bold text-slate-900">85,000</div>
+        </div>
+        <div className="bg-slate-50 rounded-lg p-3">
+          <div className="text-[10px] text-gray-400 mb-1">Laws applicable</div>
+          <div className="text-xl font-bold text-slate-900">12</div>
+        </div>
+      </div>
+
+      {/* AI analysis */}
+      <div className="bg-slate-50 rounded-lg p-3 space-y-2">
+        <div className="flex items-center justify-between text-[11px]">
+          <span className="text-gray-500 flex items-center gap-1.5">
+            <Sparkles className="w-3 h-3 text-blue-400" />
+            Analysing against UK planning law...
+          </span>
+          <span className="text-emerald-600 font-medium">Done</span>
+        </div>
+        <div className="h-1 rounded-full bg-slate-200 overflow-hidden">
+          <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-blue-400 w-full" />
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {["Animal Welfare Act", "Environment Act", "Planning Policy"].map((l) => (
+            <span key={l} className="px-2 py-0.5 bg-blue-50 text-blue-500 text-[9px] rounded border border-blue-100">
+              {l}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Result */}
+      <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-100 p-3 rounded-xl">
+        <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+          <CheckCircle className="w-4 h-4 text-emerald-500" />
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-emerald-800">Legal objection ready to send</p>
+          <p className="text-[10px] text-emerald-600 mt-0.5">Generated in 1 min 42 sec · 847 words</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StatCard({ icon, value, label }: { icon: React.ReactNode; value: string | number; label: string }) {
   return (
     <div className="glass-card p-4 text-center group">
