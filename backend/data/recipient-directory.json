@@ -1,20 +1,27 @@
 {
   "version": 1,
-  "generated_at": "2026-02-24T08:34:47.893Z",
+  "generated_at": "2026-03-03T09:33:27.134Z",
   "source_audit": [
     {
       "source_key": "nc_deq_application_tracker",
       "url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "fetched_at": "2026-02-24T08:34:45.498Z",
+      "fetched_at": "2026-03-03T09:33:23.157Z",
       "status": "ok",
       "emails_found": 24
     },
     {
       "source_key": "uk_ea_public_register",
       "url": "https://www.gov.uk/access-the-public-register-for-environmental-information",
-      "fetched_at": "2026-02-24T08:34:47.892Z",
+      "fetched_at": "2026-03-03T09:33:24.978Z",
       "status": "ok",
       "emails_found": 2
+    },
+    {
+      "source_key": "us_arkansas_deq_pds",
+      "url": "https://www.adeq.state.ar.us/home/pdssql/pds.aspx",
+      "fetched_at": "2026-03-03T09:33:27.132Z",
+      "status": "ok",
+      "emails_found": 1
     }
   ],
   "entries": [
@@ -405,6 +412,20 @@
         "primary"
       ],
       "reason": "Published on UK government guidance for Environment Agency public register contact"
+    },
+    {
+      "id": "ar-deq-zach-witherow-arkansas-gov",
+      "source_key": "us_arkansas_deq_pds",
+      "country": "United States",
+      "authority_name": "Zach Witherow",
+      "email": "zach.witherow@arkansas.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.adeq.state.ar.us/home/pdssql/pds.aspx",
+      "tags": [
+        "program_contact"
+      ],
+      "reason": "Published on Arkansas DEQ Permit Data System page"
     }
   ]
 }

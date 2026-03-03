@@ -238,6 +238,64 @@ function allPermits() {
     ];
 }
 
+const PERMIT_DOMAINS = new Set(['farm_animal', 'industrial_infra', 'pollution_industrial', 'other']);
+
+function normalizePermitDomain(rawValue) {
+    const value = String(rawValue || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+    if (!value || value === 'all') return '';
+    if (PERMIT_DOMAINS.has(value)) return value;
+    if (value === 'factory_farm' || value === 'farm' || value === 'animal') return 'farm_animal';
+    if (value === 'industrial' || value === 'industry' || value === 'infra' || value === 'infrastructure') return 'industrial_infra';
+    if (value === 'pollution' || value === 'emissions') return 'pollution_industrial';
+    return '';
+}
+
+function classifyPermitDomain(permit) {
+    const explicit = normalizePermitDomain(permit?.permit_domain || permit?.permit_type);
+    if (explicit) return explicit;
+
+    const sourceKey = String(permit?.source_key || '').toLowerCase();
+    const blob = [
+        permit?.project_title,
+        permit?.activity,
+        permit?.notes,
+        permit?.source_name,
+        permit?.source_key,
+    ]
+        .map((part) => String(part || '').toLowerCase())
+        .join(' ');
+
+    if (
+        sourceKey.includes('farm') ||
+        /\b(poultry|broiler|layer|chicken|turkey|pig|swine|hog|sow|livestock|dairy|farrow|animal feeding|intensive agriculture|factory farm|cafo)\b/.test(blob)
+    ) {
+        return 'farm_animal';
+    }
+
+    if (
+        /\b(industrial emissions|permit to operate|waste|landfill|incinerator|effluent|discharge|air pollution|water pollution|emission permit)\b/.test(blob)
+    ) {
+        return 'pollution_industrial';
+    }
+
+    if (
+        /\b(infrastructure|construction|road|highway|rail|metro|airport|port|mining|quarry|energy|solar|wind|transmission|data center|data centre|manufacturing|refinery|plant)\b/.test(blob)
+    ) {
+        return 'industrial_infra';
+    }
+
+    return 'other';
+}
+
+function withPermitDomain(permit) {
+    if (!permit || typeof permit !== 'object') return permit;
+    const computed = classifyPermitDomain(permit);
+    return {
+        ...permit,
+        permit_domain: computed,
+    };
+}
+
 function buildTrustedSourceSet() {
     const keys = new Set(FALLBACK_TRUSTED_SOURCE_KEYS);
     for (const source of Array.isArray(permitSourcesData) ? permitSourcesData : []) {
@@ -319,6 +377,58 @@ function mergePermitSets(primary = [], secondary = []) {
     }
 
     return merged;
+}
+
+function parsePermitTimestamp(permit) {
+    const candidates = [
+        permit?.updated_at,
+        permit?.last_seen_at,
+        permit?.published_at,
+        permit?.created_at,
+        permit?.first_seen_at,
+    ];
+    for (const value of candidates) {
+        const parsed = Date.parse(String(value || ''));
+        if (!Number.isNaN(parsed)) return parsed;
+    }
+    return 0;
+}
+
+function isPendingPermitStatus(status) {
+    const normalized = String(status || '').trim().toLowerCase();
+    if (!normalized) return false;
+    return (
+        normalized.includes('pending') ||
+        normalized.includes('under review') ||
+        normalized.includes('under_review')
+    );
+}
+
+function buildPublicPermitPreview(permit) {
+    const observedAt = parsePermitTimestamp(permit);
+    const observedAtIso = observedAt > 0 ? new Date(observedAt).toISOString() : null;
+    return {
+        id: permit?.id,
+        external_id: permit?.external_id || null,
+        project_title: permit?.project_title || '',
+        location: permit?.location || '',
+        country: permit?.country || '',
+        activity: permit?.activity || '',
+        status: permit?.status || 'Pending',
+        category: permit?.category || 'Unknown',
+        permit_domain: permit?.permit_domain || classifyPermitDomain(permit),
+        permit_subtype: permit?.permit_subtype || null,
+        source_key: permit?.source_key || null,
+        source_name: permit?.source_name || null,
+        source_url: permit?.source_url || null,
+        capacity: permit?.capacity ?? null,
+        species: permit?.species || null,
+        published_at: permit?.published_at || null,
+        created_at: permit?.created_at || null,
+        updated_at: permit?.updated_at || null,
+        consultation_deadline: permit?.consultation_deadline || null,
+        observed_at: observedAtIso,
+    };
 }
 
 function persistPermitIngestionData() {
@@ -1234,9 +1344,66 @@ app.post('/api/feedback', feedbackRateLimiter, optionalAuth, async (req, res) =>
 // PERMITS ROUTES
 // ═══════════════════════════════════════════════════
 
+app.get('/api/public/latest-pending-permit', async (_req, res) => {
+    try {
+        const trustedSources = buildTrustedSourceSet();
+        let supabasePermits = [];
+        if (supabase) {
+            try {
+                const { data, error } = await supabase
+                    .from('permits')
+                    .select('*')
+                    .order('updated_at', { ascending: false })
+                    .range(0, 2999);
+                if (!error && Array.isArray(data)) {
+                    supabasePermits = data;
+                }
+            } catch (supabaseError) {
+                console.warn(
+                    'Supabase latest pending permit query failed, continuing with JSON permits:',
+                    supabaseError.message
+                );
+            }
+        }
+
+        let candidatePermits = mergePermitSets(supabasePermits, ingestedPermitsData).map((permit) =>
+            withPermitDomain(permit)
+        );
+        if (realPermitsOnly) {
+            candidatePermits = candidatePermits.filter((permit) => isTrustedPermitRecord(permit, trustedSources));
+        }
+        const pendingPermits = candidatePermits
+            .filter((permit) => isPendingPermitStatus(permit?.status))
+            .sort((a, b) => parsePermitTimestamp(b) - parsePermitTimestamp(a));
+
+        if (pendingPermits.length === 0) {
+            return res.status(404).json({ error: 'No pending permits available' });
+        }
+
+        return res.json(buildPublicPermitPreview(pendingPermits[0]));
+    } catch (error) {
+        console.error('Latest pending permit lookup failed:', error.message);
+        const trustedSources = buildTrustedSourceSet();
+        let fallbackPermits = ingestedPermitsData.map((permit) => withPermitDomain(permit));
+        if (realPermitsOnly) {
+            fallbackPermits = fallbackPermits.filter((permit) => isTrustedPermitRecord(permit, trustedSources));
+        }
+        const latest = fallbackPermits
+            .filter((permit) => isPendingPermitStatus(permit?.status))
+            .sort((a, b) => parsePermitTimestamp(b) - parsePermitTimestamp(a))[0];
+        if (!latest) {
+            return res.status(500).json({ error: 'Failed to fetch latest pending permit' });
+        }
+        return res.json(buildPublicPermitPreview(latest));
+    }
+});
+
 app.get('/api/permits', authenticateToken, requireApprovedAccess, async (req, res) => {
     try {
         const { country, status, category } = req.query;
+        const permitDomain = normalizePermitDomain(
+            req.query.permit_domain || req.query.permitType || req.query.permit_type || req.query.domain,
+        );
         const trustedSources = buildTrustedSourceSet();
 
         let supabasePermits = [];
@@ -1255,7 +1422,7 @@ app.get('/api/permits', authenticateToken, requireApprovedAccess, async (req, re
             }
         }
 
-        let filtered = mergePermitSets(supabasePermits, allPermits());
+        let filtered = mergePermitSets(supabasePermits, allPermits()).map((permit) => withPermitDomain(permit));
         if (realPermitsOnly) {
             filtered = filtered.filter((permit) => isTrustedPermitRecord(permit, trustedSources));
         }
@@ -1265,6 +1432,7 @@ app.get('/api/permits', authenticateToken, requireApprovedAccess, async (req, re
         }
         if (status) filtered = filtered.filter((p) => String(p.status || '') === String(status));
         if (category) filtered = filtered.filter((p) => String(p.category || '') === String(category));
+        if (permitDomain) filtered = filtered.filter((p) => String(p.permit_domain || '') === permitDomain);
         filtered = annotateAndSortPermits(filtered);
 
         const limitRaw = req.query.limit ? Number.parseInt(String(req.query.limit), 10) : null;
@@ -1282,10 +1450,15 @@ app.get('/api/permits', authenticateToken, requireApprovedAccess, async (req, re
     } catch (error) {
         console.error('Get permits error:', error);
         const trustedSources = buildTrustedSourceSet();
+        const permitDomain = normalizePermitDomain(
+            req.query?.permit_domain || req.query?.permitType || req.query?.permit_type || req.query?.domain,
+        );
         let fallbackPermits = allPermits();
         if (realPermitsOnly) {
             fallbackPermits = fallbackPermits.filter((permit) => isTrustedPermitRecord(permit, trustedSources));
         }
+        fallbackPermits = fallbackPermits.map((permit) => withPermitDomain(permit));
+        if (permitDomain) fallbackPermits = fallbackPermits.filter((p) => String(p.permit_domain || '') === permitDomain);
         fallbackPermits = annotateAndSortPermits(fallbackPermits);
         if (fallbackPermits.length > 0) {
             return res.json(fallbackPermits);
@@ -1301,7 +1474,7 @@ app.get('/api/permits/:id', authenticateToken, requireApprovedAccess, async (req
             const { data, error } = await supabase.from('permits').select('*').eq('id', req.params.id).single();
             if (!error && data) {
                 if (!realPermitsOnly || isTrustedPermitRecord(data, trustedSources)) {
-                    return res.json(data);
+                    return res.json(withPermitDomain(data));
                 }
             }
         }
@@ -1311,7 +1484,7 @@ app.get('/api/permits/:id', authenticateToken, requireApprovedAccess, async (req
         }
         const permit = localPermits.find((p) => String(p.id) === String(req.params.id));
         if (!permit) return res.status(404).json({ error: 'Permit not found' });
-        res.json(permit);
+        res.json(withPermitDomain(permit));
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch permit' });
     }
@@ -2383,6 +2556,7 @@ app.get('/api', (req, res) => {
         status: 'running',
         version: '2.0.0',
         endpoints: [
+            'GET  /api/public/latest-pending-permit',
             'GET  /api/permits',
             'GET  /api/permits/:id',
             'POST /api/permits',

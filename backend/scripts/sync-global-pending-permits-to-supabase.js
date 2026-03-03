@@ -19,6 +19,7 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 
 const LEGACY_PAYLOAD_MARKER = 'Original Payload JSON:';
 const DEFAULT_LOOKBACK_DAYS = Number.parseInt(process.env.GLOBAL_PENDING_LOOKBACK_DAYS || '120', 10);
+const INCLUDE_NON_FARM = String(process.env.GLOBAL_PENDING_INCLUDE_NON_FARM || 'true').toLowerCase() !== 'false';
 
 const SOURCE_DEFS = {
   uk: {
@@ -50,6 +51,8 @@ const SOURCE_DEFS = {
 const PENDING_STATUS_RE = /\b(pending|application pending|in review|under review|in process|processing|applied|application received|submitted|publish pending)\b/i;
 const FARM_KEYWORDS_RE = /\b(poultry|broiler|layer|chicken|turkey|pig|swine|hog|sow|livestock|dairy|farrow|intensive farming|factory farm)\b/i;
 const INTENSIVE_KEYWORDS_RE = /\b(intensive farming|rearing of poultry intensively|section\s*6\.9|6\.9\s*a\(1\)|animal operations)\b/i;
+const INFRA_KEYWORDS_RE = /\b(infrastructure|construction|road|highway|rail|metro|airport|port|mining|quarry|energy|solar|wind|transmission|data centre|data center|industrial plant|factory|manufacturing|refinery|cement|steel|chemical)\b/i;
+const POLLUTION_KEYWORDS_RE = /\b(industrial emissions|permit to operate|effluent|discharge|air pollution|water pollution|waste management|landfill|incinerator|pollution control|environmental permit)\b/i;
 const AU_NOT_PENDING_RE = /\b(completed|post-approval|lapsed|withdrawn|refused|approval decision made|referral decision made)\b/i;
 const ONTARIO_FARM_KEYWORDS_RE = /\b(poultry|broiler|layer|chicken|turkey|pig|swine|hog|sow|livestock|dairy|farrow|intensive farming|factory farm|feedlot|fish farm|aquaculture)\b/i;
 
@@ -237,7 +240,30 @@ function findConsultationDeadline(text) {
   return null;
 }
 
-function buildUpsertRecord(record, useSourceMetadataColumns, nowIso) {
+function classifyPermitDomain(text) {
+  const haystack = normalizeText(text).toLowerCase();
+  if (!haystack) return 'other';
+  if (FARM_KEYWORDS_RE.test(haystack) || INTENSIVE_KEYWORDS_RE.test(haystack)) return 'farm_animal';
+  if (POLLUTION_KEYWORDS_RE.test(haystack)) return 'pollution_industrial';
+  if (INFRA_KEYWORDS_RE.test(haystack)) return 'industrial_infra';
+  return 'other';
+}
+
+function inferPermitSubtype(text, fallback = 'general_permit') {
+  const haystack = normalizeText(text).toLowerCase();
+  if (!haystack) return fallback;
+  if (/\b(poultry|broiler|layer|chicken|turkey)\b/.test(haystack)) return 'poultry';
+  if (/\b(pig|swine|hog|sow|farrow)\b/.test(haystack)) return 'swine';
+  if (/\b(dairy|livestock)\b/.test(haystack)) return 'livestock';
+  if (/\b(industrial emissions|emissions|air pollution|discharge|effluent)\b/.test(haystack)) return 'industrial_emissions';
+  if (/\b(waste|landfill|incinerator)\b/.test(haystack)) return 'waste_management';
+  if (/\b(energy|solar|wind|transmission|power)\b/.test(haystack)) return 'energy_infrastructure';
+  if (/\b(road|highway|rail|metro|airport|port)\b/.test(haystack)) return 'transport_infrastructure';
+  if (/\b(mining|quarry)\b/.test(haystack)) return 'resource_extraction';
+  return fallback;
+}
+
+function buildUpsertRecord(record, useSourceMetadataColumns, useDomainColumns, nowIso) {
   const sourcePayload = record.source_payload || {};
   const common = {
     project_title: record.project_title,
@@ -249,9 +275,19 @@ function buildUpsertRecord(record, useSourceMetadataColumns, nowIso) {
     updated_at: nowIso,
   };
 
+  const domainFields = useDomainColumns
+    ? {
+        permit_domain: record.permit_domain || null,
+        permit_subtype: record.permit_subtype || null,
+        jurisdiction_region: record.jurisdiction_region || null,
+        recipient_status: record.recipient_status || 'missing',
+      }
+    : {};
+
   if (useSourceMetadataColumns) {
     return {
       ...common,
+      ...domainFields,
       ingest_key: record.ingest_key,
       source_key: record.source_key,
       source_name: record.source_name,
@@ -266,6 +302,7 @@ function buildUpsertRecord(record, useSourceMetadataColumns, nowIso) {
 
   return {
     ...common,
+    ...domainFields,
     notes: buildLegacyNotes({
       sourceKey: record.source_key,
       sourceName: record.source_name,
@@ -296,10 +333,26 @@ async function supportsSourceMetadataColumns() {
   throw error;
 }
 
-async function upsertPermits(records, useSourceMetadataColumns) {
+async function supportsDomainColumns() {
+  const { error } = await supabase
+    .from('permits')
+    .select('id,permit_domain,permit_subtype,jurisdiction_region,recipient_status')
+    .limit(1);
+  if (!error) return true;
+  const message = String(error.message || '');
+  if (message.includes('column permits.permit_domain does not exist')) return false;
+  if (message.includes('column permits.permit_subtype does not exist')) return false;
+  if (message.includes('column permits.jurisdiction_region does not exist')) return false;
+  if (message.includes('column permits.recipient_status does not exist')) return false;
+  throw error;
+}
+
+async function upsertPermits(records, useSourceMetadataColumns, useDomainColumns) {
   if (!records.length) return { inserted: 0, updated: 0 };
   const nowIso = new Date().toISOString();
-  const payload = records.map((record) => buildUpsertRecord(record, useSourceMetadataColumns, nowIso));
+  const payload = records.map((record) =>
+    buildUpsertRecord(record, useSourceMetadataColumns, useDomainColumns, nowIso),
+  );
 
   if (useSourceMetadataColumns) {
     const { error } = await supabase
@@ -392,7 +445,12 @@ async function fetchUkPendingPermits(now, lookbackDays) {
       const body = stripTags(content?.details?.body || '');
       const attachmentText = attachments.map((item) => stripTags(item?.details?.body || '')).join('\n');
       const text = `${title}\n${description}\n${body}\n${attachmentText}`;
-      if (!FARM_KEYWORDS_RE.test(text) || !INTENSIVE_KEYWORDS_RE.test(text)) continue;
+      const domain = classifyPermitDomain(text);
+      if (!INCLUDE_NON_FARM) {
+        if (!FARM_KEYWORDS_RE.test(text) || !INTENSIVE_KEYWORDS_RE.test(text)) continue;
+      } else if (domain === 'other') {
+        continue;
+      }
 
       const publishedAtDate = parseDateCandidate(content?.public_updated_at || row?.public_timestamp);
       if (!publishedAtDate) continue;
@@ -416,10 +474,19 @@ async function fetchUkPendingPermits(now, lookbackDays) {
         project_title: title,
         location: normalizeText(title.split(':')[0], 'United Kingdom'),
         country: 'United Kingdom',
-        activity: /pig|swine|sow|hog/i.test(text)
-          ? 'Intensive Pig Farm Permit Application'
-          : 'Intensive Poultry Farm Permit Application',
+        activity:
+          domain === 'farm_animal'
+            ? /pig|swine|sow|hog/i.test(text)
+              ? 'Intensive Pig Farm Permit Application'
+              : 'Intensive Poultry Farm Permit Application'
+            : domain === 'pollution_industrial'
+              ? 'Industrial Environmental Permit Application'
+              : 'Infrastructure Development Permit Application',
         category: 'Red',
+        permit_domain: domain,
+        permit_subtype: inferPermitSubtype(text, 'uk_environmental_permit'),
+        jurisdiction_region: 'United Kingdom',
+        recipient_status: 'missing',
         notes: `Official EA permit application notice. Consultation deadline: ${toIsoDate(deadline)}.`,
         published_at: publishedAtDate.toISOString(),
         consultation_deadline: toIsoDate(deadline),
@@ -448,12 +515,20 @@ async function fetchNcPendingPermits() {
   const rows = Array.isArray(payload?.features) ? payload.features.map((f) => f.attributes || {}) : [];
 
   return rows
-    .filter((row) => PENDING_STATUS_RE.test(row.STATUS || '') && FARM_KEYWORDS_RE.test([row.NAME, row.PROG_CAT, row.PERMIT_TYPE].join(' ')))
+    .filter((row) => {
+      if (!PENDING_STATUS_RE.test(row.STATUS || '')) return false;
+      const text = [row.NAME, row.PROG_CAT, row.PERMIT_TYPE].join(' ');
+      const domain = classifyPermitDomain(text);
+      if (!INCLUDE_NON_FARM) return domain === 'farm_animal';
+      return domain !== 'other';
+    })
     .map((row) => {
       const title = normalizeText(row.NAME, 'NC DEQ Permit');
       const location = [row.ADDRESS, row.CITY, row.STATE].map((v) => normalizeText(v)).filter(Boolean).join(', ') || normalizeText(row.COUNTY, 'North Carolina');
       const publishedAt = row.RECV_DT ? new Date(row.RECV_DT).toISOString() : null;
       const externalId = normalizeText(row.APP_ID);
+      const text = [row.NAME, row.PROG_CAT, row.PERMIT_TYPE].join(' ');
+      const domain = classifyPermitDomain(text);
       return {
         ingest_key: buildIngestKey(source.key, externalId, title, location, 'United States'),
         source_key: source.key,
@@ -465,6 +540,10 @@ async function fetchNcPendingPermits() {
         country: 'United States',
         activity: normalizeText(row.PROG_CAT, 'Animal Operations Permit Application'),
         category: 'Red',
+        permit_domain: domain,
+        permit_subtype: inferPermitSubtype(text, 'nc_deq_permit'),
+        jurisdiction_region: normalizeText(row.STATE, 'NC'),
+        recipient_status: 'missing',
         notes: `Official NC DEQ application tracker pending entry (status: ${normalizeText(row.STATUS, 'Pending')}).`,
         published_at: publishedAt,
         consultation_deadline: null,
@@ -473,7 +552,7 @@ async function fetchNcPendingPermits() {
     });
 }
 
-function isArkansasFactoryFarmRow(row) {
+function isArkansasPendingRow(row) {
   const status = normalizeText(row.PmtStatusDesc).toLowerCase();
   if (!PENDING_STATUS_RE.test(status)) return false;
 
@@ -484,11 +563,17 @@ function isArkansasFactoryFarmRow(row) {
 
   const naicsFactoryFarm = naics.startsWith('1121') || naics.startsWith('1122') || naics.startsWith('1123');
   const hasFarmSignal = /\b(poultry|broiler|pig|swine|hog|dairy|livestock|egg|farm)\b/i.test(activity);
-  if (!naicsFactoryFarm && !hasFarmSignal) return false;
-
+  const isFarm = naicsFactoryFarm || hasFarmSignal;
+  if (!INCLUDE_NON_FARM && !isFarm) return false;
   if (/\b(kennel|shelter|humane|pet)\b/i.test(activity)) return false;
   if (naics.startsWith('1125')) return false; // Aquaculture is excluded.
-  return true;
+
+  if (INCLUDE_NON_FARM) {
+    const domain = classifyPermitDomain(activity);
+    return isFarm || domain === 'industrial_infra' || domain === 'pollution_industrial';
+  }
+
+  return isFarm;
 }
 
 async function fetchArkansasPendingPermits() {
@@ -498,13 +583,14 @@ async function fetchArkansasPendingPermits() {
   const rows = parseCsvTable(csvRaw);
 
   return rows
-    .filter((row) => isArkansasFactoryFarmRow(row))
+    .filter((row) => isArkansasPendingRow(row))
     .map((row) => {
       const title = normalizeText(row.FacName, 'Arkansas Permit');
       const location = [row.FacSiteCity, row.FacCountyName, 'AR'].map((v) => normalizeText(v)).filter(Boolean).join(', ') || 'Arkansas';
       const externalId = normalizeText(row.PmtNbr);
       const publishedAt = parseDateCandidate(row.PmtStatusDate || row.RecModifiedDate || row.RecCreatedDate);
       const activity = normalizeText(row.FacPrimaryNAICSDesc, 'Animal Production Permit');
+      const text = `${title} ${activity}`;
       return {
         ingest_key: buildIngestKey(source.key, externalId, title, location, 'United States'),
         source_key: source.key,
@@ -516,6 +602,10 @@ async function fetchArkansasPendingPermits() {
         country: 'United States',
         activity,
         category: 'Red',
+        permit_domain: classifyPermitDomain(text),
+        permit_subtype: inferPermitSubtype(text, 'arkansas_permit'),
+        jurisdiction_region: 'AR',
+        recipient_status: 'missing',
         notes: `Official Arkansas DEQ permit record pending entry (status: ${normalizeText(row.PmtStatusDesc, 'Pending')}).`,
         published_at: publishedAt ? publishedAt.toISOString() : null,
         consultation_deadline: null,
@@ -574,6 +664,10 @@ async function fetchAustraliaPendingPermits() {
         country: 'Australia',
         activity: 'EPBC Referral - Intensive Animal Agriculture',
         category: 'Red',
+        permit_domain: 'farm_animal',
+        permit_subtype: inferPermitSubtype(title, 'epbc_referral'),
+        jurisdiction_region: location,
+        recipient_status: 'missing',
         notes: `Official EPBC referral pending status (${normalizeText(row.STATUS_DESCRIPTION, 'Pending')}; stage: ${normalizeText(row.STAGE_NAME, 'Unknown')}).`,
         published_at: publishedAt,
         consultation_deadline: null,
@@ -607,6 +701,7 @@ async function fetchIrelandPendingPermits() {
     const title = normalizeText(row.authorisationname, 'Ireland EPA Pending Application');
     const location = normalizeText(row.county, 'Ireland');
     const externalId = normalizeText(row.authorisationnumber || row.licenceid);
+    const text = `${title} ${normalizeText(row.sector)} ${normalizeText(row.type)}`;
     return {
       ingest_key: buildIngestKey(source.key, externalId, title, location, 'Ireland'),
       source_key: source.key,
@@ -618,6 +713,10 @@ async function fetchIrelandPendingPermits() {
       country: 'Ireland',
       activity: 'Industrial Emissions Licence - Intensive Agriculture',
       category: 'Red',
+      permit_domain: classifyPermitDomain(text),
+      permit_subtype: inferPermitSubtype(text, 'ie_epa_licence'),
+      jurisdiction_region: location,
+      recipient_status: 'missing',
       notes: `Official Ireland EPA LEAP application pending record (sector: ${normalizeText(row.sector, 'Intensive Agriculture')}).`,
       published_at: null,
       consultation_deadline: null,
@@ -632,7 +731,11 @@ async function fetchOntarioPendingPermits(now) {
   const todayStart = new Date(now.toISOString().slice(0, 10));
   const maxPages = Math.max(1, Math.min(10, Number.parseInt(process.env.ONTARIO_ERO_MAX_PAGES || '4', 10)));
   const keywords = String(
-    process.env.ONTARIO_ERO_KEYWORDS || 'poultry,broiler,pig,swine,hog,dairy,livestock,feedlot,fish farm,aquaculture',
+    process.env.ONTARIO_ERO_KEYWORDS || (
+      INCLUDE_NON_FARM
+        ? 'industrial,emission,waste,landfill,construction,infrastructure,poultry,broiler,pig,swine,hog,dairy,livestock,feedlot,fish farm,aquaculture'
+        : 'poultry,broiler,pig,swine,hog,dairy,livestock,feedlot,fish farm,aquaculture'
+    ),
   )
     .split(',')
     .map((item) => normalizeText(item))
@@ -684,7 +787,12 @@ async function fetchOntarioPendingPermits(now) {
         const summary = normalizeText(stripTags(decodeHtmlEntities(summaryMatch?.[1])));
 
         const textForFilter = `${title} ${instrumentType} ${summary} ${commentPeriod}`;
-        if (!ONTARIO_FARM_KEYWORDS_RE.test(textForFilter)) continue;
+        const domain = classifyPermitDomain(textForFilter);
+        if (!INCLUDE_NON_FARM) {
+          if (!ONTARIO_FARM_KEYWORDS_RE.test(textForFilter)) continue;
+        } else if (domain === 'other') {
+          continue;
+        }
 
         seen.add(externalId);
         const sourceUrl = `${baseUrl}${noticePath}`;
@@ -701,6 +809,10 @@ async function fetchOntarioPendingPermits(now) {
             ? `Instrument proposal (${instrumentType})`
             : 'Instrument proposal (Environmental Registry of Ontario)',
           category: 'Red',
+          permit_domain: domain,
+          permit_subtype: inferPermitSubtype(textForFilter, 'ontario_ero_instrument'),
+          jurisdiction_region: 'Ontario',
+          recipient_status: 'missing',
           notes: `Official Ontario ERO instrument proposal with open comment period${consultationDeadlineDate ? ` (deadline: ${toIsoDate(consultationDeadlineDate)})` : ''}.`,
           published_at: publishedAt,
           consultation_deadline: consultationDeadlineDate ? toIsoDate(consultationDeadlineDate) : null,
@@ -733,20 +845,37 @@ function dedupeRecords(records) {
   return deduped;
 }
 
+async function resolveSourceRows(label, loader) {
+  try {
+    const rows = await loader();
+    return { rows: Array.isArray(rows) ? rows : [], error: null, label };
+  } catch (error) {
+    return { rows: [], error: String(error?.message || 'unknown error'), label };
+  }
+}
+
 async function run() {
   const startTs = Date.now();
   const now = new Date();
   const lookbackDays = Number.isFinite(DEFAULT_LOOKBACK_DAYS) ? DEFAULT_LOOKBACK_DAYS : 120;
   const useSourceMetadataColumns = await supportsSourceMetadataColumns();
+  const useDomainColumns = await supportsDomainColumns();
 
-  const [ukRows, ncRows, arRows, auRows, ieRows, onRows] = await Promise.all([
-    fetchUkPendingPermits(now, lookbackDays),
-    fetchNcPendingPermits(),
-    fetchArkansasPendingPermits(),
-    fetchAustraliaPendingPermits(),
-    fetchIrelandPendingPermits(),
-    fetchOntarioPendingPermits(now),
+  const [ukSource, ncSource, arSource, auSource, ieSource, onSource] = await Promise.all([
+    resolveSourceRows('UK', () => fetchUkPendingPermits(now, lookbackDays)),
+    resolveSourceRows('US NC', () => fetchNcPendingPermits()),
+    resolveSourceRows('US Arkansas', () => fetchArkansasPendingPermits()),
+    resolveSourceRows('Australia', () => fetchAustraliaPendingPermits()),
+    resolveSourceRows('Ireland', () => fetchIrelandPendingPermits()),
+    resolveSourceRows('Canada (Ontario ERO)', () => fetchOntarioPendingPermits(now)),
   ]);
+
+  const ukRows = ukSource.rows;
+  const ncRows = ncSource.rows;
+  const arRows = arSource.rows;
+  const auRows = auSource.rows;
+  const ieRows = ieSource.rows;
+  const onRows = onSource.rows;
 
   const combined = dedupeRecords([
     ...ukRows,
@@ -757,25 +886,41 @@ async function run() {
     ...onRows,
   ]);
 
-  const result = await upsertPermits(combined, useSourceMetadataColumns);
+  const result = await upsertPermits(combined, useSourceMetadataColumns, useDomainColumns);
   const byCountry = combined.reduce((acc, row) => {
     const country = normalizeText(row.country, 'Unknown');
     acc[country] = (acc[country] || 0) + 1;
     return acc;
   }, {});
+  const byDomain = combined.reduce((acc, row) => {
+    const domain = normalizeText(row.permit_domain, 'other');
+    acc[domain] = (acc[domain] || 0) + 1;
+    return acc;
+  }, {});
 
   console.log('✅ Global pending permit sync complete');
-  console.log(`   Schema mode: ${useSourceMetadataColumns ? 'source metadata columns' : 'legacy permits schema fallback'}`);
+  console.log(
+    `   Schema mode: ${useSourceMetadataColumns ? 'source metadata columns' : 'legacy permits schema fallback'} | domain columns: ${useDomainColumns ? 'enabled' : 'missing'}`
+  );
+  console.log(`   Include non-farm domains: ${INCLUDE_NON_FARM}`);
   console.log(`   UK records: ${ukRows.length}`);
   console.log(`   US NC records: ${ncRows.length}`);
   console.log(`   US Arkansas records: ${arRows.length}`);
   console.log(`   Australia records: ${auRows.length}`);
   console.log(`   Ireland records: ${ieRows.length}`);
   console.log(`   Canada (Ontario ERO) records: ${onRows.length}`);
+  const sourceErrors = [ukSource, ncSource, arSource, auSource, ieSource, onSource].filter((item) => item.error);
+  if (sourceErrors.length > 0) {
+    console.log(`   Source errors: ${sourceErrors.length}`);
+    for (const sourceError of sourceErrors) {
+      console.log(`   - ${sourceError.label}: ${sourceError.error}`);
+    }
+  }
   console.log(`   Total deduped records: ${combined.length}`);
   console.log(`   Inserted: ${result.inserted}`);
   console.log(`   Updated: ${result.updated}`);
   console.log(`   Country breakdown: ${JSON.stringify(byCountry)}`);
+  console.log(`   Domain breakdown: ${JSON.stringify(byDomain)}`);
   if (combined[0]) {
     console.log(`   Sample: ${combined[0].project_title}`);
     console.log(`   Sample URL: ${combined[0].source_url}`);

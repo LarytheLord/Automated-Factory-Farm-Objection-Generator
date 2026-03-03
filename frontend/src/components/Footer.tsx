@@ -23,6 +23,7 @@ export default function Footer() {
             </h4>
             <div className="space-y-2 text-sm">
               <Link href="/how-it-works" className="block text-gray-500 hover:text-slate-900 transition-colors">How It Works</Link>
+              <Link href="/future-prototype" className="block text-gray-500 hover:text-slate-900 transition-colors">Future Prototype</Link>
               <a href="/#permits" className="block text-gray-500 hover:text-slate-900 transition-colors">Permits</a>
               <Link href="/impact" className="block text-gray-500 hover:text-slate-900 transition-colors">Impact</Link>
               <Link href="/submit-permit" className="block text-gray-500 hover:text-slate-900 transition-colors">Submit Permit</Link>

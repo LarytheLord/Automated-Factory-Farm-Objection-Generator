@@ -9,6 +9,8 @@ const NC_CONTACTS_URL =
   'https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts';
 const UK_REGISTER_INFO_URL =
   'https://www.gov.uk/access-the-public-register-for-environmental-information';
+const ARKANSAS_PDS_URL =
+  'https://www.adeq.state.ar.us/home/pdssql/pds.aspx';
 
 function normalizeText(value, fallback = '') {
   if (value === null || value === undefined) return fallback;
@@ -46,6 +48,7 @@ function extractEmails(text) {
     const email = match.toLowerCase();
     if (email.includes('u003e') || email.includes('u003c')) continue;
     if (email.startsWith('bootstrap@') || email.startsWith('jquery-validation@')) continue;
+    if (/\.(png|jpg|jpeg|gif|svg|webp|avif|ico)$/i.test(email)) continue;
     unique.add(email);
   }
   return [...unique];
@@ -168,6 +171,27 @@ function buildUkEntries(ukEmails) {
   return entries;
 }
 
+function buildArkansasEntries(arkansasEmails) {
+  const entries = [];
+
+  for (const email of arkansasEmails) {
+    entries.push({
+      id: `ar-deq-${slugify(email)}`,
+      source_key: 'us_arkansas_deq_pds',
+      country: 'United States',
+      authority_name: inferAuthorityNameFromEmail(email),
+      email,
+      type: 'email',
+      confidence: 'official_directory',
+      source_url: ARKANSAS_PDS_URL,
+      tags: ['program_contact'],
+      reason: 'Published on Arkansas DEQ Permit Data System page',
+    });
+  }
+
+  return entries;
+}
+
 async function run() {
   const sourceAudit = [];
   const reviewerNames = readIngestedReviewerNames();
@@ -216,6 +240,28 @@ async function run() {
     });
   }
 
+  let arkansasEmails = [];
+  try {
+    const html = await fetchText(ARKANSAS_PDS_URL);
+    arkansasEmails = extractEmails(html).filter((email) => /@arkansas\.gov$/i.test(email));
+    sourceAudit.push({
+      source_key: 'us_arkansas_deq_pds',
+      url: ARKANSAS_PDS_URL,
+      fetched_at: new Date().toISOString(),
+      status: 'ok',
+      emails_found: arkansasEmails.length,
+    });
+  } catch (error) {
+    sourceAudit.push({
+      source_key: 'us_arkansas_deq_pds',
+      url: ARKANSAS_PDS_URL,
+      fetched_at: new Date().toISOString(),
+      status: 'error',
+      error: normalizeText(error?.message, 'unknown'),
+      emails_found: 0,
+    });
+  }
+
   if (!ukEmails.includes('enquiries@environment-agency.gov.uk')) {
     ukEmails.push('enquiries@environment-agency.gov.uk');
   }
@@ -224,6 +270,7 @@ async function run() {
   const entries = [
     ...buildNcEntries(ncEmails, reviewerMatches),
     ...buildUkEntries(ukEmails),
+    ...buildArkansasEntries(arkansasEmails),
   ];
 
   const payload = {

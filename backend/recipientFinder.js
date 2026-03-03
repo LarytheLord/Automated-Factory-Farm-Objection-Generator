@@ -2,6 +2,18 @@ const fs = require('fs');
 const path = require('path');
 
 const RECIPIENT_DIRECTORY_PATH = path.resolve(__dirname, './data/recipient-directory.json');
+const IMAGE_EXT_RE = /\.(png|jpg|jpeg|gif|svg|webp|avif|ico)$/i;
+const SOURCE_KEY_ALIASES = {
+  nc_deq_application_tracker: 'us_nc_deq_application_tracker',
+  us_nc_deq_application_tracker: 'us_nc_deq_application_tracker',
+  uk_ea_public_register: 'uk_ea_public_register',
+  uk_gov_environment_agency_notice: 'uk_ea_public_register',
+  uk_ea_citizenspace_permit_consultations: 'uk_ea_public_register',
+  us_arkansas_deq_pds: 'us_arkansas_deq_pds',
+  ie_epa_leap: 'ie_epa_leap',
+  au_epbc_referrals: 'au_epbc_referrals',
+  ca_on_ero_instruments: 'ca_on_ero_instruments',
+};
 
 let cachedDirectory = [];
 let cachedDirectoryMtimeMs = 0;
@@ -54,7 +66,14 @@ function extractEmailsFromText(text) {
   const input = normalizeText(text);
   if (!input) return [];
   const matches = input.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
-  return uniqueStrings(matches);
+  return uniqueStrings(matches).filter((email) => {
+    const normalized = normalizeText(email).toLowerCase();
+    if (!normalized) return false;
+    if (normalized.startsWith('bootstrap@') || normalized.startsWith('jquery-validation@')) return false;
+    if (normalized.includes('u003c') || normalized.includes('u003e')) return false;
+    if (IMAGE_EXT_RE.test(normalized)) return false;
+    return true;
+  });
 }
 
 function collectStringValues(value, bucket, depth = 0) {
@@ -97,13 +116,19 @@ function loadRecipientDirectory() {
   return cachedDirectory;
 }
 
+function canonicalSourceKey(rawKey) {
+  const key = normalizeText(rawKey).toLowerCase();
+  if (!key) return '';
+  return SOURCE_KEY_ALIASES[key] || key;
+}
+
 function inferSourceKey(permit) {
   let sourceKey = normalizeText(permit?.source_key);
-  if (sourceKey) return sourceKey.toLowerCase();
+  if (sourceKey) return canonicalSourceKey(sourceKey);
   const notes = normalizeText(permit?.notes);
   if (!notes) return '';
   const sourceKeyMatch = notes.match(/Source Key:\s*([a-z0-9_:-]+)/i);
-  return sourceKeyMatch?.[1] ? normalizeText(sourceKeyMatch[1]).toLowerCase() : '';
+  return sourceKeyMatch?.[1] ? canonicalSourceKey(sourceKeyMatch[1]) : '';
 }
 
 function parsePermitHints(permit) {
@@ -127,7 +152,7 @@ function parsePermitHints(permit) {
 
 function scoreDirectoryEntry(entry, hints) {
   let score = 0;
-  const entrySource = normalizeText(entry.source_key);
+  const entrySource = canonicalSourceKey(entry.source_key);
   const entryCountry = normalizeText(entry.country);
   const entryReviewer = normalizeKey(entry.reviewer_key || entry.authority_name);
   const tags = Array.isArray(entry.tags) ? entry.tags.map((tag) => normalizeText(tag).toLowerCase()) : [];
@@ -219,6 +244,42 @@ function buildOfficialFallbacks(permit) {
       confidence: 'official',
       action_url: 'https://www.adeq.state.ar.us/home/pdssql/pds.aspx',
       reason: 'Official Arkansas DEQ permit lookup and contact route',
+      score: 50,
+    });
+  }
+
+  if (sourceKey === 'ie_epa_leap') {
+    suggestions.push({
+      id: 'ireland-epa-leap',
+      label: 'Ireland EPA LEAP licensing portal',
+      type: 'webform',
+      confidence: 'official',
+      action_url: 'https://leap.epa.ie/',
+      reason: 'Official Ireland EPA licensing portal for application details and authority routes',
+      score: 50,
+    });
+  }
+
+  if (sourceKey === 'au_epbc_referrals') {
+    suggestions.push({
+      id: 'australia-epbc-referrals',
+      label: 'Australia EPBC referrals register',
+      type: 'webform',
+      confidence: 'official',
+      action_url: 'https://epbcnotices.environment.gov.au/referralslist/',
+      reason: 'Official EPBC referrals register with responsible authority details',
+      score: 50,
+    });
+  }
+
+  if (sourceKey === 'ca_on_ero_instruments') {
+    suggestions.push({
+      id: 'ontario-ero-notices',
+      label: 'Ontario Environmental Registry notice page',
+      type: 'webform',
+      confidence: 'official',
+      action_url: 'https://ero.ontario.ca/',
+      reason: 'Official Ontario ERO route for notice-specific submissions and contacts',
       score: 50,
     });
   }

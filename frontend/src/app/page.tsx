@@ -38,6 +38,8 @@ interface Permit {
   country: string;
   notes: string;
   category?: string;
+  permit_domain?: "farm_animal" | "industrial_infra" | "pollution_industrial" | "other" | string;
+  permit_subtype?: string;
   coordinates?: { lat: number; lng: number };
   [key: string]: any;
 }
@@ -264,9 +266,38 @@ function parsePermitNotes(permit: Permit | null): ParsedPermitNotes {
   };
 }
 
+function permitPreviewTimestamp(permit: Permit | null | undefined) {
+  if (!permit) return 0;
+  const candidates = [
+    permit.observed_at,
+    permit.updated_at,
+    permit.last_seen_at,
+    permit.published_at,
+    permit.created_at,
+  ];
+  for (const value of candidates) {
+    const parsed = Date.parse(String(value || ""));
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return 0;
+}
+
+function isPendingPermit(permit: Permit | null | undefined) {
+  const status = String(permit?.status || "").toLowerCase();
+  if (!status) return false;
+  return status.includes("pending") || status.includes("under review") || status.includes("under_review");
+}
+
+function pickLatestPendingPermit(permits: Permit[]) {
+  return [...permits]
+    .filter((permit) => isPendingPermit(permit))
+    .sort((a, b) => permitPreviewTimestamp(b) - permitPreviewTimestamp(a))[0] || null;
+}
+
 /* ─── Main Component ─── */
 export default function Home() {
   const [permits, setPermits] = useState<Permit[]>([]);
+  const [heroPermit, setHeroPermit] = useState<Permit | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [selectedPermit, setSelectedPermit] = useState<Permit | null>(null);
   const [formData, setFormData] = useState({
@@ -290,6 +321,7 @@ export default function Home() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("All");
+  const [selectedPermitDomain, setSelectedPermitDomain] = useState("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -346,20 +378,25 @@ export default function Home() {
         const statsPromise = fetch(`${API_BASE}/api/stats`)
           .then((r) => (r.ok ? r.json() : null))
           .catch(() => null);
+        const heroPermitPromise = fetch(`${API_BASE}/api/public/latest-pending-permit`)
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null);
 
         if (!token || !hasApprovedAccess) {
-          const statsData = await statsPromise;
+          const [statsData, heroPermitData] = await Promise.all([statsPromise, heroPermitPromise]);
           setPermits([]);
           setStats(statsData);
+          setHeroPermit(heroPermitData);
           setLoading(false);
           return;
         }
 
-        const [permitsRes, statsData] = await Promise.all([
+        const [permitsRes, statsData, heroPermitData] = await Promise.all([
           fetch(`${API_BASE}/api/permits`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
           statsPromise,
+          heroPermitPromise,
         ]);
 
         if (!permitsRes.ok) {
@@ -368,8 +405,10 @@ export default function Home() {
         }
 
         const permitsData = await permitsRes.json();
-        setPermits(Array.isArray(permitsData) ? permitsData : []);
+        const normalizedPermits = Array.isArray(permitsData) ? permitsData : [];
+        setPermits(normalizedPermits);
         setStats(statsData);
+        setHeroPermit(heroPermitData || pickLatestPendingPermit(normalizedPermits));
       } catch (err) {
         console.error("Fetch error:", err);
         setError(err instanceof Error ? err.message : "Could not connect to the API. Please try again.");
@@ -634,13 +673,29 @@ export default function Home() {
   };
 
   const uniqueCountries = Array.from(new Set(permits.map((p) => p.country))).sort();
+  const uniqueDomains = Array.from(
+    new Set(
+      permits
+        .map((p) => String(p.permit_domain || "").trim())
+        .filter(Boolean)
+    )
+  ).sort();
+  const titleCaseDomain = (value: string) =>
+    value
+      .replace(/_/g, " ")
+      .split(" ")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
   const filteredPermits = permits.filter((p) => {
     const matchSearch =
       p.project_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.activity.toLowerCase().includes(searchTerm.toLowerCase());
     const matchCountry = selectedCountry === "All" || p.country === selectedCountry;
-    return matchSearch && matchCountry;
+    const matchDomain =
+      selectedPermitDomain === "All" ||
+      String(p.permit_domain || "other") === selectedPermitDomain;
+    return matchSearch && matchCountry && matchDomain;
   });
 
   const animPermits = useAnimatedCounter(stats?.totalPermits || 0);
@@ -736,7 +791,7 @@ export default function Home() {
             {/* ── Right: Permit Preview Card ── */}
             <div className="animate-fade-in-up hidden lg:flex flex-col gap-3" style={{ animationDelay: "200ms" }}>
               <p className="text-[11px] uppercase tracking-[0.2em] text-gray-400 text-center">Live permit analysis</p>
-              <PermitPreviewCard />
+              <PermitPreviewCard permit={heroPermit} />
             </div>
 
           </div>
@@ -813,7 +868,7 @@ export default function Home() {
             <h2 className="text-3xl md:text-4xl font-bold">Three steps to real impact</h2>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
-            <StepCard num="01" title="Find a Permit" desc="Browse the Open Permit intelligence feed across 8+ countries. Filter by country, location, or activity." icon={<Search className="w-5 h-5" />} />
+            <StepCard num="01" title="Find a Permit" desc="Browse the Open Permit intelligence feed across 8+ countries. Filter by permit type, country, location, or activity." icon={<Search className="w-5 h-5" />} />
             <StepCard num="02" title="AI Drafts Your Letter" desc="Our AI analyzes relevant laws, then writes a legally grounded objection — personalized to the specific permit." icon={<Sparkles className="w-5 h-5" />} />
             <StepCard num="03" title="Submit to Authorities" desc="Use authority contact details, review the draft, and send from your own email client." icon={<Mail className="w-5 h-5" />} />
           </div>
@@ -902,6 +957,16 @@ export default function Home() {
                   </div>
                   <select
                     className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500/30 text-slate-700"
+                    value={selectedPermitDomain}
+                    onChange={(e) => setSelectedPermitDomain(e.target.value)}
+                  >
+                    <option value="All">All Permit Types</option>
+                    {uniqueDomains.map((domain) => (
+                      <option key={domain} value={domain}>{titleCaseDomain(domain)}</option>
+                    ))}
+                  </select>
+                  <select
+                    className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500/30 text-slate-700"
                     value={selectedCountry}
                     onChange={(e) => setSelectedCountry(e.target.value)}
                   >
@@ -941,6 +1006,11 @@ export default function Home() {
                         <Clock className="w-3 h-3" />
                         {permit.location}
                       </span>
+                      {permit.permit_domain && (
+                        <span className="text-[10px] uppercase tracking-wider text-gray-500 border border-slate-200 rounded-full px-2 py-1">
+                          {titleCaseDomain(String(permit.permit_domain))}
+                        </span>
+                      )}
                       <ChevronRight className="w-4 h-4 text-gray-700 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
                     </div>
                   </div>
@@ -969,6 +1039,7 @@ export default function Home() {
                     <DetailRow label="Country" value={selectedPermit.country} />
                     <DetailRow label="Activity" value={selectedPermit.activity} />
                     {selectedPermit.category && <DetailRow label="Category" value={selectedPermit.category} />}
+                    {selectedPermit.permit_domain && <DetailRow label="Permit Type" value={titleCaseDomain(String(selectedPermit.permit_domain))} />}
                     {selectedPermit.capacity && <DetailRow label="Capacity" value={selectedPermit.capacity} />}
                     {selectedPermitNotes.reference && <DetailRow label="Reference" value={selectedPermitNotes.reference} />}
                     {selectedPermitNotes.externalId && <DetailRow label="External ID" value={selectedPermitNotes.externalId} />}
@@ -1191,59 +1262,85 @@ export default function Home() {
 }
 
 /* ─── Sub-components ─── */
-function PermitPreviewCard() {
+function PermitPreviewCard({ permit }: { permit: Permit | null }) {
+  const toTitle = (value: string) =>
+    String(value || "")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+
+  const reference = String(
+    permit?.external_id || permit?.reference || permit?.id || "Latest official record"
+  ).trim();
+  const status = String(permit?.status || "Pending");
+  const statusLower = status.toLowerCase();
+  const statusClass = statusLower.includes("approved")
+    ? "bg-emerald-500/10 text-emerald-600 border-emerald-200/50"
+    : statusLower.includes("rejected")
+      ? "bg-rose-500/10 text-rose-600 border-rose-200/50"
+      : statusLower.includes("review")
+        ? "bg-blue-500/10 text-blue-600 border-blue-200/50"
+        : "bg-amber-500/10 text-amber-600 border-amber-200/50";
+
+  const observedAt = permitPreviewTimestamp(permit);
+  const observedLabel = observedAt
+    ? new Date(observedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+    : "Unknown date";
+  const locationLine = [permit?.location, permit?.country].filter(Boolean).join(" · ");
+
   return (
     <div className="glass-card p-5 space-y-4 shadow-xl border border-slate-100/80">
       {/* Permit header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-          <span className="text-[11px] text-gray-400 font-mono">APP/2024/00892</span>
+          <span className="text-[11px] text-gray-400 font-mono">{reference}</span>
         </div>
-        <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 text-[10px] rounded-full font-medium border border-amber-200/50">
-          Pending Review
+        <span className={`px-2 py-0.5 text-[10px] rounded-full font-medium border ${statusClass}`}>
+          {status}
         </span>
       </div>
 
       {/* Title + location */}
       <div>
         <h4 className="font-semibold text-slate-900 text-sm leading-snug">
-          Riverside Intensive Poultry Unit Expansion
+          {permit?.project_title || "Loading latest pending permit..."}
         </h4>
         <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-1">
           <MapPin className="w-3 h-3" />
-          North Yorkshire, UK · 85,000 birds
+          {locationLine || "Official permit source"}
         </div>
       </div>
 
-      {/* Impact metrics */}
+      {/* Core details */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-slate-50 rounded-lg p-3">
-          <div className="text-[10px] text-gray-400 mb-1">Animals at risk</div>
-          <div className="text-xl font-bold text-slate-900">85,000</div>
+          <div className="text-[10px] text-gray-400 mb-1">Permit type</div>
+          <div className="text-xs font-semibold text-slate-900 leading-snug">
+            {permit?.permit_domain ? toTitle(String(permit.permit_domain)) : "Pending review"}
+          </div>
         </div>
         <div className="bg-slate-50 rounded-lg p-3">
-          <div className="text-[10px] text-gray-400 mb-1">Laws applicable</div>
-          <div className="text-xl font-bold text-slate-900">12</div>
+          <div className="text-[10px] text-gray-400 mb-1">Last updated</div>
+          <div className="text-xs font-semibold text-slate-900">{observedLabel}</div>
         </div>
       </div>
 
-      {/* AI analysis */}
+      {/* Source block */}
       <div className="bg-slate-50 rounded-lg p-3 space-y-2">
         <div className="flex items-center justify-between text-[11px]">
           <span className="text-gray-500 flex items-center gap-1.5">
             <Sparkles className="w-3 h-3 text-blue-400" />
-            Analysing against UK planning law...
+            Source-verified permit record
           </span>
-          <span className="text-emerald-600 font-medium">Done</span>
+          <span className="text-emerald-600 font-medium">Live</span>
         </div>
         <div className="h-1 rounded-full bg-slate-200 overflow-hidden">
           <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-blue-400 w-full" />
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {["Animal Welfare Act", "Environment Act", "Planning Policy"].map((l) => (
-            <span key={l} className="px-2 py-0.5 bg-blue-50 text-blue-500 text-[9px] rounded border border-blue-100">
-              {l}
+          {[permit?.source_name || "Official Government Source", permit?.activity || "Permit Activity"].map((label) => (
+            <span key={label} className="px-2 py-0.5 bg-blue-50 text-blue-500 text-[9px] rounded border border-blue-100">
+              {label}
             </span>
           ))}
         </div>
@@ -1255,8 +1352,8 @@ function PermitPreviewCard() {
           <CheckCircle className="w-4 h-4 text-emerald-500" />
         </div>
         <div>
-          <p className="text-xs font-semibold text-emerald-800">Legal objection ready to send</p>
-          <p className="text-[10px] text-emerald-600 mt-0.5">Generated in 1 min 42 sec · 847 words</p>
+          <p className="text-xs font-semibold text-emerald-800">Using latest real pending permit data</p>
+          <p className="text-[10px] text-emerald-600 mt-0.5">Automatically refreshed from trusted public sources</p>
         </div>
       </div>
     </div>
