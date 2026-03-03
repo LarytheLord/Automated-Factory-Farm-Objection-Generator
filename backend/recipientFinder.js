@@ -97,8 +97,17 @@ function loadRecipientDirectory() {
   return cachedDirectory;
 }
 
+function inferSourceKey(permit) {
+  let sourceKey = normalizeText(permit?.source_key);
+  if (sourceKey) return sourceKey.toLowerCase();
+  const notes = normalizeText(permit?.notes);
+  if (!notes) return '';
+  const sourceKeyMatch = notes.match(/Source Key:\s*([a-z0-9_:-]+)/i);
+  return sourceKeyMatch?.[1] ? normalizeText(sourceKeyMatch[1]).toLowerCase() : '';
+}
+
 function parsePermitHints(permit) {
-  const sourceKey = normalizeText(permit?.source_key);
+  const sourceKey = inferSourceKey(permit);
   const country = normalizeText(permit?.country);
   const notes = normalizeText(permit?.notes);
   let reviewer = normalizeText(permit?.reviewer);
@@ -122,6 +131,15 @@ function scoreDirectoryEntry(entry, hints) {
   const entryCountry = normalizeText(entry.country);
   const entryReviewer = normalizeKey(entry.reviewer_key || entry.authority_name);
   const tags = Array.isArray(entry.tags) ? entry.tags.map((tag) => normalizeText(tag).toLowerCase()) : [];
+
+  // If both sides are source-scoped and they don't match, block cross-source leakage.
+  if (hints.sourceKey && entrySource && entrySource !== hints.sourceKey) {
+    return 0;
+  }
+  // If entry is source-scoped but permit has no source/reviewer hints, avoid cross-state guessing.
+  if (entrySource && !hints.sourceKey && !hints.reviewerKey) {
+    return 0;
+  }
 
   if (entrySource && hints.sourceKey && entrySource === hints.sourceKey) score += 70;
   if (entryCountry && hints.country && entryCountry.toLowerCase() === hints.country.toLowerCase()) score += 20;
@@ -162,7 +180,7 @@ function buildDirectorySuggestions(permit) {
 }
 
 function buildOfficialFallbacks(permit) {
-  const sourceKey = normalizeText(permit?.source_key);
+  const sourceKey = inferSourceKey(permit);
   const country = normalizeText(permit?.country);
   const sourceUrl = normalizeText(permit?.source_url);
 
@@ -189,6 +207,18 @@ function buildOfficialFallbacks(permit) {
       action_url:
         'https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts',
       reason: 'Official NC DEQ contact directory for Animal Feeding Operations',
+      score: 50,
+    });
+  }
+
+  if (sourceKey === 'us_arkansas_deq_pds') {
+    suggestions.push({
+      id: 'arkansas-deq-pds',
+      label: 'Arkansas DEQ Permit Data System (PDS)',
+      type: 'webform',
+      confidence: 'official',
+      action_url: 'https://www.adeq.state.ar.us/home/pdssql/pds.aspx',
+      reason: 'Official Arkansas DEQ permit lookup and contact route',
       score: 50,
     });
   }
