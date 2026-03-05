@@ -1,26 +1,54 @@
 {
   "version": 1,
-  "generated_at": "2026-03-03T09:33:27.134Z",
+  "generated_at": "2026-03-05T17:36:20.338Z",
   "source_audit": [
     {
       "source_key": "nc_deq_application_tracker",
       "url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "fetched_at": "2026-03-03T09:33:23.157Z",
+      "fetched_at": "2026-03-05T17:36:13.011Z",
       "status": "ok",
       "emails_found": 24
     },
     {
       "source_key": "uk_ea_public_register",
       "url": "https://www.gov.uk/access-the-public-register-for-environmental-information",
-      "fetched_at": "2026-03-03T09:33:24.978Z",
+      "fetched_at": "2026-03-05T17:36:18.062Z",
       "status": "ok",
       "emails_found": 2
     },
     {
       "source_key": "us_arkansas_deq_pds",
       "url": "https://www.adeq.state.ar.us/home/pdssql/pds.aspx",
-      "fetched_at": "2026-03-03T09:33:27.132Z",
+      "fetched_at": "2026-03-05T17:36:20.337Z",
       "status": "ok",
+      "emails_found": 1
+    },
+    {
+      "source_key": "ie_epa_leap",
+      "url": "https://www.epa.ie/who-we-are/contact-us/",
+      "fetched_at": "2026-03-05T17:36:20.338Z",
+      "status": "static_directory",
+      "emails_found": 1
+    },
+    {
+      "source_key": "au_epbc_referrals",
+      "url": "https://www.dcceew.gov.au/environment/epbc/referrals",
+      "fetched_at": "2026-03-05T17:36:20.338Z",
+      "status": "static_directory",
+      "emails_found": 1
+    },
+    {
+      "source_key": "ca_on_ero_instruments",
+      "url": "https://www.ontario.ca/page/environmental-compliance-approval",
+      "fetched_at": "2026-03-05T17:36:20.338Z",
+      "status": "static_directory",
+      "emails_found": 2
+    },
+    {
+      "source_key": "in_parivesh_seiaa_pending_ec",
+      "url": "https://environmentclearance.nic.in/state_portal1.aspx",
+      "fetched_at": "2026-03-05T17:36:20.338Z",
+      "status": "static_directory",
       "emails_found": 1
     }
   ],
@@ -426,6 +454,82 @@
         "program_contact"
       ],
       "reason": "Published on Arkansas DEQ Permit Data System page"
+    },
+    {
+      "id": "ie-epa-licensing",
+      "source_key": "ie_epa_leap",
+      "country": "Ireland",
+      "authority_name": "Ireland EPA Licensing Team",
+      "reviewer_key": "ireland epa licensing team",
+      "email": "licensing@epa.ie",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.epa.ie/who-we-are/contact-us/",
+      "tags": [
+        "primary"
+      ],
+      "reason": "Official Ireland EPA licensing contact route for permit and licence queries"
+    },
+    {
+      "id": "au-epbc-referrals",
+      "source_key": "au_epbc_referrals",
+      "country": "Australia",
+      "authority_name": "EPBC Referrals Team",
+      "reviewer_key": "epbc referrals team",
+      "email": "epbc.referrals@dcceew.gov.au",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.dcceew.gov.au/environment/epbc/referrals",
+      "tags": [
+        "primary"
+      ],
+      "reason": "Official EPBC referrals submission contact for Commonwealth environment referrals"
+    },
+    {
+      "id": "ca-on-enviropermissions",
+      "source_key": "ca_on_ero_instruments",
+      "country": "Canada",
+      "authority_name": "Ontario Environmental Permissions Branch",
+      "reviewer_key": "ontario environmental permissions branch",
+      "email": "enviropermissions@ontario.ca",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.ontario.ca/page/environmental-compliance-approval",
+      "tags": [
+        "primary"
+      ],
+      "reason": "Official Ontario Environmental Compliance Approval submissions mailbox"
+    },
+    {
+      "id": "ca-on-eca-submissions",
+      "source_key": "ca_on_ero_instruments",
+      "country": "Canada",
+      "authority_name": "Ontario ECA Submission Desk",
+      "reviewer_key": "ontario eca submission desk",
+      "email": "eca.submission@ontario.ca",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.ontario.ca/page/environmental-compliance-approval",
+      "tags": [
+        "support"
+      ],
+      "reason": "Official Ontario ECA submission mailbox published by Ontario government"
+    },
+    {
+      "id": "in-parivesh-monitoring",
+      "source_key": "in_parivesh_seiaa_pending_ec",
+      "country": "India",
+      "authority_name": "PARIVESH State EC Support",
+      "reviewer_key": "parivesh state ec support",
+      "email": "monitoring-deiaa@gov.in",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://environmentclearance.nic.in/state_portal1.aspx",
+      "tags": [
+        "primary",
+        "state_contact"
+      ],
+      "reason": "Official PARIVESH support contact for state EC process communication routing"
     }
   ]
 }

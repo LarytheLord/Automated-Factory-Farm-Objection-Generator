@@ -11,6 +11,10 @@ const UK_REGISTER_INFO_URL =
   'https://www.gov.uk/access-the-public-register-for-environmental-information';
 const ARKANSAS_PDS_URL =
   'https://www.adeq.state.ar.us/home/pdssql/pds.aspx';
+const IRELAND_EPA_CONTACT_URL = 'https://www.epa.ie/who-we-are/contact-us/';
+const AUSTRALIA_EPBC_CONTACT_URL = 'https://www.dcceew.gov.au/environment/epbc/referrals';
+const ONTARIO_PERMISSIONS_URL = 'https://www.ontario.ca/page/environmental-compliance-approval';
+const INDIA_PARIVESH_URL = 'https://environmentclearance.nic.in/state_portal1.aspx';
 
 function normalizeText(value, fallback = '') {
   if (value === null || value === undefined) return fallback;
@@ -192,6 +196,76 @@ function buildArkansasEntries(arkansasEmails) {
   return entries;
 }
 
+function buildStaticGlobalEntries() {
+  return [
+    {
+      id: 'ie-epa-licensing',
+      source_key: 'ie_epa_leap',
+      country: 'Ireland',
+      authority_name: 'Ireland EPA Licensing Team',
+      reviewer_key: 'ireland epa licensing team',
+      email: 'licensing@epa.ie',
+      type: 'email',
+      confidence: 'official_directory',
+      source_url: IRELAND_EPA_CONTACT_URL,
+      tags: ['primary'],
+      reason: 'Official Ireland EPA licensing contact route for permit and licence queries',
+    },
+    {
+      id: 'au-epbc-referrals',
+      source_key: 'au_epbc_referrals',
+      country: 'Australia',
+      authority_name: 'EPBC Referrals Team',
+      reviewer_key: 'epbc referrals team',
+      email: 'epbc.referrals@dcceew.gov.au',
+      type: 'email',
+      confidence: 'official_directory',
+      source_url: AUSTRALIA_EPBC_CONTACT_URL,
+      tags: ['primary'],
+      reason: 'Official EPBC referrals submission contact for Commonwealth environment referrals',
+    },
+    {
+      id: 'ca-on-enviropermissions',
+      source_key: 'ca_on_ero_instruments',
+      country: 'Canada',
+      authority_name: 'Ontario Environmental Permissions Branch',
+      reviewer_key: 'ontario environmental permissions branch',
+      email: 'enviropermissions@ontario.ca',
+      type: 'email',
+      confidence: 'official_directory',
+      source_url: ONTARIO_PERMISSIONS_URL,
+      tags: ['primary'],
+      reason: 'Official Ontario Environmental Compliance Approval submissions mailbox',
+    },
+    {
+      id: 'ca-on-eca-submissions',
+      source_key: 'ca_on_ero_instruments',
+      country: 'Canada',
+      authority_name: 'Ontario ECA Submission Desk',
+      reviewer_key: 'ontario eca submission desk',
+      email: 'eca.submission@ontario.ca',
+      type: 'email',
+      confidence: 'official_directory',
+      source_url: ONTARIO_PERMISSIONS_URL,
+      tags: ['support'],
+      reason: 'Official Ontario ECA submission mailbox published by Ontario government',
+    },
+    {
+      id: 'in-parivesh-monitoring',
+      source_key: 'in_parivesh_seiaa_pending_ec',
+      country: 'India',
+      authority_name: 'PARIVESH State EC Support',
+      reviewer_key: 'parivesh state ec support',
+      email: 'monitoring-deiaa@gov.in',
+      type: 'email',
+      confidence: 'official_directory',
+      source_url: INDIA_PARIVESH_URL,
+      tags: ['primary', 'state_contact'],
+      reason: 'Official PARIVESH support contact for state EC process communication routing',
+    },
+  ];
+}
+
 async function run() {
   const sourceAudit = [];
   const reviewerNames = readIngestedReviewerNames();
@@ -267,10 +341,28 @@ async function run() {
   }
 
   const reviewerMatches = mapReviewerEmails(ncEmails, reviewerNames);
+  const staticEntries = buildStaticGlobalEntries();
+  const staticSources = [
+    { source_key: 'ie_epa_leap', url: IRELAND_EPA_CONTACT_URL },
+    { source_key: 'au_epbc_referrals', url: AUSTRALIA_EPBC_CONTACT_URL },
+    { source_key: 'ca_on_ero_instruments', url: ONTARIO_PERMISSIONS_URL },
+    { source_key: 'in_parivesh_seiaa_pending_ec', url: INDIA_PARIVESH_URL },
+  ];
+  for (const source of staticSources) {
+    sourceAudit.push({
+      source_key: source.source_key,
+      url: source.url,
+      fetched_at: new Date().toISOString(),
+      status: 'static_directory',
+      emails_found: staticEntries.filter((entry) => entry.source_key === source.source_key).length,
+    });
+  }
+
   const entries = [
     ...buildNcEntries(ncEmails, reviewerMatches),
     ...buildUkEntries(ukEmails),
     ...buildArkansasEntries(arkansasEmails),
+    ...staticEntries,
   ];
 
   const payload = {

@@ -164,5 +164,27 @@
     "enabled": false,
     "poll_interval_hours": 24,
     "notes": "Official Ontario ERO instrument notices used by the global pending sync script for open proposal comment periods."
+  },
+  {
+    "key": "in_parivesh_seiaa_pending_ec",
+    "name": "India PARIVESH State EC Pending Proposals",
+    "country": "India",
+    "trust_level": "official",
+    "type": "html_search",
+    "url": "https://environmentclearance.nic.in/state_portal1.aspx",
+    "enabled": false,
+    "poll_interval_hours": 24,
+    "notes": "Official PARIVESH state portal used by the global pending sync script to ingest pending state EC proposals."
+  },
+  {
+    "key": "in_ocmms_pending_consent",
+    "name": "India OCMMS Pending Consent Registry",
+    "country": "India",
+    "trust_level": "official",
+    "type": "html_search",
+    "url": "https://ocmms.nic.in/OCMMS_NEW/searchStatus.jsp",
+    "enabled": false,
+    "poll_interval_hours": 24,
+    "notes": "Official OCMMS pending consent search used for farm-related pending applications (state/district level)."
   }
 ]

@@ -19,7 +19,7 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 
 const LEGACY_PAYLOAD_MARKER = 'Original Payload JSON:';
 const DEFAULT_LOOKBACK_DAYS = Number.parseInt(process.env.GLOBAL_PENDING_LOOKBACK_DAYS || '120', 10);
-const INCLUDE_NON_FARM = String(process.env.GLOBAL_PENDING_INCLUDE_NON_FARM || 'true').toLowerCase() !== 'false';
+const INCLUDE_NON_FARM = String(process.env.GLOBAL_PENDING_INCLUDE_NON_FARM || 'false').toLowerCase() !== 'false';
 
 const SOURCE_DEFS = {
   uk: {
@@ -46,15 +46,21 @@ const SOURCE_DEFS = {
     key: 'ca_on_ero_instruments',
     name: 'Ontario Environmental Registry (ERO) Instruments',
   },
+  in_ec: {
+    key: 'in_parivesh_seiaa_pending_ec',
+    name: 'India PARIVESH State EC Pending Proposals',
+  },
 };
 
 const PENDING_STATUS_RE = /\b(pending|application pending|in review|under review|in process|processing|applied|application received|submitted|publish pending)\b/i;
-const FARM_KEYWORDS_RE = /\b(poultry|broiler|layer|chicken|turkey|pig|swine|hog|sow|livestock|dairy|farrow|intensive farming|factory farm)\b/i;
+const FARM_KEYWORDS_RE = /\b(poultry|broiler|layer|chicken|turkey|pig|swine|hog|sow|livestock|dairy|farrow|piggery|hatchery|abattoir|slaughter|meat processing|animal feeding|intensive farming|factory farm|cafo|feedlot)\b/i;
 const INTENSIVE_KEYWORDS_RE = /\b(intensive farming|rearing of poultry intensively|section\s*6\.9|6\.9\s*a\(1\)|animal operations)\b/i;
-const INFRA_KEYWORDS_RE = /\b(infrastructure|construction|road|highway|rail|metro|airport|port|mining|quarry|energy|solar|wind|transmission|data centre|data center|industrial plant|factory|manufacturing|refinery|cement|steel|chemical)\b/i;
+const INFRA_KEYWORDS_RE = /\b(infrastructure|construction|road|highway|rail|metro|airport|port|mining|quarry|energy|thermal|solar|wind|transmission|power|data centre|data center|industrial plant|factory|manufacturing|refinery|cement|steel|chemical)\b/i;
 const POLLUTION_KEYWORDS_RE = /\b(industrial emissions|permit to operate|effluent|discharge|air pollution|water pollution|waste management|landfill|incinerator|pollution control|environmental permit)\b/i;
 const AU_NOT_PENDING_RE = /\b(completed|post-approval|lapsed|withdrawn|refused|approval decision made|referral decision made)\b/i;
 const ONTARIO_FARM_KEYWORDS_RE = /\b(poultry|broiler|layer|chicken|turkey|pig|swine|hog|sow|livestock|dairy|farrow|intensive farming|factory farm|feedlot|fish farm|aquaculture)\b/i;
+const INDIA_PENDING_LABEL_RE = /\b(awaiting|pending|under examination|accepted by seiaa and forwarded to seac|recommended by seac and forwarded to seiaa)\b/i;
+const INDIA_NON_PENDING_LABEL_RE = /\b(granted|rejected|withdraw|delisted|not recommended|transferred|site visit|ads by)\b/i;
 
 function normalizeText(value, fallback = '') {
   if (value === null || value === undefined) return fallback;
@@ -107,10 +113,60 @@ function decodeHtmlEntities(value) {
     .replace(/&gt;/gi, '>');
 }
 
+function parseIndiaDate(raw) {
+  const value = normalizeText(raw);
+  if (!value) return null;
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  const parsed = new Date(normalized);
+  if (!Number.isNaN(parsed.getTime())) return parsed;
+
+  const match = normalized.match(/(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})/);
+  if (!match) return null;
+  const day = Number.parseInt(match[1], 10);
+  const monthToken = match[2].slice(0, 3).toLowerCase();
+  const year = Number.parseInt(match[3], 10);
+  const months = {
+    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+  };
+  const month = months[monthToken];
+  if (!Number.isFinite(day) || !Number.isFinite(year) || month === undefined) return null;
+  const dt = new Date(Date.UTC(year, month, day));
+  return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
+function extractLastIndiaSubmissionDate(importantDatesText) {
+  const text = normalizeText(importantDatesText);
+  if (!text) return null;
+
+  const ecMatch = text.match(/Date of Submission for EC\s*:?\s*([0-9]{1,2}\s+[A-Za-z]{3,}\s+[0-9]{4})/i);
+  const torMatch = text.match(/Date of Submission for TOR\s*:?\s*([0-9]{1,2}\s+[A-Za-z]{3,}\s+[0-9]{4})/i);
+
+  const ecDate = ecMatch ? parseIndiaDate(ecMatch[1]) : null;
+  const torDate = torMatch ? parseIndiaDate(torMatch[1]) : null;
+
+  if (ecDate && torDate) return ecDate > torDate ? ecDate : torDate;
+  return ecDate || torDate || null;
+}
+
 function toSafeJson(value, maxChars = 50000) {
   const raw = JSON.stringify(value, null, 2);
   if (raw.length <= maxChars) return raw;
   return `${raw.slice(0, maxChars)}\n...TRUNCATED...`;
+}
+
+function limitSourcePayload(value, maxChars = 18000) {
+  try {
+    const raw = JSON.stringify(value || {});
+    if (raw.length <= maxChars) return value || {};
+    return {
+      truncated: true,
+      raw_preview: raw.slice(0, maxChars),
+      raw_length: raw.length,
+    };
+  } catch (_error) {
+    return { truncated: true, raw_preview: 'unserializable payload' };
+  }
 }
 
 async function fetchJson(url, timeoutMs = 45000) {
@@ -264,7 +320,7 @@ function inferPermitSubtype(text, fallback = 'general_permit') {
 }
 
 function buildUpsertRecord(record, useSourceMetadataColumns, useDomainColumns, nowIso) {
-  const sourcePayload = record.source_payload || {};
+  const sourcePayload = limitSourcePayload(record.source_payload || {});
   const common = {
     project_title: record.project_title,
     location: record.location,
@@ -324,8 +380,35 @@ function buildLegacyPermitKey(permit) {
   ].join('::');
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withRetries(fn, label, maxAttempts = 4) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      const message = normalizeText(error?.message, '');
+      const isRetryable = /fetch failed|network|ECONNRESET|ETIMEDOUT|EHOSTUNREACH|ENOTFOUND/i.test(message);
+      if (!isRetryable || attempt >= maxAttempts) {
+        throw error;
+      }
+      const waitMs = Math.min(8000, 600 * attempt * attempt);
+      console.warn(`⚠️ ${label} attempt ${attempt} failed (${message}); retrying in ${waitMs}ms`);
+      await sleep(waitMs);
+    }
+  }
+  throw lastError || new Error(`Failed after retries: ${label}`);
+}
+
 async function supportsSourceMetadataColumns() {
-  const { error } = await supabase.from('permits').select('id,ingest_key,source_payload').limit(1);
+  const { error } = await withRetries(
+    () => supabase.from('permits').select('id,ingest_key,source_payload').limit(1),
+    'schema-check-source-columns',
+  );
   if (!error) return true;
   const message = String(error.message || '');
   if (message.includes('column permits.ingest_key does not exist')) return false;
@@ -334,10 +417,14 @@ async function supportsSourceMetadataColumns() {
 }
 
 async function supportsDomainColumns() {
-  const { error } = await supabase
-    .from('permits')
-    .select('id,permit_domain,permit_subtype,jurisdiction_region,recipient_status')
-    .limit(1);
+  const { error } = await withRetries(
+    () =>
+      supabase
+        .from('permits')
+        .select('id,permit_domain,permit_subtype,jurisdiction_region,recipient_status')
+        .limit(1),
+    'schema-check-domain-columns',
+  );
   if (!error) return true;
   const message = String(error.message || '');
   if (message.includes('column permits.permit_domain does not exist')) return false;
@@ -355,17 +442,29 @@ async function upsertPermits(records, useSourceMetadataColumns, useDomainColumns
   );
 
   if (useSourceMetadataColumns) {
-    const { error } = await supabase
-      .from('permits')
-      .upsert(payload, { onConflict: 'ingest_key' });
-    if (error) throw error;
+    const batchSize = Math.max(20, Math.min(200, Number.parseInt(process.env.GLOBAL_PENDING_UPSERT_BATCH_SIZE || '80', 10)));
+    for (let i = 0; i < payload.length; i += batchSize) {
+      const chunk = payload.slice(i, i + batchSize);
+      const { error } = await withRetries(
+        () =>
+          supabase
+            .from('permits')
+            .upsert(chunk, { onConflict: 'ingest_key' }),
+        `upsert-chunk-${Math.floor(i / batchSize) + 1}`,
+      );
+      if (error) throw error;
+    }
     return { inserted: payload.length, updated: 0 };
   }
 
-  const { data: existing, error: existingError } = await supabase
-    .from('permits')
-    .select('id,project_title,location,country')
-    .range(0, 15000);
+  const { data: existing, error: existingError } = await withRetries(
+    () =>
+      supabase
+        .from('permits')
+        .select('id,project_title,location,country')
+        .range(0, 15000),
+    'load-existing-legacy',
+  );
   if (existingError) throw existingError;
 
   const existingByKey = new Map();
@@ -380,18 +479,26 @@ async function upsertPermits(records, useSourceMetadataColumns, useDomainColumns
     const key = buildLegacyPermitKey(record);
     const existingId = existingByKey.get(key);
     if (existingId) {
-      const { error } = await supabase
-        .from('permits')
-        .update(record)
-        .eq('id', existingId);
+      const { error } = await withRetries(
+        () =>
+          supabase
+            .from('permits')
+            .update(record)
+            .eq('id', existingId),
+        `legacy-update-${existingId}`,
+      );
       if (error) throw error;
       updated += 1;
     } else {
-      const { data, error } = await supabase
-        .from('permits')
-        .insert(record)
-        .select('id')
-        .single();
+      const { data, error } = await withRetries(
+        () =>
+          supabase
+            .from('permits')
+            .insert(record)
+            .select('id')
+            .single(),
+        'legacy-insert',
+      );
       if (error) throw error;
       existingByKey.set(key, data?.id);
       inserted += 1;
@@ -447,7 +554,7 @@ async function fetchUkPendingPermits(now, lookbackDays) {
       const text = `${title}\n${description}\n${body}\n${attachmentText}`;
       const domain = classifyPermitDomain(text);
       if (!INCLUDE_NON_FARM) {
-        if (!FARM_KEYWORDS_RE.test(text) || !INTENSIVE_KEYWORDS_RE.test(text)) continue;
+        if (!FARM_KEYWORDS_RE.test(text)) continue;
       } else if (domain === 'other') {
         continue;
       }
@@ -833,6 +940,228 @@ async function fetchOntarioPendingPermits(now) {
   return rows;
 }
 
+function extractIndiaStateNames(portalHtml) {
+  const names = new Set();
+  const matches = portalHtml.matchAll(/Staterecord\.aspx\?State_Name=([^"'&>]+)/gi);
+  for (const match of matches) {
+    const raw = normalizeText(match[1]).replace(/\+/g, ' ');
+    if (!raw) continue;
+    try {
+      names.add(decodeURIComponent(raw));
+    } catch (_error) {
+      names.add(raw);
+    }
+  }
+  return Array.from(names);
+}
+
+function parseIndiaStateMetadata(stateHtml) {
+  const stateCode =
+    normalizeText((stateHtml.match(/id="StateId"\s+value="([^"]+)"/i) || [])[1]) ||
+    normalizeText((stateHtml.match(/id="hdnstateid"\s+value="([^"]+)"/i) || [])[1]);
+  const stateNumericId = normalizeText((stateHtml.match(/state_id=(\d+)/i) || [])[1]);
+  return { stateCode, stateNumericId };
+}
+
+function extractIndiaPendingStatusLinks(homeHtml) {
+  const links = [];
+  const seen = new Set();
+  const anchorMatches = homeHtml.matchAll(/<a[^>]+href='(online_track_proposal_state\.aspx\?[^']+)'[^>]*>([\s\S]*?)<\/a>/gi);
+  for (const match of anchorMatches) {
+    const hrefRaw = normalizeText(match[1]).replace(/&amp;/g, '&');
+    if (!hrefRaw || seen.has(hrefRaw)) continue;
+    const count = Number.parseInt((stripTags(match[2]).match(/\d+/) || ['0'])[0], 10);
+    if (!Number.isFinite(count) || count <= 0) continue;
+
+    const before = homeHtml.slice(Math.max(0, (match.index || 0) - 900), match.index || 0);
+    const labels = Array.from(before.matchAll(/<li class="arrow[^"]*">([\s\S]*?)<\/li>/gi)).map((item) =>
+      stripTags(item[1])
+    );
+    let label = normalizeText(labels[labels.length - 1]);
+    if (!label) {
+      const fallbackText = stripTags(before).replace(/\s+/g, ' ').trim();
+      const fallbackMatch = fallbackText.match(/([A-Za-z][A-Za-z\s,&/()-]{6,90})\s*$/);
+      label = normalizeText(fallbackMatch?.[1]);
+    }
+    if (!label) label = `Pending bucket ${links.length + 1}`;
+    if (INDIA_NON_PENDING_LABEL_RE.test(label)) continue;
+
+    seen.add(hrefRaw);
+    links.push({ href: hrefRaw, label, count });
+  }
+
+  return links.sort((a, b) => b.count - a.count);
+}
+
+function parseIndiaProposalRows(statusHtml) {
+  const tableStart = statusHtml.indexOf('id="ctl00_ContentPlaceHolder1_GridView1"');
+  if (tableStart === -1) return [];
+  const detailMarker = statusHtml.indexOf('id="ctl00_ContentPlaceHolder1_detail_td"', tableStart);
+  const gridFragment = detailMarker > tableStart
+    ? statusHtml.slice(tableStart, detailMarker)
+    : statusHtml.slice(tableStart);
+  if (/No Records Found/i.test(gridFragment)) return [];
+
+  const rows = [];
+  const rowSegments = gridFragment.split(/<tr bgcolor="White">/gi).slice(1);
+  for (const rowHtml of rowSegments) {
+    if (/No Records Found/i.test(rowHtml)) continue;
+
+    const proposalNo = normalizeText((rowHtml.match(/_std"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_std"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    const fileNo = normalizeText((rowHtml.match(/_fn"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_fn"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    const title = normalizeText((rowHtml.match(/_Label2"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_Label2"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    if (!title) continue;
+
+    const state = normalizeText((rowHtml.match(/_stdname1"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_stdname1"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    const district = normalizeText((rowHtml.match(/_lbldis1"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_lbldis1"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    const locality = normalizeText((rowHtml.match(/_lblvill1"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_lblvill1"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    const category = normalizeText((rowHtml.match(/_dst"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_dst"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    const company = normalizeText((rowHtml.match(/_uag"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_uag"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    const currentStatus = normalizeText((rowHtml.match(/_Label1"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_Label1"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    const importantDatesRaw = normalizeText((rowHtml.match(/_datehtml"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_datehtml"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    const attachmentLinks = Array.from(rowHtml.matchAll(/href='([^']+)'/gi))
+      .map((item) => normalizeText(item[1]).replace(/&amp;/g, '&'))
+      .filter((href) => href && !href.toLowerCase().startsWith('javascript:'));
+
+    rows.push({
+      proposal_no: proposalNo,
+      file_no: fileNo,
+      title,
+      state,
+      district,
+      locality,
+      category,
+      company,
+      current_status: currentStatus,
+      important_dates: importantDatesRaw,
+      attachment_links: attachmentLinks,
+    });
+  }
+
+  return rows;
+}
+
+async function fetchIndiaPendingPermits(now, lookbackDays) {
+  const source = SOURCE_DEFS.in_ec;
+  const maxStates = Math.max(1, Math.min(36, Number.parseInt(process.env.INDIA_PENDING_MAX_STATES || '12', 10)));
+  const maxStatusLinksPerState = Math.max(1, Math.min(12, Number.parseInt(process.env.INDIA_PENDING_MAX_LINKS_PER_STATE || '4', 10)));
+  const maxRecords = Math.max(20, Math.min(1500, Number.parseInt(process.env.INDIA_PENDING_MAX_RECORDS || '180', 10)));
+  const indiaLookbackDays = Math.max(
+    90,
+    Number.parseInt(process.env.INDIA_PENDING_LOOKBACK_DAYS || String(Math.max(lookbackDays, 730)), 10),
+  );
+  const oldestAllowed = new Date(now.getTime() - indiaLookbackDays * 24 * 60 * 60 * 1000);
+
+  const portalHtml = await fetchText('https://environmentclearance.nic.in/state_portal1.aspx', 90000);
+  const priorityStates = [
+    'Maharashtra',
+    'Tamil Nadu',
+    'Karnataka',
+    'Gujarat',
+    'Rajasthan',
+    'Andhra Pradesh',
+    'Telangana',
+    'Uttar Pradesh',
+    'Madhya Pradesh',
+    'Kerala',
+    'Punjab',
+    'Haryana',
+    'Orissa',
+    'West Bengal',
+    'Bihar',
+  ];
+  const priorityIndex = new Map(priorityStates.map((name, index) => [name.toLowerCase(), index]));
+  const stateNames = extractIndiaStateNames(portalHtml)
+    .sort((a, b) => {
+      const aIndex = priorityIndex.has(a.toLowerCase()) ? priorityIndex.get(a.toLowerCase()) : 999;
+      const bIndex = priorityIndex.has(b.toLowerCase()) ? priorityIndex.get(b.toLowerCase()) : 999;
+      if (aIndex !== bIndex) return aIndex - bIndex;
+      return a.localeCompare(b);
+    })
+    .slice(0, maxStates);
+  const records = [];
+
+  for (const stateName of stateNames) {
+    try {
+      const encodedState = encodeURIComponent(stateName);
+      const stateUrl = `https://environmentclearance.nic.in/Staterecord.aspx?State_Name=${encodedState}`;
+      const stateHtml = await fetchText(stateUrl, 90000);
+      const { stateCode, stateNumericId } = parseIndiaStateMetadata(stateHtml);
+      if (!stateCode) continue;
+
+      const homeUrl = `https://environmentclearance.nic.in/HomeStateEC.aspx?state_name=${encodedState}&state_id=${encodeURIComponent(stateCode)}`;
+      const homeHtml = await fetchText(homeUrl, 90000);
+      const statusLinks = extractIndiaPendingStatusLinks(homeHtml).slice(0, maxStatusLinksPerState);
+
+      for (const statusLink of statusLinks) {
+        const statusUrl = `https://environmentclearance.nic.in/${statusLink.href}`;
+        const statusHtml = await fetchText(statusUrl, 90000);
+        const rows = parseIndiaProposalRows(statusHtml);
+        for (const row of rows) {
+          if (records.length >= maxRecords) break;
+
+          const externalId = normalizeText(row.proposal_no || row.file_no);
+          if (!externalId) continue;
+
+          const location = [row.locality, row.district || stateName, stateName].filter(Boolean).join(', ');
+          const text = `${row.title} ${row.category} ${row.company} ${row.current_status}`.trim();
+          const domain = classifyPermitDomain(text);
+          if (!INCLUDE_NON_FARM && !FARM_KEYWORDS_RE.test(text)) continue;
+
+          const submittedDate = extractLastIndiaSubmissionDate(row.important_dates);
+          if (submittedDate && submittedDate < oldestAllowed) continue;
+
+          const attachments = row.attachment_links.slice(0, 5).map((href) => {
+            if (href.startsWith('http://') || href.startsWith('https://')) return href;
+            return `https://environmentclearance.nic.in/${href.replace(/^\//, '')}`;
+          });
+
+          records.push({
+            ingest_key: buildIngestKey(source.key, externalId, row.title, location, 'India'),
+            source_key: source.key,
+            source_name: source.name,
+            source_url: statusUrl,
+            external_id: externalId,
+            project_title: row.title,
+            location: location || stateName,
+            country: 'India',
+            activity: row.category
+              ? `Environmental Clearance Proposal - ${row.category}`
+              : 'Environmental Clearance Proposal',
+            category: 'Red',
+            permit_domain: domain,
+            permit_subtype: inferPermitSubtype(text, 'india_state_ec_proposal'),
+            jurisdiction_region: stateName,
+            recipient_status: 'missing',
+            notes: `Official PARIVESH pending EC proposal (${statusLink.label})${row.current_status ? `; current status: ${row.current_status}` : ''}.`,
+            published_at: submittedDate ? submittedDate.toISOString() : null,
+            consultation_deadline: null,
+            source_payload: {
+              state_name: stateName,
+              state_code: stateCode,
+              state_numeric_id: stateNumericId || null,
+              pending_bucket: statusLink.label,
+              proposal_no: row.proposal_no,
+              file_no: row.file_no,
+              company: row.company,
+              category: row.category,
+              current_status: row.current_status,
+              important_dates: row.important_dates,
+              attachments,
+            },
+          });
+        }
+        if (records.length >= maxRecords) break;
+      }
+      if (records.length >= maxRecords) break;
+    } catch (_error) {
+      // Continue with remaining states on individual failures.
+    }
+  }
+
+  return records;
+}
+
 function dedupeRecords(records) {
   const seen = new Set();
   const deduped = [];
@@ -861,13 +1190,14 @@ async function run() {
   const useSourceMetadataColumns = await supportsSourceMetadataColumns();
   const useDomainColumns = await supportsDomainColumns();
 
-  const [ukSource, ncSource, arSource, auSource, ieSource, onSource] = await Promise.all([
+  const [ukSource, ncSource, arSource, auSource, ieSource, onSource, indiaSource] = await Promise.all([
     resolveSourceRows('UK', () => fetchUkPendingPermits(now, lookbackDays)),
     resolveSourceRows('US NC', () => fetchNcPendingPermits()),
     resolveSourceRows('US Arkansas', () => fetchArkansasPendingPermits()),
     resolveSourceRows('Australia', () => fetchAustraliaPendingPermits()),
     resolveSourceRows('Ireland', () => fetchIrelandPendingPermits()),
     resolveSourceRows('Canada (Ontario ERO)', () => fetchOntarioPendingPermits(now)),
+    resolveSourceRows('India (PARIVESH State EC)', () => fetchIndiaPendingPermits(now, lookbackDays)),
   ]);
 
   const ukRows = ukSource.rows;
@@ -876,6 +1206,7 @@ async function run() {
   const auRows = auSource.rows;
   const ieRows = ieSource.rows;
   const onRows = onSource.rows;
+  const indiaRows = indiaSource.rows;
 
   const combined = dedupeRecords([
     ...ukRows,
@@ -884,6 +1215,7 @@ async function run() {
     ...auRows,
     ...ieRows,
     ...onRows,
+    ...indiaRows,
   ]);
 
   const result = await upsertPermits(combined, useSourceMetadataColumns, useDomainColumns);
@@ -909,7 +1241,8 @@ async function run() {
   console.log(`   Australia records: ${auRows.length}`);
   console.log(`   Ireland records: ${ieRows.length}`);
   console.log(`   Canada (Ontario ERO) records: ${onRows.length}`);
-  const sourceErrors = [ukSource, ncSource, arSource, auSource, ieSource, onSource].filter((item) => item.error);
+  console.log(`   India (PARIVESH State EC) records: ${indiaRows.length}`);
+  const sourceErrors = [ukSource, ncSource, arSource, auSource, ieSource, onSource, indiaSource].filter((item) => item.error);
   if (sourceErrors.length > 0) {
     console.log(`   Source errors: ${sourceErrors.length}`);
     for (const sourceError of sourceErrors) {

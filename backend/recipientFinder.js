@@ -13,6 +13,19 @@ const SOURCE_KEY_ALIASES = {
   ie_epa_leap: 'ie_epa_leap',
   au_epbc_referrals: 'au_epbc_referrals',
   ca_on_ero_instruments: 'ca_on_ero_instruments',
+  in_parivesh_seiaa_pending_ec: 'in_parivesh_seiaa_pending_ec',
+  in_ocmms_pending_consent: 'in_ocmms_pending_consent',
+};
+
+const EMAIL_DOMAIN_ALLOWLIST_BY_SOURCE = {
+  us_nc_deq_application_tracker: ['deq.nc.gov', 'ncdenr.gov'],
+  uk_ea_public_register: ['environment-agency.gov.uk', 'gov.uk'],
+  us_arkansas_deq_pds: ['arkansas.gov'],
+  ie_epa_leap: ['epa.ie', 'gov.ie'],
+  au_epbc_referrals: ['dcceew.gov.au', 'environment.gov.au'],
+  ca_on_ero_instruments: ['ontario.ca'],
+  in_parivesh_seiaa_pending_ec: ['gov.in', 'nic.in'],
+  in_ocmms_pending_consent: ['gov.in', 'nic.in'],
 };
 
 let cachedDirectory = [];
@@ -150,12 +163,25 @@ function parsePermitHints(permit) {
   };
 }
 
+function emailMatchesSource(email, sourceKey) {
+  const canonicalSource = canonicalSourceKey(sourceKey);
+  const allowlist = EMAIL_DOMAIN_ALLOWLIST_BY_SOURCE[canonicalSource];
+  if (!allowlist || allowlist.length === 0) return true;
+
+  const value = normalizeText(email).toLowerCase();
+  const atIndex = value.lastIndexOf('@');
+  if (atIndex === -1) return false;
+  const domain = value.slice(atIndex + 1);
+  return allowlist.some((suffix) => domain === suffix || domain.endsWith(`.${suffix}`));
+}
+
 function scoreDirectoryEntry(entry, hints) {
   let score = 0;
   const entrySource = canonicalSourceKey(entry.source_key);
   const entryCountry = normalizeText(entry.country);
   const entryReviewer = normalizeKey(entry.reviewer_key || entry.authority_name);
   const tags = Array.isArray(entry.tags) ? entry.tags.map((tag) => normalizeText(tag).toLowerCase()) : [];
+  const confidence = normalizeText(entry.confidence).toLowerCase();
 
   // If both sides are source-scoped and they don't match, block cross-source leakage.
   if (hints.sourceKey && entrySource && entrySource !== hints.sourceKey) {
@@ -166,10 +192,12 @@ function scoreDirectoryEntry(entry, hints) {
     return 0;
   }
 
-  if (entrySource && hints.sourceKey && entrySource === hints.sourceKey) score += 70;
-  if (entryCountry && hints.country && entryCountry.toLowerCase() === hints.country.toLowerCase()) score += 20;
-  if (hints.reviewerKey && entryReviewer && entryReviewer === hints.reviewerKey) score += 120;
-  if (tags.includes('primary')) score += 15;
+  if (entrySource && hints.sourceKey && entrySource === hints.sourceKey) score += 320;
+  if (entryCountry && hints.country && entryCountry.toLowerCase() === hints.country.toLowerCase()) score += 40;
+  if (hints.reviewerKey && entryReviewer && entryReviewer === hints.reviewerKey) score += 260;
+  if (tags.includes('primary')) score += 80;
+  if (tags.includes('state_contact')) score += 40;
+  if (confidence === 'official_directory') score += 60;
 
   return score;
 }
@@ -284,7 +312,51 @@ function buildOfficialFallbacks(permit) {
     });
   }
 
+  if (sourceKey === 'in_ocmms_pending_consent') {
+    suggestions.push({
+      id: 'india-ocmms-search',
+      label: 'OCMMS pending consent search',
+      type: 'webform',
+      confidence: 'official',
+      action_url: 'https://ocmms.nic.in/OCMMS_NEW/searchStatus.jsp',
+      reason: 'Official OCMMS route to verify pending consent authority and state board context',
+      score: 70,
+    });
+  }
+
+  if (sourceKey === 'in_parivesh_seiaa_pending_ec' || country === 'India') {
+    suggestions.push({
+      id: 'india-parivesh-contact',
+      label: 'PARIVESH public contact mailbox',
+      type: 'email',
+      confidence: 'official',
+      email: 'monitoring-deiaa@gov.in',
+      action_url: 'https://environmentclearance.nic.in/',
+      reason: 'Official PARIVESH contact route for state environmental clearance support',
+      score: 85,
+    });
+    suggestions.push({
+      id: 'india-parivesh-state-portal',
+      label: 'PARIVESH state clearance portal',
+      type: 'webform',
+      confidence: 'official',
+      action_url: 'https://environmentclearance.nic.in/state_portal1.aspx',
+      reason: 'Official state portal to verify authority routing before submission',
+      score: 55,
+    });
+  }
+
   if (sourceKey === 'uk_ea_public_register' || country === 'United Kingdom') {
+    suggestions.push({
+      id: 'uk-ea-general-email',
+      label: 'Environment Agency customer enquiries',
+      type: 'email',
+      confidence: 'official',
+      email: 'enquiries@environment-agency.gov.uk',
+      action_url: 'https://www.gov.uk/access-the-public-register-for-environmental-information',
+      reason: 'Official Environment Agency contact mailbox for public register and permitting enquiries',
+      score: 82,
+    });
     suggestions.push({
       id: 'uk-ea-public-register',
       label: 'Environment Agency public register contact guidance',
@@ -301,7 +373,10 @@ function buildOfficialFallbacks(permit) {
 
 function getRecipientSuggestions(permit) {
   const safePermit = permit && typeof permit === 'object' ? permit : {};
-  const extractedEmails = extractEmailsFromPermit(safePermit);
+  const sourceKey = inferSourceKey(safePermit);
+  const extractedEmails = extractEmailsFromPermit(safePermit).filter((email) =>
+    emailMatchesSource(email, sourceKey)
+  );
 
   const extractedSuggestions = extractedEmails.map((email, index) => ({
     id: `email-${index + 1}`,
@@ -310,7 +385,7 @@ function getRecipientSuggestions(permit) {
     confidence: 'source_extracted',
     email,
     reason: 'Extracted from permit source data',
-    score: 300 - index,
+    score: 130 - index,
   }));
 
   const directorySuggestions = buildDirectorySuggestions(safePermit);
