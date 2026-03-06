@@ -639,13 +639,23 @@ let QUOTA_LIMITS = {
     anonDailyEmails: intFromEnv('ANON_DAILY_EMAILS', quotaConfigData.anonDailyEmails ?? DEFAULT_QUOTA_LIMITS.anonDailyEmails),
 };
 
+function normalizeIpValue(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    if (raw.startsWith('::ffff:')) return raw.slice(7);
+    return raw;
+}
+
 function getClientIp(req) {
-    return (
-        req.headers['x-forwarded-for']?.toString().split(',')[0].trim() ||
-        req.ip ||
-        req.connection?.remoteAddress ||
-        'unknown'
-    );
+    const expressResolvedIp = normalizeIpValue(req.ip);
+    if (expressResolvedIp) return expressResolvedIp;
+
+    const forwarded = req.headers['x-forwarded-for']?.toString().split(',')[0];
+    const forwardedIp = normalizeIpValue(forwarded);
+    if (forwardedIp) return forwardedIp;
+
+    const remoteAddress = normalizeIpValue(req.connection?.remoteAddress);
+    return remoteAddress || 'unknown';
 }
 
 function normalizeEmail(value) {
