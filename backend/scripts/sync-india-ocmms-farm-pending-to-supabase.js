@@ -115,8 +115,10 @@ async function fetchText(url, cookie = '', timeoutMs = 60000) {
 }
 
 function parseStateOptions(searchHtml) {
+  const stateSelectMatch = searchHtml.match(/<select[^>]*id="state"[\s\S]*?<\/select>/i);
+  const source = stateSelectMatch ? stateSelectMatch[0] : searchHtml;
   const states = [];
-  for (const match of searchHtml.matchAll(/<option\s+value="([^"]*)"[^>]*>([^<]+)<\/option>/gi)) {
+  for (const match of source.matchAll(/<option\s+value="([^"]*)"[^>]*>([^<]+)<\/option>/gi)) {
     const value = normalizeText(match[1]);
     const label = stripTags(match[2]);
     if (!value || value === '0') continue;
