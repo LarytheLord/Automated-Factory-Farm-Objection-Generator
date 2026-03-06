@@ -106,4 +106,4 @@ Sync result summary:
 
 ## Important note for narration
 
-Current India pipeline is from official PARIVESH pending EC proposals. This dataset is mostly industrial/mining/infrastructure clearances, not factory-farm dominant. Use this transparently in pitch: "India ingestion is live and verified; factory-farm specific India sources are next expansion track."
+Update on March 6, 2026: India farm-focused pending records were added from the official OCMMS pending consent registry. See `docs/PITCH_DAY_INDIA_FACTORY_FARM_PENDING_2026-03-06.md` for the current pitch dataset.
