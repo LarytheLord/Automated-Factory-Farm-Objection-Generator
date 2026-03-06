@@ -619,7 +619,7 @@ const DEFAULT_QUOTA_LIMITS = {
     freeMonthlyLetters: 120,
     ngoDailyLetters: 200,
     ngoMonthlyLetters: 3000,
-    anonDailyLetters: 6,
+    anonDailyLetters: 2,
     userDailyEmails: 20,
     ngoDailyEmails: 250,
     anonDailyEmails: 3,
@@ -933,7 +933,9 @@ function getQuotaConfig(actor, action) {
 
     if (action === 'generate_letter') {
         if (actor.kind === 'anonymous') {
-            return { daily: QUOTA_LIMITS.anonDailyLetters, monthly: QUOTA_LIMITS.anonDailyLetters * 30 };
+            // Pitch-day flow: hard-cap anonymous generation regardless higher env values.
+            const anonDailyCap = Math.max(1, Math.min(2, QUOTA_LIMITS.anonDailyLetters));
+            return { daily: anonDailyCap, monthly: anonDailyCap * 30 };
         }
         if (actor.role === 'ngo' || actor.role === 'ngo_admin' || actor.role === 'ngo_member') {
             return { daily: QUOTA_LIMITS.ngoDailyLetters, monthly: QUOTA_LIMITS.ngoMonthlyLetters };
@@ -1402,7 +1404,7 @@ app.get('/api/public/latest-pending-permit', async (_req, res) => {
     }
 });
 
-app.get('/api/permits', authenticateToken, requireApprovedAccess, async (req, res) => {
+app.get('/api/permits', optionalAuth, async (req, res) => {
     try {
         const { country, status, category } = req.query;
         const permitDomain = normalizePermitDomain(
@@ -1471,7 +1473,7 @@ app.get('/api/permits', authenticateToken, requireApprovedAccess, async (req, re
     }
 });
 
-app.get('/api/permits/:id', authenticateToken, requireApprovedAccess, async (req, res) => {
+app.get('/api/permits/:id', optionalAuth, async (req, res) => {
     try {
         const trustedSources = buildTrustedSourceSet();
         if (supabase) {
@@ -1638,7 +1640,7 @@ function buildRecipientLookupPermit(reqBody, reqParamId) {
     return null;
 }
 
-app.post('/api/recipient-suggestions', authenticateToken, requireApprovedAccess, (req, res) => {
+app.post('/api/recipient-suggestions', optionalAuth, (req, res) => {
     try {
         const permit = buildRecipientLookupPermit(req.body, req.body?.permitId);
         if (!permit) {
@@ -1652,7 +1654,7 @@ app.post('/api/recipient-suggestions', authenticateToken, requireApprovedAccess,
     }
 });
 
-app.post('/api/generate-letter', authenticateToken, requireApprovedAccess, letterRateLimiter, async (req, res) => {
+app.post('/api/generate-letter', optionalAuth, letterRateLimiter, async (req, res) => {
     if (!isFeatureEnabled('letterGenerationEnabled')) {
         return res.status(503).json({ error: 'Letter generation is temporarily disabled' });
     }

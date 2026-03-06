@@ -334,7 +334,6 @@ export default function Home() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [usage, setUsage] = useState<UsageResponse | null>(null);
-  const [authNotice, setAuthNotice] = useState<string | null>(null);
 
   const API_BASE = "";
 
@@ -345,11 +344,6 @@ export default function Home() {
   const handleNavAuthChange = (navUser: User | null, navToken: string | null) => {
     setUser(navUser);
     setToken(navToken);
-    if (navUser && !(navUser.role === "admin" || navUser.accessApproved)) {
-      setAuthNotice("Account pending manual approval. You'll get access once an admin approves your profile.");
-    } else {
-      setAuthNotice(null);
-    }
   };
 
   useEffect(() => {
@@ -381,19 +375,14 @@ export default function Home() {
         const heroPermitPromise = fetch(`${API_BASE}/api/public/latest-pending-permit`)
           .then((r) => (r.ok ? r.json() : null))
           .catch(() => null);
-
-        if (!token || !hasApprovedAccess) {
-          const [statsData, heroPermitData] = await Promise.all([statsPromise, heroPermitPromise]);
-          setPermits([]);
-          setStats(statsData);
-          setHeroPermit(heroPermitData);
-          setLoading(false);
-          return;
+        const permitHeaders: HeadersInit = {};
+        if (token) {
+          permitHeaders.Authorization = `Bearer ${token}`;
         }
 
         const [permitsRes, statsData, heroPermitData] = await Promise.all([
           fetch(`${API_BASE}/api/permits`, {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: permitHeaders,
           }),
           statsPromise,
           heroPermitPromise,
@@ -418,7 +407,7 @@ export default function Home() {
     };
 
     loadData();
-  }, [API_BASE, token, hasApprovedAccess, isMounted]);
+  }, [API_BASE, token, isMounted]);
 
   const fetchUsage = async (authToken?: string | null) => {
     try {
@@ -460,7 +449,7 @@ export default function Home() {
 
   useEffect(() => {
     const loadRecipientSuggestions = async () => {
-      if (!selectedPermit || !token || !hasApprovedAccess) {
+      if (!selectedPermit) {
         setRecipientSuggestions([]);
         setRecommendedRecipient(null);
         setRecipientGuidance(null);
@@ -472,12 +461,15 @@ export default function Home() {
       setRecipientGuidance(null);
       setRecipientEmail("");
       try {
+        const suggestionHeaders: HeadersInit = {
+          "Content-Type": "application/json",
+        };
+        if (token) {
+          suggestionHeaders.Authorization = `Bearer ${token}`;
+        }
         const res = await fetchWithTimeout(`${API_BASE}/api/recipient-suggestions`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: suggestionHeaders,
           body: JSON.stringify({ permitDetails: selectedPermit }),
         }, 15000);
 
@@ -512,7 +504,7 @@ export default function Home() {
     };
 
     loadRecipientSuggestions();
-  }, [selectedPermit, token, hasApprovedAccess, API_BASE]);
+  }, [selectedPermit, token, API_BASE]);
 
   /* ─── Handlers ─── */
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -520,25 +512,20 @@ export default function Home() {
   };
 
   const generateLetter = async () => {
-    if (!isAuthenticated) {
-      setIsAuthModalOpen(true);
-      return;
-    }
-    if (!hasApprovedAccess) {
-      setLetterError("Account pending manual approval. You cannot generate letters yet.");
-      return;
-    }
     if (!selectedPermit) return;
     setGeneratingLetter(true);
     setLetterError(null);
     setGeneratedLetter("");
     try {
+      const generateHeaders: HeadersInit = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        generateHeaders.Authorization = `Bearer ${token}`;
+      }
       const res = await fetchWithTimeout(`${API_BASE}/api/generate-letter`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: generateHeaders,
         body: JSON.stringify({
           permitDetails: { ...selectedPermit, ...formData, currentDate },
           letterMode,
@@ -604,11 +591,6 @@ export default function Home() {
   const handleLogin = (newToken: string, newUser: User) => {
     setToken(newToken);
     setUser(newUser);
-    if (!(newUser.role === "admin" || newUser.accessApproved)) {
-      setAuthNotice("Account pending manual approval. You'll get access once an admin approves your profile.");
-    } else {
-      setAuthNotice(null);
-    }
     if (typeof window !== 'undefined') {
       localStorage.setItem("token", newToken);
       localStorage.setItem("user", JSON.stringify(newUser));
@@ -770,7 +752,7 @@ export default function Home() {
                   href="#permits"
                   className="group px-7 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-emerald-500/20 inline-flex items-center gap-2 text-sm"
                 >
-                  {hasApprovedAccess ? "Browse Permits" : "Request Access"}
+                  Browse Permits
                   <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </a>
                 <a href="#how-it-works" className="px-7 py-3.5 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 font-medium rounded-xl transition-all inline-flex items-center gap-2 text-sm text-slate-700">
@@ -911,32 +893,7 @@ export default function Home() {
       <div className="section-divider" />
       <section id="permits" className="relative z-10 py-24 px-6">
         <div className="max-w-6xl mx-auto">
-          {!isAuthenticated ? (
-            <div className="glass-card p-8 text-center max-w-2xl mx-auto">
-              <Shield className="w-10 h-10 text-emerald-500 mx-auto mb-4" />
-              <h3 className="text-2xl font-semibold mb-2">Protected Access Area</h3>
-              <p className="text-gray-600 mb-6">
-                Permit data and objection generation are restricted to approved members only.
-                Sign in and submit your profile for manual review.
-              </p>
-              <button
-                onClick={() => setIsAuthModalOpen(true)}
-                className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl transition-all"
-              >
-                Sign In / Create Account
-              </button>
-            </div>
-          ) : !hasApprovedAccess ? (
-            <div className="glass-card p-8 text-center max-w-2xl mx-auto">
-              <Clock className="w-10 h-10 text-amber-500 mx-auto mb-4" />
-              <h3 className="text-2xl font-semibold mb-2">Approval Pending</h3>
-              <p className="text-gray-600 mb-4">
-                Your account is waiting for manual verification by an admin.
-                Once approved, permit browsing and letter generation will be unlocked.
-              </p>
-              {authNotice && <p className="text-sm text-amber-700">{authNotice}</p>}
-            </div>
-          ) : !selectedPermit ? (
+          {!selectedPermit ? (
             <>
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10">
                 <div>
