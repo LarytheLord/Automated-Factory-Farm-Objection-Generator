@@ -168,6 +168,7 @@ export default function Navbar({ onAuthChange }: NavbarProps) {
 
           <div className="hidden md:flex items-center gap-8 text-sm text-gray-500">
             <Link href="/how-it-works" className="hover:text-slate-900 transition-colors">How It Works</Link>
+            <Link href="/future-prototype" className="hover:text-slate-900 transition-colors">Future Prototype</Link>
             <Link href="/about" className="hover:text-slate-900 transition-colors">About</Link>
             <Link href="/impact" className="hover:text-slate-900 transition-colors">Impact</Link>
             <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact</Link>
@@ -232,6 +233,7 @@ export default function Navbar({ onAuthChange }: NavbarProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <Link href="/how-it-works" className="block py-2.5 text-sm text-gray-600 hover:text-slate-900 transition-colors" onClick={() => setMobileOpen(false)}>How It Works</Link>
+            <Link href="/future-prototype" className="block py-2.5 text-sm text-gray-600 hover:text-slate-900 transition-colors" onClick={() => setMobileOpen(false)}>Future Prototype</Link>
             <Link href="/about" className="block py-2.5 text-sm text-gray-600 hover:text-slate-900 transition-colors" onClick={() => setMobileOpen(false)}>About</Link>
             <Link href="/impact" className="block py-2.5 text-sm text-gray-600 hover:text-slate-900 transition-colors" onClick={() => setMobileOpen(false)}>Impact</Link>
             <Link href="/contact" className="block py-2.5 text-sm text-gray-600 hover:text-slate-900 transition-colors" onClick={() => setMobileOpen(false)}>Contact</Link>

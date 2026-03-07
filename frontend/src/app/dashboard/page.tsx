@@ -15,6 +15,7 @@ interface Permit {
     status: string;
     project_title: string;
     activity?: string;
+    permit_domain?: 'farm_animal' | 'industrial_infra' | 'pollution_industrial' | 'other' | string;
     location?: string;
     notes?: string;
     source_url?: string;
@@ -44,6 +45,7 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedPermit, setSelectedPermit] = useState<Permit | null>(null);
+    const [selectedPermitDomain, setSelectedPermitDomain] = useState<string>('All');
 
     const API_BASE = '';
 
@@ -168,24 +170,44 @@ export default function Dashboard() {
         return date.toLocaleDateString();
     };
 
-    const countryData = Object.entries(permits.reduce((acc, curr) => {
+    const titleCaseDomain = (value?: string) =>
+        String(value || '')
+            .replace(/_/g, ' ')
+            .split(' ')
+            .filter(Boolean)
+            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(' ');
+
+    const domainFilteredPermits = selectedPermitDomain === 'All'
+        ? permits
+        : permits.filter((permit) => String(permit.permit_domain || 'other') === selectedPermitDomain);
+
+    const availableDomains = Array.from(
+        new Set(
+            permits
+                .map((permit) => String(permit.permit_domain || '').trim())
+                .filter(Boolean),
+        ),
+    ).sort();
+
+    const countryData = Object.entries(domainFilteredPermits.reduce((acc, curr) => {
         acc[curr.country] = (acc[curr.country] || 0) + 1;
         return acc;
     }, {} as Record<string, number>)).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
 
-    const statusData = Object.entries(permits.reduce((acc, curr) => {
+    const statusData = Object.entries(domainFilteredPermits.reduce((acc, curr) => {
         const label = titleCase(curr.status);
         acc[label] = (acc[label] || 0) + 1;
         return acc;
     }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
 
-    const categoryData = Object.entries(permits.reduce((acc, curr) => {
+    const categoryData = Object.entries(domainFilteredPermits.reduce((acc, curr) => {
         const cat = curr.category || 'Unknown';
         acc[cat] = (acc[cat] || 0) + 1;
         return acc;
     }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
 
-    const activityData = Object.entries(permits.reduce((acc, curr) => {
+    const activityData = Object.entries(domainFilteredPermits.reduce((acc, curr) => {
         const act = curr.activity || 'Other';
         const simplified = act.includes('Poultry') || act.includes('Broiler') || act.includes('Layer') ? 'Poultry/Egg' :
             act.includes('Dairy') || act.includes('CAFO') ? 'Dairy/Cattle' :
@@ -209,7 +231,7 @@ export default function Dashboard() {
         approved: '#22C55E', pending: '#F59E0B', 'in process': '#3B82F6',
         rejected: '#EF4444', 'under review': '#8B5CF6'
     };
-    const pendingPermits = [...permits]
+    const pendingPermits = [...domainFilteredPermits]
         .filter((permit) => isActionableStatus(permit.status))
         .sort((a, b) => {
             const deadlineA = a.consultation_deadline ? new Date(a.consultation_deadline).getTime() : Number.MAX_SAFE_INTEGER;
@@ -231,11 +253,23 @@ export default function Dashboard() {
                             <BarChart3 className="w-8 h-8 text-blue-400" />
                             Global Impact Dashboard
                         </h1>
-                        <p className="text-gray-500 mt-1 text-sm">{permits.length} permits monitored across {countryData.length} countries</p>
+                        <p className="text-gray-500 mt-1 text-sm">{domainFilteredPermits.length} permits in view across {countryData.length} countries</p>
                     </div>
-                    <Link href="/" className="flex items-center gap-2 text-gray-400 hover:text-slate-900 transition-colors text-sm">
-                        <ArrowLeft className="w-4 h-4" /> Back
-                    </Link>
+                    <div className="flex items-center gap-3">
+                        <select
+                            value={selectedPermitDomain}
+                            onChange={(event) => setSelectedPermitDomain(event.target.value)}
+                            className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500/30"
+                        >
+                            <option value="All">All Permit Types</option>
+                            {availableDomains.map((domain) => (
+                                <option key={domain} value={domain}>{titleCaseDomain(domain)}</option>
+                            ))}
+                        </select>
+                        <Link href="/" className="flex items-center gap-2 text-gray-400 hover:text-slate-900 transition-colors text-sm">
+                            <ArrowLeft className="w-4 h-4" /> Back
+                        </Link>
+                    </div>
                 </div>
 
                 {/* ─── Top Stats ─── */}
@@ -252,12 +286,12 @@ export default function Dashboard() {
                     </div>
                     <div className="glass-card p-5 text-center">
                         <TrendingUp className="w-5 h-5 text-purple-400 mx-auto mb-2" />
-                        <div className="text-2xl font-bold">{permits.filter(p => p.category === 'Red').length}</div>
+                        <div className="text-2xl font-bold">{domainFilteredPermits.filter(p => p.category === 'Red').length}</div>
                         <div className="text-gray-500 text-xs">High-Risk Permits</div>
                     </div>
                     <div className="glass-card p-5 text-center">
                         <Shield className="w-5 h-5 text-amber-400 mx-auto mb-2" />
-                        <div className="text-2xl font-bold">{permits.filter((p) => isActionableStatus(p.status)).length}</div>
+                        <div className="text-2xl font-bold">{domainFilteredPermits.filter((p) => isActionableStatus(p.status)).length}</div>
                         <div className="text-gray-500 text-xs">Actionable Permits</div>
                     </div>
                 </div>
@@ -321,7 +355,7 @@ export default function Dashboard() {
                         </div>
                         <div className="mt-6 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                             <p className="text-amber-400 text-xs font-medium">
-                                {permits.filter((p) => isActionableStatus(p.status)).length} permits are currently actionable — objections can be filed now.
+                                {domainFilteredPermits.filter((p) => isActionableStatus(p.status)).length} permits are currently actionable — objections can be filed now.
                             </p>
                         </div>
                     </div>

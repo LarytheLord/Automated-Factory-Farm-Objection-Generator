@@ -19,6 +19,7 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 
 const LEGACY_PAYLOAD_MARKER = 'Original Payload JSON:';
 const DEFAULT_LOOKBACK_DAYS = Number.parseInt(process.env.GLOBAL_PENDING_LOOKBACK_DAYS || '120', 10);
+const INCLUDE_NON_FARM = String(process.env.GLOBAL_PENDING_INCLUDE_NON_FARM || 'false').toLowerCase() !== 'false';
 
 const SOURCE_DEFS = {
   uk: {
@@ -45,13 +46,21 @@ const SOURCE_DEFS = {
     key: 'ca_on_ero_instruments',
     name: 'Ontario Environmental Registry (ERO) Instruments',
   },
+  in_ec: {
+    key: 'in_parivesh_seiaa_pending_ec',
+    name: 'India PARIVESH State EC Pending Proposals',
+  },
 };
 
 const PENDING_STATUS_RE = /\b(pending|application pending|in review|under review|in process|processing|applied|application received|submitted|publish pending)\b/i;
-const FARM_KEYWORDS_RE = /\b(poultry|broiler|layer|chicken|turkey|pig|swine|hog|sow|livestock|dairy|farrow|intensive farming|factory farm)\b/i;
+const FARM_KEYWORDS_RE = /\b(poultry|broiler|layer|chicken|turkey|pig|swine|hog|sow|livestock|dairy|farrow|piggery|hatchery|abattoir|slaughter|meat processing|animal feeding|intensive farming|factory farm|cafo|feedlot)\b/i;
 const INTENSIVE_KEYWORDS_RE = /\b(intensive farming|rearing of poultry intensively|section\s*6\.9|6\.9\s*a\(1\)|animal operations)\b/i;
+const INFRA_KEYWORDS_RE = /\b(infrastructure|construction|road|highway|rail|metro|airport|port|mining|quarry|energy|thermal|solar|wind|transmission|power|data centre|data center|industrial plant|factory|manufacturing|refinery|cement|steel|chemical)\b/i;
+const POLLUTION_KEYWORDS_RE = /\b(industrial emissions|permit to operate|effluent|discharge|air pollution|water pollution|waste management|landfill|incinerator|pollution control|environmental permit)\b/i;
 const AU_NOT_PENDING_RE = /\b(completed|post-approval|lapsed|withdrawn|refused|approval decision made|referral decision made)\b/i;
 const ONTARIO_FARM_KEYWORDS_RE = /\b(poultry|broiler|layer|chicken|turkey|pig|swine|hog|sow|livestock|dairy|farrow|intensive farming|factory farm|feedlot|fish farm|aquaculture)\b/i;
+const INDIA_PENDING_LABEL_RE = /\b(awaiting|pending|under examination|accepted by seiaa and forwarded to seac|recommended by seac and forwarded to seiaa)\b/i;
+const INDIA_NON_PENDING_LABEL_RE = /\b(granted|rejected|withdraw|delisted|not recommended|transferred|site visit|ads by)\b/i;
 
 function normalizeText(value, fallback = '') {
   if (value === null || value === undefined) return fallback;
@@ -104,10 +113,60 @@ function decodeHtmlEntities(value) {
     .replace(/&gt;/gi, '>');
 }
 
+function parseIndiaDate(raw) {
+  const value = normalizeText(raw);
+  if (!value) return null;
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  const parsed = new Date(normalized);
+  if (!Number.isNaN(parsed.getTime())) return parsed;
+
+  const match = normalized.match(/(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})/);
+  if (!match) return null;
+  const day = Number.parseInt(match[1], 10);
+  const monthToken = match[2].slice(0, 3).toLowerCase();
+  const year = Number.parseInt(match[3], 10);
+  const months = {
+    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+  };
+  const month = months[monthToken];
+  if (!Number.isFinite(day) || !Number.isFinite(year) || month === undefined) return null;
+  const dt = new Date(Date.UTC(year, month, day));
+  return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
+function extractLastIndiaSubmissionDate(importantDatesText) {
+  const text = normalizeText(importantDatesText);
+  if (!text) return null;
+
+  const ecMatch = text.match(/Date of Submission for EC\s*:?\s*([0-9]{1,2}\s+[A-Za-z]{3,}\s+[0-9]{4})/i);
+  const torMatch = text.match(/Date of Submission for TOR\s*:?\s*([0-9]{1,2}\s+[A-Za-z]{3,}\s+[0-9]{4})/i);
+
+  const ecDate = ecMatch ? parseIndiaDate(ecMatch[1]) : null;
+  const torDate = torMatch ? parseIndiaDate(torMatch[1]) : null;
+
+  if (ecDate && torDate) return ecDate > torDate ? ecDate : torDate;
+  return ecDate || torDate || null;
+}
+
 function toSafeJson(value, maxChars = 50000) {
   const raw = JSON.stringify(value, null, 2);
   if (raw.length <= maxChars) return raw;
   return `${raw.slice(0, maxChars)}\n...TRUNCATED...`;
+}
+
+function limitSourcePayload(value, maxChars = 18000) {
+  try {
+    const raw = JSON.stringify(value || {});
+    if (raw.length <= maxChars) return value || {};
+    return {
+      truncated: true,
+      raw_preview: raw.slice(0, maxChars),
+      raw_length: raw.length,
+    };
+  } catch (_error) {
+    return { truncated: true, raw_preview: 'unserializable payload' };
+  }
 }
 
 async function fetchJson(url, timeoutMs = 45000) {
@@ -237,8 +296,31 @@ function findConsultationDeadline(text) {
   return null;
 }
 
-function buildUpsertRecord(record, useSourceMetadataColumns, nowIso) {
-  const sourcePayload = record.source_payload || {};
+function classifyPermitDomain(text) {
+  const haystack = normalizeText(text).toLowerCase();
+  if (!haystack) return 'other';
+  if (FARM_KEYWORDS_RE.test(haystack) || INTENSIVE_KEYWORDS_RE.test(haystack)) return 'farm_animal';
+  if (POLLUTION_KEYWORDS_RE.test(haystack)) return 'pollution_industrial';
+  if (INFRA_KEYWORDS_RE.test(haystack)) return 'industrial_infra';
+  return 'other';
+}
+
+function inferPermitSubtype(text, fallback = 'general_permit') {
+  const haystack = normalizeText(text).toLowerCase();
+  if (!haystack) return fallback;
+  if (/\b(poultry|broiler|layer|chicken|turkey)\b/.test(haystack)) return 'poultry';
+  if (/\b(pig|swine|hog|sow|farrow)\b/.test(haystack)) return 'swine';
+  if (/\b(dairy|livestock)\b/.test(haystack)) return 'livestock';
+  if (/\b(industrial emissions|emissions|air pollution|discharge|effluent)\b/.test(haystack)) return 'industrial_emissions';
+  if (/\b(waste|landfill|incinerator)\b/.test(haystack)) return 'waste_management';
+  if (/\b(energy|solar|wind|transmission|power)\b/.test(haystack)) return 'energy_infrastructure';
+  if (/\b(road|highway|rail|metro|airport|port)\b/.test(haystack)) return 'transport_infrastructure';
+  if (/\b(mining|quarry)\b/.test(haystack)) return 'resource_extraction';
+  return fallback;
+}
+
+function buildUpsertRecord(record, useSourceMetadataColumns, useDomainColumns, nowIso) {
+  const sourcePayload = limitSourcePayload(record.source_payload || {});
   const common = {
     project_title: record.project_title,
     location: record.location,
@@ -249,9 +331,19 @@ function buildUpsertRecord(record, useSourceMetadataColumns, nowIso) {
     updated_at: nowIso,
   };
 
+  const domainFields = useDomainColumns
+    ? {
+        permit_domain: record.permit_domain || null,
+        permit_subtype: record.permit_subtype || null,
+        jurisdiction_region: record.jurisdiction_region || null,
+        recipient_status: record.recipient_status || 'missing',
+      }
+    : {};
+
   if (useSourceMetadataColumns) {
     return {
       ...common,
+      ...domainFields,
       ingest_key: record.ingest_key,
       source_key: record.source_key,
       source_name: record.source_name,
@@ -266,6 +358,7 @@ function buildUpsertRecord(record, useSourceMetadataColumns, nowIso) {
 
   return {
     ...common,
+    ...domainFields,
     notes: buildLegacyNotes({
       sourceKey: record.source_key,
       sourceName: record.source_name,
@@ -287,8 +380,35 @@ function buildLegacyPermitKey(permit) {
   ].join('::');
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withRetries(fn, label, maxAttempts = 4) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      const message = normalizeText(error?.message, '');
+      const isRetryable = /fetch failed|network|ECONNRESET|ETIMEDOUT|EHOSTUNREACH|ENOTFOUND/i.test(message);
+      if (!isRetryable || attempt >= maxAttempts) {
+        throw error;
+      }
+      const waitMs = Math.min(8000, 600 * attempt * attempt);
+      console.warn(`⚠️ ${label} attempt ${attempt} failed (${message}); retrying in ${waitMs}ms`);
+      await sleep(waitMs);
+    }
+  }
+  throw lastError || new Error(`Failed after retries: ${label}`);
+}
+
 async function supportsSourceMetadataColumns() {
-  const { error } = await supabase.from('permits').select('id,ingest_key,source_payload').limit(1);
+  const { error } = await withRetries(
+    () => supabase.from('permits').select('id,ingest_key,source_payload').limit(1),
+    'schema-check-source-columns',
+  );
   if (!error) return true;
   const message = String(error.message || '');
   if (message.includes('column permits.ingest_key does not exist')) return false;
@@ -296,23 +416,55 @@ async function supportsSourceMetadataColumns() {
   throw error;
 }
 
-async function upsertPermits(records, useSourceMetadataColumns) {
+async function supportsDomainColumns() {
+  const { error } = await withRetries(
+    () =>
+      supabase
+        .from('permits')
+        .select('id,permit_domain,permit_subtype,jurisdiction_region,recipient_status')
+        .limit(1),
+    'schema-check-domain-columns',
+  );
+  if (!error) return true;
+  const message = String(error.message || '');
+  if (message.includes('column permits.permit_domain does not exist')) return false;
+  if (message.includes('column permits.permit_subtype does not exist')) return false;
+  if (message.includes('column permits.jurisdiction_region does not exist')) return false;
+  if (message.includes('column permits.recipient_status does not exist')) return false;
+  throw error;
+}
+
+async function upsertPermits(records, useSourceMetadataColumns, useDomainColumns) {
   if (!records.length) return { inserted: 0, updated: 0 };
   const nowIso = new Date().toISOString();
-  const payload = records.map((record) => buildUpsertRecord(record, useSourceMetadataColumns, nowIso));
+  const payload = records.map((record) =>
+    buildUpsertRecord(record, useSourceMetadataColumns, useDomainColumns, nowIso),
+  );
 
   if (useSourceMetadataColumns) {
-    const { error } = await supabase
-      .from('permits')
-      .upsert(payload, { onConflict: 'ingest_key' });
-    if (error) throw error;
+    const batchSize = Math.max(20, Math.min(200, Number.parseInt(process.env.GLOBAL_PENDING_UPSERT_BATCH_SIZE || '80', 10)));
+    for (let i = 0; i < payload.length; i += batchSize) {
+      const chunk = payload.slice(i, i + batchSize);
+      const { error } = await withRetries(
+        () =>
+          supabase
+            .from('permits')
+            .upsert(chunk, { onConflict: 'ingest_key' }),
+        `upsert-chunk-${Math.floor(i / batchSize) + 1}`,
+      );
+      if (error) throw error;
+    }
     return { inserted: payload.length, updated: 0 };
   }
 
-  const { data: existing, error: existingError } = await supabase
-    .from('permits')
-    .select('id,project_title,location,country')
-    .range(0, 15000);
+  const { data: existing, error: existingError } = await withRetries(
+    () =>
+      supabase
+        .from('permits')
+        .select('id,project_title,location,country')
+        .range(0, 15000),
+    'load-existing-legacy',
+  );
   if (existingError) throw existingError;
 
   const existingByKey = new Map();
@@ -327,18 +479,26 @@ async function upsertPermits(records, useSourceMetadataColumns) {
     const key = buildLegacyPermitKey(record);
     const existingId = existingByKey.get(key);
     if (existingId) {
-      const { error } = await supabase
-        .from('permits')
-        .update(record)
-        .eq('id', existingId);
+      const { error } = await withRetries(
+        () =>
+          supabase
+            .from('permits')
+            .update(record)
+            .eq('id', existingId),
+        `legacy-update-${existingId}`,
+      );
       if (error) throw error;
       updated += 1;
     } else {
-      const { data, error } = await supabase
-        .from('permits')
-        .insert(record)
-        .select('id')
-        .single();
+      const { data, error } = await withRetries(
+        () =>
+          supabase
+            .from('permits')
+            .insert(record)
+            .select('id')
+            .single(),
+        'legacy-insert',
+      );
       if (error) throw error;
       existingByKey.set(key, data?.id);
       inserted += 1;
@@ -392,7 +552,12 @@ async function fetchUkPendingPermits(now, lookbackDays) {
       const body = stripTags(content?.details?.body || '');
       const attachmentText = attachments.map((item) => stripTags(item?.details?.body || '')).join('\n');
       const text = `${title}\n${description}\n${body}\n${attachmentText}`;
-      if (!FARM_KEYWORDS_RE.test(text) || !INTENSIVE_KEYWORDS_RE.test(text)) continue;
+      const domain = classifyPermitDomain(text);
+      if (!INCLUDE_NON_FARM) {
+        if (!FARM_KEYWORDS_RE.test(text)) continue;
+      } else if (domain === 'other') {
+        continue;
+      }
 
       const publishedAtDate = parseDateCandidate(content?.public_updated_at || row?.public_timestamp);
       if (!publishedAtDate) continue;
@@ -416,10 +581,19 @@ async function fetchUkPendingPermits(now, lookbackDays) {
         project_title: title,
         location: normalizeText(title.split(':')[0], 'United Kingdom'),
         country: 'United Kingdom',
-        activity: /pig|swine|sow|hog/i.test(text)
-          ? 'Intensive Pig Farm Permit Application'
-          : 'Intensive Poultry Farm Permit Application',
+        activity:
+          domain === 'farm_animal'
+            ? /pig|swine|sow|hog/i.test(text)
+              ? 'Intensive Pig Farm Permit Application'
+              : 'Intensive Poultry Farm Permit Application'
+            : domain === 'pollution_industrial'
+              ? 'Industrial Environmental Permit Application'
+              : 'Infrastructure Development Permit Application',
         category: 'Red',
+        permit_domain: domain,
+        permit_subtype: inferPermitSubtype(text, 'uk_environmental_permit'),
+        jurisdiction_region: 'United Kingdom',
+        recipient_status: 'missing',
         notes: `Official EA permit application notice. Consultation deadline: ${toIsoDate(deadline)}.`,
         published_at: publishedAtDate.toISOString(),
         consultation_deadline: toIsoDate(deadline),
@@ -448,12 +622,20 @@ async function fetchNcPendingPermits() {
   const rows = Array.isArray(payload?.features) ? payload.features.map((f) => f.attributes || {}) : [];
 
   return rows
-    .filter((row) => PENDING_STATUS_RE.test(row.STATUS || '') && FARM_KEYWORDS_RE.test([row.NAME, row.PROG_CAT, row.PERMIT_TYPE].join(' ')))
+    .filter((row) => {
+      if (!PENDING_STATUS_RE.test(row.STATUS || '')) return false;
+      const text = [row.NAME, row.PROG_CAT, row.PERMIT_TYPE].join(' ');
+      const domain = classifyPermitDomain(text);
+      if (!INCLUDE_NON_FARM) return domain === 'farm_animal';
+      return domain !== 'other';
+    })
     .map((row) => {
       const title = normalizeText(row.NAME, 'NC DEQ Permit');
       const location = [row.ADDRESS, row.CITY, row.STATE].map((v) => normalizeText(v)).filter(Boolean).join(', ') || normalizeText(row.COUNTY, 'North Carolina');
       const publishedAt = row.RECV_DT ? new Date(row.RECV_DT).toISOString() : null;
       const externalId = normalizeText(row.APP_ID);
+      const text = [row.NAME, row.PROG_CAT, row.PERMIT_TYPE].join(' ');
+      const domain = classifyPermitDomain(text);
       return {
         ingest_key: buildIngestKey(source.key, externalId, title, location, 'United States'),
         source_key: source.key,
@@ -465,6 +647,10 @@ async function fetchNcPendingPermits() {
         country: 'United States',
         activity: normalizeText(row.PROG_CAT, 'Animal Operations Permit Application'),
         category: 'Red',
+        permit_domain: domain,
+        permit_subtype: inferPermitSubtype(text, 'nc_deq_permit'),
+        jurisdiction_region: normalizeText(row.STATE, 'NC'),
+        recipient_status: 'missing',
         notes: `Official NC DEQ application tracker pending entry (status: ${normalizeText(row.STATUS, 'Pending')}).`,
         published_at: publishedAt,
         consultation_deadline: null,
@@ -473,7 +659,7 @@ async function fetchNcPendingPermits() {
     });
 }
 
-function isArkansasFactoryFarmRow(row) {
+function isArkansasPendingRow(row) {
   const status = normalizeText(row.PmtStatusDesc).toLowerCase();
   if (!PENDING_STATUS_RE.test(status)) return false;
 
@@ -484,11 +670,17 @@ function isArkansasFactoryFarmRow(row) {
 
   const naicsFactoryFarm = naics.startsWith('1121') || naics.startsWith('1122') || naics.startsWith('1123');
   const hasFarmSignal = /\b(poultry|broiler|pig|swine|hog|dairy|livestock|egg|farm)\b/i.test(activity);
-  if (!naicsFactoryFarm && !hasFarmSignal) return false;
-
+  const isFarm = naicsFactoryFarm || hasFarmSignal;
+  if (!INCLUDE_NON_FARM && !isFarm) return false;
   if (/\b(kennel|shelter|humane|pet)\b/i.test(activity)) return false;
   if (naics.startsWith('1125')) return false; // Aquaculture is excluded.
-  return true;
+
+  if (INCLUDE_NON_FARM) {
+    const domain = classifyPermitDomain(activity);
+    return isFarm || domain === 'industrial_infra' || domain === 'pollution_industrial';
+  }
+
+  return isFarm;
 }
 
 async function fetchArkansasPendingPermits() {
@@ -498,13 +690,14 @@ async function fetchArkansasPendingPermits() {
   const rows = parseCsvTable(csvRaw);
 
   return rows
-    .filter((row) => isArkansasFactoryFarmRow(row))
+    .filter((row) => isArkansasPendingRow(row))
     .map((row) => {
       const title = normalizeText(row.FacName, 'Arkansas Permit');
       const location = [row.FacSiteCity, row.FacCountyName, 'AR'].map((v) => normalizeText(v)).filter(Boolean).join(', ') || 'Arkansas';
       const externalId = normalizeText(row.PmtNbr);
       const publishedAt = parseDateCandidate(row.PmtStatusDate || row.RecModifiedDate || row.RecCreatedDate);
       const activity = normalizeText(row.FacPrimaryNAICSDesc, 'Animal Production Permit');
+      const text = `${title} ${activity}`;
       return {
         ingest_key: buildIngestKey(source.key, externalId, title, location, 'United States'),
         source_key: source.key,
@@ -516,6 +709,10 @@ async function fetchArkansasPendingPermits() {
         country: 'United States',
         activity,
         category: 'Red',
+        permit_domain: classifyPermitDomain(text),
+        permit_subtype: inferPermitSubtype(text, 'arkansas_permit'),
+        jurisdiction_region: 'AR',
+        recipient_status: 'missing',
         notes: `Official Arkansas DEQ permit record pending entry (status: ${normalizeText(row.PmtStatusDesc, 'Pending')}).`,
         published_at: publishedAt ? publishedAt.toISOString() : null,
         consultation_deadline: null,
@@ -574,6 +771,10 @@ async function fetchAustraliaPendingPermits() {
         country: 'Australia',
         activity: 'EPBC Referral - Intensive Animal Agriculture',
         category: 'Red',
+        permit_domain: 'farm_animal',
+        permit_subtype: inferPermitSubtype(title, 'epbc_referral'),
+        jurisdiction_region: location,
+        recipient_status: 'missing',
         notes: `Official EPBC referral pending status (${normalizeText(row.STATUS_DESCRIPTION, 'Pending')}; stage: ${normalizeText(row.STAGE_NAME, 'Unknown')}).`,
         published_at: publishedAt,
         consultation_deadline: null,
@@ -607,6 +808,7 @@ async function fetchIrelandPendingPermits() {
     const title = normalizeText(row.authorisationname, 'Ireland EPA Pending Application');
     const location = normalizeText(row.county, 'Ireland');
     const externalId = normalizeText(row.authorisationnumber || row.licenceid);
+    const text = `${title} ${normalizeText(row.sector)} ${normalizeText(row.type)}`;
     return {
       ingest_key: buildIngestKey(source.key, externalId, title, location, 'Ireland'),
       source_key: source.key,
@@ -618,6 +820,10 @@ async function fetchIrelandPendingPermits() {
       country: 'Ireland',
       activity: 'Industrial Emissions Licence - Intensive Agriculture',
       category: 'Red',
+      permit_domain: classifyPermitDomain(text),
+      permit_subtype: inferPermitSubtype(text, 'ie_epa_licence'),
+      jurisdiction_region: location,
+      recipient_status: 'missing',
       notes: `Official Ireland EPA LEAP application pending record (sector: ${normalizeText(row.sector, 'Intensive Agriculture')}).`,
       published_at: null,
       consultation_deadline: null,
@@ -632,7 +838,11 @@ async function fetchOntarioPendingPermits(now) {
   const todayStart = new Date(now.toISOString().slice(0, 10));
   const maxPages = Math.max(1, Math.min(10, Number.parseInt(process.env.ONTARIO_ERO_MAX_PAGES || '4', 10)));
   const keywords = String(
-    process.env.ONTARIO_ERO_KEYWORDS || 'poultry,broiler,pig,swine,hog,dairy,livestock,feedlot,fish farm,aquaculture',
+    process.env.ONTARIO_ERO_KEYWORDS || (
+      INCLUDE_NON_FARM
+        ? 'industrial,emission,waste,landfill,construction,infrastructure,poultry,broiler,pig,swine,hog,dairy,livestock,feedlot,fish farm,aquaculture'
+        : 'poultry,broiler,pig,swine,hog,dairy,livestock,feedlot,fish farm,aquaculture'
+    ),
   )
     .split(',')
     .map((item) => normalizeText(item))
@@ -684,7 +894,12 @@ async function fetchOntarioPendingPermits(now) {
         const summary = normalizeText(stripTags(decodeHtmlEntities(summaryMatch?.[1])));
 
         const textForFilter = `${title} ${instrumentType} ${summary} ${commentPeriod}`;
-        if (!ONTARIO_FARM_KEYWORDS_RE.test(textForFilter)) continue;
+        const domain = classifyPermitDomain(textForFilter);
+        if (!INCLUDE_NON_FARM) {
+          if (!ONTARIO_FARM_KEYWORDS_RE.test(textForFilter)) continue;
+        } else if (domain === 'other') {
+          continue;
+        }
 
         seen.add(externalId);
         const sourceUrl = `${baseUrl}${noticePath}`;
@@ -701,6 +916,10 @@ async function fetchOntarioPendingPermits(now) {
             ? `Instrument proposal (${instrumentType})`
             : 'Instrument proposal (Environmental Registry of Ontario)',
           category: 'Red',
+          permit_domain: domain,
+          permit_subtype: inferPermitSubtype(textForFilter, 'ontario_ero_instrument'),
+          jurisdiction_region: 'Ontario',
+          recipient_status: 'missing',
           notes: `Official Ontario ERO instrument proposal with open comment period${consultationDeadlineDate ? ` (deadline: ${toIsoDate(consultationDeadlineDate)})` : ''}.`,
           published_at: publishedAt,
           consultation_deadline: consultationDeadlineDate ? toIsoDate(consultationDeadlineDate) : null,
@@ -721,6 +940,228 @@ async function fetchOntarioPendingPermits(now) {
   return rows;
 }
 
+function extractIndiaStateNames(portalHtml) {
+  const names = new Set();
+  const matches = portalHtml.matchAll(/Staterecord\.aspx\?State_Name=([^"'&>]+)/gi);
+  for (const match of matches) {
+    const raw = normalizeText(match[1]).replace(/\+/g, ' ');
+    if (!raw) continue;
+    try {
+      names.add(decodeURIComponent(raw));
+    } catch (_error) {
+      names.add(raw);
+    }
+  }
+  return Array.from(names);
+}
+
+function parseIndiaStateMetadata(stateHtml) {
+  const stateCode =
+    normalizeText((stateHtml.match(/id="StateId"\s+value="([^"]+)"/i) || [])[1]) ||
+    normalizeText((stateHtml.match(/id="hdnstateid"\s+value="([^"]+)"/i) || [])[1]);
+  const stateNumericId = normalizeText((stateHtml.match(/state_id=(\d+)/i) || [])[1]);
+  return { stateCode, stateNumericId };
+}
+
+function extractIndiaPendingStatusLinks(homeHtml) {
+  const links = [];
+  const seen = new Set();
+  const anchorMatches = homeHtml.matchAll(/<a[^>]+href='(online_track_proposal_state\.aspx\?[^']+)'[^>]*>([\s\S]*?)<\/a>/gi);
+  for (const match of anchorMatches) {
+    const hrefRaw = normalizeText(match[1]).replace(/&amp;/g, '&');
+    if (!hrefRaw || seen.has(hrefRaw)) continue;
+    const count = Number.parseInt((stripTags(match[2]).match(/\d+/) || ['0'])[0], 10);
+    if (!Number.isFinite(count) || count <= 0) continue;
+
+    const before = homeHtml.slice(Math.max(0, (match.index || 0) - 900), match.index || 0);
+    const labels = Array.from(before.matchAll(/<li class="arrow[^"]*">([\s\S]*?)<\/li>/gi)).map((item) =>
+      stripTags(item[1])
+    );
+    let label = normalizeText(labels[labels.length - 1]);
+    if (!label) {
+      const fallbackText = stripTags(before).replace(/\s+/g, ' ').trim();
+      const fallbackMatch = fallbackText.match(/([A-Za-z][A-Za-z\s,&/()-]{6,90})\s*$/);
+      label = normalizeText(fallbackMatch?.[1]);
+    }
+    if (!label) label = `Pending bucket ${links.length + 1}`;
+    if (INDIA_NON_PENDING_LABEL_RE.test(label)) continue;
+
+    seen.add(hrefRaw);
+    links.push({ href: hrefRaw, label, count });
+  }
+
+  return links.sort((a, b) => b.count - a.count);
+}
+
+function parseIndiaProposalRows(statusHtml) {
+  const tableStart = statusHtml.indexOf('id="ctl00_ContentPlaceHolder1_GridView1"');
+  if (tableStart === -1) return [];
+  const detailMarker = statusHtml.indexOf('id="ctl00_ContentPlaceHolder1_detail_td"', tableStart);
+  const gridFragment = detailMarker > tableStart
+    ? statusHtml.slice(tableStart, detailMarker)
+    : statusHtml.slice(tableStart);
+  if (/No Records Found/i.test(gridFragment)) return [];
+
+  const rows = [];
+  const rowSegments = gridFragment.split(/<tr bgcolor="White">/gi).slice(1);
+  for (const rowHtml of rowSegments) {
+    if (/No Records Found/i.test(rowHtml)) continue;
+
+    const proposalNo = normalizeText((rowHtml.match(/_std"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_std"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    const fileNo = normalizeText((rowHtml.match(/_fn"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_fn"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    const title = normalizeText((rowHtml.match(/_Label2"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_Label2"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    if (!title) continue;
+
+    const state = normalizeText((rowHtml.match(/_stdname1"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_stdname1"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    const district = normalizeText((rowHtml.match(/_lbldis1"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_lbldis1"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    const locality = normalizeText((rowHtml.match(/_lblvill1"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_lblvill1"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    const category = normalizeText((rowHtml.match(/_dst"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_dst"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    const company = normalizeText((rowHtml.match(/_uag"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_uag"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    const currentStatus = normalizeText((rowHtml.match(/_Label1"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_Label1"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    const importantDatesRaw = normalizeText((rowHtml.match(/_datehtml"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] ? stripTags((rowHtml.match(/_datehtml"[^>]*>([\s\S]*?)<\/span>/i) || [])[1]) : '');
+    const attachmentLinks = Array.from(rowHtml.matchAll(/href='([^']+)'/gi))
+      .map((item) => normalizeText(item[1]).replace(/&amp;/g, '&'))
+      .filter((href) => href && !href.toLowerCase().startsWith('javascript:'));
+
+    rows.push({
+      proposal_no: proposalNo,
+      file_no: fileNo,
+      title,
+      state,
+      district,
+      locality,
+      category,
+      company,
+      current_status: currentStatus,
+      important_dates: importantDatesRaw,
+      attachment_links: attachmentLinks,
+    });
+  }
+
+  return rows;
+}
+
+async function fetchIndiaPendingPermits(now, lookbackDays) {
+  const source = SOURCE_DEFS.in_ec;
+  const maxStates = Math.max(1, Math.min(36, Number.parseInt(process.env.INDIA_PENDING_MAX_STATES || '12', 10)));
+  const maxStatusLinksPerState = Math.max(1, Math.min(12, Number.parseInt(process.env.INDIA_PENDING_MAX_LINKS_PER_STATE || '4', 10)));
+  const maxRecords = Math.max(20, Math.min(1500, Number.parseInt(process.env.INDIA_PENDING_MAX_RECORDS || '180', 10)));
+  const indiaLookbackDays = Math.max(
+    90,
+    Number.parseInt(process.env.INDIA_PENDING_LOOKBACK_DAYS || String(Math.max(lookbackDays, 730)), 10),
+  );
+  const oldestAllowed = new Date(now.getTime() - indiaLookbackDays * 24 * 60 * 60 * 1000);
+
+  const portalHtml = await fetchText('https://environmentclearance.nic.in/state_portal1.aspx', 90000);
+  const priorityStates = [
+    'Maharashtra',
+    'Tamil Nadu',
+    'Karnataka',
+    'Gujarat',
+    'Rajasthan',
+    'Andhra Pradesh',
+    'Telangana',
+    'Uttar Pradesh',
+    'Madhya Pradesh',
+    'Kerala',
+    'Punjab',
+    'Haryana',
+    'Orissa',
+    'West Bengal',
+    'Bihar',
+  ];
+  const priorityIndex = new Map(priorityStates.map((name, index) => [name.toLowerCase(), index]));
+  const stateNames = extractIndiaStateNames(portalHtml)
+    .sort((a, b) => {
+      const aIndex = priorityIndex.has(a.toLowerCase()) ? priorityIndex.get(a.toLowerCase()) : 999;
+      const bIndex = priorityIndex.has(b.toLowerCase()) ? priorityIndex.get(b.toLowerCase()) : 999;
+      if (aIndex !== bIndex) return aIndex - bIndex;
+      return a.localeCompare(b);
+    })
+    .slice(0, maxStates);
+  const records = [];
+
+  for (const stateName of stateNames) {
+    try {
+      const encodedState = encodeURIComponent(stateName);
+      const stateUrl = `https://environmentclearance.nic.in/Staterecord.aspx?State_Name=${encodedState}`;
+      const stateHtml = await fetchText(stateUrl, 90000);
+      const { stateCode, stateNumericId } = parseIndiaStateMetadata(stateHtml);
+      if (!stateCode) continue;
+
+      const homeUrl = `https://environmentclearance.nic.in/HomeStateEC.aspx?state_name=${encodedState}&state_id=${encodeURIComponent(stateCode)}`;
+      const homeHtml = await fetchText(homeUrl, 90000);
+      const statusLinks = extractIndiaPendingStatusLinks(homeHtml).slice(0, maxStatusLinksPerState);
+
+      for (const statusLink of statusLinks) {
+        const statusUrl = `https://environmentclearance.nic.in/${statusLink.href}`;
+        const statusHtml = await fetchText(statusUrl, 90000);
+        const rows = parseIndiaProposalRows(statusHtml);
+        for (const row of rows) {
+          if (records.length >= maxRecords) break;
+
+          const externalId = normalizeText(row.proposal_no || row.file_no);
+          if (!externalId) continue;
+
+          const location = [row.locality, row.district || stateName, stateName].filter(Boolean).join(', ');
+          const text = `${row.title} ${row.category} ${row.company} ${row.current_status}`.trim();
+          const domain = classifyPermitDomain(text);
+          if (!INCLUDE_NON_FARM && !FARM_KEYWORDS_RE.test(text)) continue;
+
+          const submittedDate = extractLastIndiaSubmissionDate(row.important_dates);
+          if (submittedDate && submittedDate < oldestAllowed) continue;
+
+          const attachments = row.attachment_links.slice(0, 5).map((href) => {
+            if (href.startsWith('http://') || href.startsWith('https://')) return href;
+            return `https://environmentclearance.nic.in/${href.replace(/^\//, '')}`;
+          });
+
+          records.push({
+            ingest_key: buildIngestKey(source.key, externalId, row.title, location, 'India'),
+            source_key: source.key,
+            source_name: source.name,
+            source_url: statusUrl,
+            external_id: externalId,
+            project_title: row.title,
+            location: location || stateName,
+            country: 'India',
+            activity: row.category
+              ? `Environmental Clearance Proposal - ${row.category}`
+              : 'Environmental Clearance Proposal',
+            category: 'Red',
+            permit_domain: domain,
+            permit_subtype: inferPermitSubtype(text, 'india_state_ec_proposal'),
+            jurisdiction_region: stateName,
+            recipient_status: 'missing',
+            notes: `Official PARIVESH pending EC proposal (${statusLink.label})${row.current_status ? `; current status: ${row.current_status}` : ''}.`,
+            published_at: submittedDate ? submittedDate.toISOString() : null,
+            consultation_deadline: null,
+            source_payload: {
+              state_name: stateName,
+              state_code: stateCode,
+              state_numeric_id: stateNumericId || null,
+              pending_bucket: statusLink.label,
+              proposal_no: row.proposal_no,
+              file_no: row.file_no,
+              company: row.company,
+              category: row.category,
+              current_status: row.current_status,
+              important_dates: row.important_dates,
+              attachments,
+            },
+          });
+        }
+        if (records.length >= maxRecords) break;
+      }
+      if (records.length >= maxRecords) break;
+    } catch (_error) {
+      // Continue with remaining states on individual failures.
+    }
+  }
+
+  return records;
+}
+
 function dedupeRecords(records) {
   const seen = new Set();
   const deduped = [];
@@ -733,20 +1174,39 @@ function dedupeRecords(records) {
   return deduped;
 }
 
+async function resolveSourceRows(label, loader) {
+  try {
+    const rows = await loader();
+    return { rows: Array.isArray(rows) ? rows : [], error: null, label };
+  } catch (error) {
+    return { rows: [], error: String(error?.message || 'unknown error'), label };
+  }
+}
+
 async function run() {
   const startTs = Date.now();
   const now = new Date();
   const lookbackDays = Number.isFinite(DEFAULT_LOOKBACK_DAYS) ? DEFAULT_LOOKBACK_DAYS : 120;
   const useSourceMetadataColumns = await supportsSourceMetadataColumns();
+  const useDomainColumns = await supportsDomainColumns();
 
-  const [ukRows, ncRows, arRows, auRows, ieRows, onRows] = await Promise.all([
-    fetchUkPendingPermits(now, lookbackDays),
-    fetchNcPendingPermits(),
-    fetchArkansasPendingPermits(),
-    fetchAustraliaPendingPermits(),
-    fetchIrelandPendingPermits(),
-    fetchOntarioPendingPermits(now),
+  const [ukSource, ncSource, arSource, auSource, ieSource, onSource, indiaSource] = await Promise.all([
+    resolveSourceRows('UK', () => fetchUkPendingPermits(now, lookbackDays)),
+    resolveSourceRows('US NC', () => fetchNcPendingPermits()),
+    resolveSourceRows('US Arkansas', () => fetchArkansasPendingPermits()),
+    resolveSourceRows('Australia', () => fetchAustraliaPendingPermits()),
+    resolveSourceRows('Ireland', () => fetchIrelandPendingPermits()),
+    resolveSourceRows('Canada (Ontario ERO)', () => fetchOntarioPendingPermits(now)),
+    resolveSourceRows('India (PARIVESH State EC)', () => fetchIndiaPendingPermits(now, lookbackDays)),
   ]);
+
+  const ukRows = ukSource.rows;
+  const ncRows = ncSource.rows;
+  const arRows = arSource.rows;
+  const auRows = auSource.rows;
+  const ieRows = ieSource.rows;
+  const onRows = onSource.rows;
+  const indiaRows = indiaSource.rows;
 
   const combined = dedupeRecords([
     ...ukRows,
@@ -755,27 +1215,45 @@ async function run() {
     ...auRows,
     ...ieRows,
     ...onRows,
+    ...indiaRows,
   ]);
 
-  const result = await upsertPermits(combined, useSourceMetadataColumns);
+  const result = await upsertPermits(combined, useSourceMetadataColumns, useDomainColumns);
   const byCountry = combined.reduce((acc, row) => {
     const country = normalizeText(row.country, 'Unknown');
     acc[country] = (acc[country] || 0) + 1;
     return acc;
   }, {});
+  const byDomain = combined.reduce((acc, row) => {
+    const domain = normalizeText(row.permit_domain, 'other');
+    acc[domain] = (acc[domain] || 0) + 1;
+    return acc;
+  }, {});
 
   console.log('✅ Global pending permit sync complete');
-  console.log(`   Schema mode: ${useSourceMetadataColumns ? 'source metadata columns' : 'legacy permits schema fallback'}`);
+  console.log(
+    `   Schema mode: ${useSourceMetadataColumns ? 'source metadata columns' : 'legacy permits schema fallback'} | domain columns: ${useDomainColumns ? 'enabled' : 'missing'}`
+  );
+  console.log(`   Include non-farm domains: ${INCLUDE_NON_FARM}`);
   console.log(`   UK records: ${ukRows.length}`);
   console.log(`   US NC records: ${ncRows.length}`);
   console.log(`   US Arkansas records: ${arRows.length}`);
   console.log(`   Australia records: ${auRows.length}`);
   console.log(`   Ireland records: ${ieRows.length}`);
   console.log(`   Canada (Ontario ERO) records: ${onRows.length}`);
+  console.log(`   India (PARIVESH State EC) records: ${indiaRows.length}`);
+  const sourceErrors = [ukSource, ncSource, arSource, auSource, ieSource, onSource, indiaSource].filter((item) => item.error);
+  if (sourceErrors.length > 0) {
+    console.log(`   Source errors: ${sourceErrors.length}`);
+    for (const sourceError of sourceErrors) {
+      console.log(`   - ${sourceError.label}: ${sourceError.error}`);
+    }
+  }
   console.log(`   Total deduped records: ${combined.length}`);
   console.log(`   Inserted: ${result.inserted}`);
   console.log(`   Updated: ${result.updated}`);
   console.log(`   Country breakdown: ${JSON.stringify(byCountry)}`);
+  console.log(`   Domain breakdown: ${JSON.stringify(byDomain)}`);
   if (combined[0]) {
     console.log(`   Sample: ${combined[0].project_title}`);
     console.log(`   Sample URL: ${combined[0].source_url}`);

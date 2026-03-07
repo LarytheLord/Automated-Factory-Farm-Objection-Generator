@@ -38,6 +38,8 @@ interface Permit {
   country: string;
   notes: string;
   category?: string;
+  permit_domain?: "farm_animal" | "industrial_infra" | "pollution_industrial" | "other" | string;
+  permit_subtype?: string;
   coordinates?: { lat: number; lng: number };
   [key: string]: any;
 }
@@ -264,9 +266,38 @@ function parsePermitNotes(permit: Permit | null): ParsedPermitNotes {
   };
 }
 
+function permitPreviewTimestamp(permit: Permit | null | undefined) {
+  if (!permit) return 0;
+  const candidates = [
+    permit.observed_at,
+    permit.updated_at,
+    permit.last_seen_at,
+    permit.published_at,
+    permit.created_at,
+  ];
+  for (const value of candidates) {
+    const parsed = Date.parse(String(value || ""));
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return 0;
+}
+
+function isPendingPermit(permit: Permit | null | undefined) {
+  const status = String(permit?.status || "").toLowerCase();
+  if (!status) return false;
+  return status.includes("pending") || status.includes("under review") || status.includes("under_review");
+}
+
+function pickLatestPendingPermit(permits: Permit[]) {
+  return [...permits]
+    .filter((permit) => isPendingPermit(permit))
+    .sort((a, b) => permitPreviewTimestamp(b) - permitPreviewTimestamp(a))[0] || null;
+}
+
 /* ─── Main Component ─── */
 export default function Home() {
   const [permits, setPermits] = useState<Permit[]>([]);
+  const [heroPermit, setHeroPermit] = useState<Permit | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [selectedPermit, setSelectedPermit] = useState<Permit | null>(null);
   const [formData, setFormData] = useState({
@@ -284,12 +315,15 @@ export default function Home() {
   const [emailSubject, setEmailSubject] = useState("");
   const [letterMode, setLetterMode] = useState<"concise" | "detailed">("concise");
   const [recipientSuggestions, setRecipientSuggestions] = useState<RecipientSuggestion[]>([]);
+  const [sendToSuggestions, setSendToSuggestions] = useState<RecipientSuggestion[]>([]);
+  const [ccSuggestions, setCcSuggestions] = useState<RecipientSuggestion[]>([]);
   const [recommendedRecipient, setRecommendedRecipient] = useState<RecipientSuggestion | null>(null);
   const [recipientGuidance, setRecipientGuidance] = useState<string | null>(null);
   const [loadingRecipients, setLoadingRecipients] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("All");
+  const [selectedPermitDomain, setSelectedPermitDomain] = useState("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -302,7 +336,6 @@ export default function Home() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [usage, setUsage] = useState<UsageResponse | null>(null);
-  const [authNotice, setAuthNotice] = useState<string | null>(null);
 
   const API_BASE = "";
 
@@ -313,11 +346,6 @@ export default function Home() {
   const handleNavAuthChange = (navUser: User | null, navToken: string | null) => {
     setUser(navUser);
     setToken(navToken);
-    if (navUser && !(navUser.role === "admin" || navUser.accessApproved)) {
-      setAuthNotice("Account pending manual approval. You'll get access once an admin approves your profile.");
-    } else {
-      setAuthNotice(null);
-    }
   };
 
   useEffect(() => {
@@ -346,20 +374,20 @@ export default function Home() {
         const statsPromise = fetch(`${API_BASE}/api/stats`)
           .then((r) => (r.ok ? r.json() : null))
           .catch(() => null);
-
-        if (!token || !hasApprovedAccess) {
-          const statsData = await statsPromise;
-          setPermits([]);
-          setStats(statsData);
-          setLoading(false);
-          return;
+        const heroPermitPromise = fetch(`${API_BASE}/api/public/latest-pending-permit`)
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null);
+        const permitHeaders: HeadersInit = {};
+        if (token) {
+          permitHeaders.Authorization = `Bearer ${token}`;
         }
 
-        const [permitsRes, statsData] = await Promise.all([
+        const [permitsRes, statsData, heroPermitData] = await Promise.all([
           fetch(`${API_BASE}/api/permits`, {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: permitHeaders,
           }),
           statsPromise,
+          heroPermitPromise,
         ]);
 
         if (!permitsRes.ok) {
@@ -368,8 +396,10 @@ export default function Home() {
         }
 
         const permitsData = await permitsRes.json();
-        setPermits(Array.isArray(permitsData) ? permitsData : []);
+        const normalizedPermits = Array.isArray(permitsData) ? permitsData : [];
+        setPermits(normalizedPermits);
         setStats(statsData);
+        setHeroPermit(heroPermitData || pickLatestPendingPermit(normalizedPermits));
       } catch (err) {
         console.error("Fetch error:", err);
         setError(err instanceof Error ? err.message : "Could not connect to the API. Please try again.");
@@ -379,7 +409,7 @@ export default function Home() {
     };
 
     loadData();
-  }, [API_BASE, token, hasApprovedAccess, isMounted]);
+  }, [API_BASE, token, isMounted]);
 
   const fetchUsage = async (authToken?: string | null) => {
     try {
@@ -421,8 +451,10 @@ export default function Home() {
 
   useEffect(() => {
     const loadRecipientSuggestions = async () => {
-      if (!selectedPermit || !token || !hasApprovedAccess) {
+      if (!selectedPermit) {
         setRecipientSuggestions([]);
+        setSendToSuggestions([]);
+        setCcSuggestions([]);
         setRecommendedRecipient(null);
         setRecipientGuidance(null);
         setRecipientEmail("");
@@ -433,12 +465,15 @@ export default function Home() {
       setRecipientGuidance(null);
       setRecipientEmail("");
       try {
+        const suggestionHeaders: HeadersInit = {
+          "Content-Type": "application/json",
+        };
+        if (token) {
+          suggestionHeaders.Authorization = `Bearer ${token}`;
+        }
         const res = await fetchWithTimeout(`${API_BASE}/api/recipient-suggestions`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: suggestionHeaders,
           body: JSON.stringify({ permitDetails: selectedPermit }),
         }, 15000);
 
@@ -449,7 +484,11 @@ export default function Home() {
 
         const payload = await res.json();
         const suggestions = Array.isArray(payload?.suggestions) ? payload.suggestions : [];
+        const sendTo = Array.isArray(payload?.sendTo) ? payload.sendTo : suggestions.filter((s: RecipientSuggestion) => s.type === "email" && (s as any).recipient_type !== "ngo");
+        const cc = Array.isArray(payload?.cc) ? payload.cc : suggestions.filter((s: RecipientSuggestion) => (s as any).recipient_type === "ngo");
         setRecipientSuggestions(suggestions);
+        setSendToSuggestions(sendTo);
+        setCcSuggestions(cc);
         setRecommendedRecipient(payload?.recommended || null);
         setRecipientGuidance(payload?.guidance || null);
 
@@ -465,6 +504,8 @@ export default function Home() {
         }
       } catch (err) {
         setRecipientSuggestions([]);
+        setSendToSuggestions([]);
+        setCcSuggestions([]);
         setRecommendedRecipient(null);
         setRecipientGuidance(err instanceof Error ? err.message : "Could not load recipient suggestions.");
       } finally {
@@ -473,7 +514,7 @@ export default function Home() {
     };
 
     loadRecipientSuggestions();
-  }, [selectedPermit, token, hasApprovedAccess, API_BASE]);
+  }, [selectedPermit, token, API_BASE]);
 
   /* ─── Handlers ─── */
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -481,25 +522,20 @@ export default function Home() {
   };
 
   const generateLetter = async () => {
-    if (!isAuthenticated) {
-      setIsAuthModalOpen(true);
-      return;
-    }
-    if (!hasApprovedAccess) {
-      setLetterError("Account pending manual approval. You cannot generate letters yet.");
-      return;
-    }
     if (!selectedPermit) return;
     setGeneratingLetter(true);
     setLetterError(null);
     setGeneratedLetter("");
     try {
+      const generateHeaders: HeadersInit = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        generateHeaders.Authorization = `Bearer ${token}`;
+      }
       const res = await fetchWithTimeout(`${API_BASE}/api/generate-letter`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: generateHeaders,
         body: JSON.stringify({
           permitDetails: { ...selectedPermit, ...formData, currentDate },
           letterMode,
@@ -565,11 +601,6 @@ export default function Home() {
   const handleLogin = (newToken: string, newUser: User) => {
     setToken(newToken);
     setUser(newUser);
-    if (!(newUser.role === "admin" || newUser.accessApproved)) {
-      setAuthNotice("Account pending manual approval. You'll get access once an admin approves your profile.");
-    } else {
-      setAuthNotice(null);
-    }
     if (typeof window !== 'undefined') {
       localStorage.setItem("token", newToken);
       localStorage.setItem("user", JSON.stringify(newUser));
@@ -607,7 +638,21 @@ export default function Home() {
       return;
     }
     const draft = buildEmailDraft();
-    const mailtoUrl = `mailto:${encodeURIComponent(draft.to)}?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}`;
+    // Build CC list: other government authorities + NGO/advocacy orgs
+    const toEmail = draft.to.toLowerCase();
+    const otherGovEmails = sendToSuggestions
+      .filter((s) => s.email && s.email.toLowerCase() !== toEmail)
+      .map((s) => s.email!)
+      .slice(0, 3);
+    const ngoCcEmails = ccSuggestions
+      .filter((s) => s.email && s.email.toLowerCase() !== toEmail)
+      .map((s) => s.email!)
+      .slice(0, 4);
+    const allCc = [...otherGovEmails, ...ngoCcEmails];
+    let mailtoUrl = `mailto:${encodeURIComponent(draft.to)}?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}`;
+    if (allCc.length > 0) {
+      mailtoUrl += `&cc=${encodeURIComponent(allCc.join(","))}`;
+    }
     window.location.href = mailtoUrl;
   };
 
@@ -617,7 +662,19 @@ export default function Home() {
       return;
     }
     const draft = buildEmailDraft();
-    const text = `To: ${draft.to || "[Add recipient email]"}\nSubject: ${draft.subject}\n\n${draft.body}`;
+    const toEmail = draft.to.toLowerCase();
+    const otherGovEmails = sendToSuggestions
+      .filter((s) => s.email && s.email.toLowerCase() !== toEmail)
+      .map((s) => s.email!).slice(0, 3);
+    const ngoCcEmails = ccSuggestions
+      .filter((s) => s.email && s.email.toLowerCase() !== toEmail)
+      .map((s) => s.email!).slice(0, 4);
+    const allCc = [...otherGovEmails, ...ngoCcEmails];
+    let text = `To: ${draft.to || "[Add recipient email]"}`;
+    if (allCc.length > 0) {
+      text += `\nCC: ${allCc.join(", ")}`;
+    }
+    text += `\nSubject: ${draft.subject}\n\n${draft.body}`;
     try {
       await navigator.clipboard.writeText(text);
       setCopiedMailDraft(true);
@@ -634,13 +691,29 @@ export default function Home() {
   };
 
   const uniqueCountries = Array.from(new Set(permits.map((p) => p.country))).sort();
+  const uniqueDomains = Array.from(
+    new Set(
+      permits
+        .map((p) => String(p.permit_domain || "").trim())
+        .filter(Boolean)
+    )
+  ).sort();
+  const titleCaseDomain = (value: string) =>
+    value
+      .replace(/_/g, " ")
+      .split(" ")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
   const filteredPermits = permits.filter((p) => {
     const matchSearch =
       p.project_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.activity.toLowerCase().includes(searchTerm.toLowerCase());
     const matchCountry = selectedCountry === "All" || p.country === selectedCountry;
-    return matchSearch && matchCountry;
+    const matchDomain =
+      selectedPermitDomain === "All" ||
+      String(p.permit_domain || "other") === selectedPermitDomain;
+    return matchSearch && matchCountry && matchDomain;
   });
 
   const animPermits = useAnimatedCounter(stats?.totalPermits || 0);
@@ -715,7 +788,7 @@ export default function Home() {
                   href="#permits"
                   className="group px-7 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-emerald-500/20 inline-flex items-center gap-2 text-sm"
                 >
-                  {hasApprovedAccess ? "Browse Permits" : "Request Access"}
+                  Browse Permits
                   <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </a>
                 <a href="#how-it-works" className="px-7 py-3.5 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 font-medium rounded-xl transition-all inline-flex items-center gap-2 text-sm text-slate-700">
@@ -736,7 +809,7 @@ export default function Home() {
             {/* ── Right: Permit Preview Card ── */}
             <div className="animate-fade-in-up hidden lg:flex flex-col gap-3" style={{ animationDelay: "200ms" }}>
               <p className="text-[11px] uppercase tracking-[0.2em] text-gray-400 text-center">Live permit analysis</p>
-              <PermitPreviewCard />
+              <PermitPreviewCard permit={heroPermit} />
             </div>
 
           </div>
@@ -813,7 +886,7 @@ export default function Home() {
             <h2 className="text-3xl md:text-4xl font-bold">Three steps to real impact</h2>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
-            <StepCard num="01" title="Find a Permit" desc="Browse the Open Permit intelligence feed across 8+ countries. Filter by country, location, or activity." icon={<Search className="w-5 h-5" />} />
+            <StepCard num="01" title="Find a Permit" desc="Browse the Open Permit intelligence feed across 8+ countries. Filter by permit type, country, location, or activity." icon={<Search className="w-5 h-5" />} />
             <StepCard num="02" title="AI Drafts Your Letter" desc="Our AI analyzes relevant laws, then writes a legally grounded objection — personalized to the specific permit." icon={<Sparkles className="w-5 h-5" />} />
             <StepCard num="03" title="Submit to Authorities" desc="Use authority contact details, review the draft, and send from your own email client." icon={<Mail className="w-5 h-5" />} />
           </div>
@@ -856,32 +929,7 @@ export default function Home() {
       <div className="section-divider" />
       <section id="permits" className="relative z-10 py-24 px-6">
         <div className="max-w-6xl mx-auto">
-          {!isAuthenticated ? (
-            <div className="glass-card p-8 text-center max-w-2xl mx-auto">
-              <Shield className="w-10 h-10 text-emerald-500 mx-auto mb-4" />
-              <h3 className="text-2xl font-semibold mb-2">Protected Access Area</h3>
-              <p className="text-gray-600 mb-6">
-                Permit data and objection generation are restricted to approved members only.
-                Sign in and submit your profile for manual review.
-              </p>
-              <button
-                onClick={() => setIsAuthModalOpen(true)}
-                className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl transition-all"
-              >
-                Sign In / Create Account
-              </button>
-            </div>
-          ) : !hasApprovedAccess ? (
-            <div className="glass-card p-8 text-center max-w-2xl mx-auto">
-              <Clock className="w-10 h-10 text-amber-500 mx-auto mb-4" />
-              <h3 className="text-2xl font-semibold mb-2">Approval Pending</h3>
-              <p className="text-gray-600 mb-4">
-                Your account is waiting for manual verification by an admin.
-                Once approved, permit browsing and letter generation will be unlocked.
-              </p>
-              {authNotice && <p className="text-sm text-amber-700">{authNotice}</p>}
-            </div>
-          ) : !selectedPermit ? (
+          {!selectedPermit ? (
             <>
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10">
                 <div>
@@ -900,6 +948,16 @@ export default function Home() {
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
+                  <select
+                    className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500/30 text-slate-700"
+                    value={selectedPermitDomain}
+                    onChange={(e) => setSelectedPermitDomain(e.target.value)}
+                  >
+                    <option value="All">All Permit Types</option>
+                    {uniqueDomains.map((domain) => (
+                      <option key={domain} value={domain}>{titleCaseDomain(domain)}</option>
+                    ))}
+                  </select>
                   <select
                     className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500/30 text-slate-700"
                     value={selectedCountry}
@@ -941,6 +999,11 @@ export default function Home() {
                         <Clock className="w-3 h-3" />
                         {permit.location}
                       </span>
+                      {permit.permit_domain && (
+                        <span className="text-[10px] uppercase tracking-wider text-gray-500 border border-slate-200 rounded-full px-2 py-1">
+                          {titleCaseDomain(String(permit.permit_domain))}
+                        </span>
+                      )}
                       <ChevronRight className="w-4 h-4 text-gray-700 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
                     </div>
                   </div>
@@ -969,6 +1032,7 @@ export default function Home() {
                     <DetailRow label="Country" value={selectedPermit.country} />
                     <DetailRow label="Activity" value={selectedPermit.activity} />
                     {selectedPermit.category && <DetailRow label="Category" value={selectedPermit.category} />}
+                    {selectedPermit.permit_domain && <DetailRow label="Permit Type" value={titleCaseDomain(String(selectedPermit.permit_domain))} />}
                     {selectedPermit.capacity && <DetailRow label="Capacity" value={selectedPermit.capacity} />}
                     {selectedPermitNotes.reference && <DetailRow label="Reference" value={selectedPermitNotes.reference} />}
                     {selectedPermitNotes.externalId && <DetailRow label="External ID" value={selectedPermitNotes.externalId} />}
@@ -1088,18 +1152,55 @@ export default function Home() {
                     {loadingRecipients && (
                       <p className="text-xs text-gray-500 mb-3">Finding official recipient contacts...</p>
                     )}
-                    {!loadingRecipients && recipientSuggestions.length > 0 && (
-                      <div className="mb-3 flex flex-wrap gap-2">
-                        {recipientSuggestions.map((suggestion) => (
-                          suggestion.type === "email" ? (
+
+                    {/* Send To: Government / Authority contacts */}
+                    {!loadingRecipients && sendToSuggestions.length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Send to</p>
+                        <div className="flex flex-wrap gap-2">
+                          {sendToSuggestions.map((suggestion) => (
                             <button
                               key={suggestion.id}
                               onClick={() => useSuggestedRecipient(suggestion)}
-                              className="text-xs px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors"
+                              className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                                recipientEmail === suggestion.email
+                                  ? "bg-blue-100 border-blue-400 text-blue-800 font-medium"
+                                  : "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                              }`}
+                              title={suggestion.reason}
                             >
-                              Use {suggestion.email || suggestion.label}
+                              {suggestion.label}
                             </button>
-                          ) : (
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* CC: NGO / Advocacy orgs */}
+                    {!loadingRecipients && ccSuggestions.length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">CC &mdash; advocacy orgs to amplify</p>
+                        <div className="flex flex-wrap gap-2">
+                          {ccSuggestions.map((suggestion) => (
+                            <button
+                              key={suggestion.id}
+                              onClick={() => useSuggestedRecipient(suggestion)}
+                              className="text-xs px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors"
+                              title={suggestion.reason}
+                            >
+                              {suggestion.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Official portals / webform links */}
+                    {!loadingRecipients && recipientSuggestions.filter((s) => s.type === "webform").length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Official portals</p>
+                        <div className="flex flex-wrap gap-2">
+                          {recipientSuggestions.filter((s) => s.type === "webform").map((suggestion) => (
                             <button
                               key={suggestion.id}
                               onClick={() => openSuggestionLink(suggestion)}
@@ -1108,10 +1209,11 @@ export default function Home() {
                               <ExternalLink className="w-3 h-3" />
                               {suggestion.label}
                             </button>
-                          )
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     )}
+
                     {recipientGuidance && (
                       <p className="text-xs text-gray-500 mb-3">{recipientGuidance}</p>
                     )}
@@ -1139,10 +1241,15 @@ export default function Home() {
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         onClick={openInMailApp}
-                        className="px-4 py-2 text-sm rounded-xl border border-slate-200 hover:border-blue-400/50 hover:bg-blue-50 text-slate-700 transition-colors flex items-center gap-2"
+                        className="px-5 py-2.5 text-sm rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors flex items-center gap-2 shadow-sm"
                       >
-                        <ExternalLink className="w-4 h-4" />
+                        <Mail className="w-4 h-4" />
                         Open in Mail App
+                        {(sendToSuggestions.length + ccSuggestions.length) > 1 && (
+                          <span className="text-xs bg-blue-500 px-1.5 py-0.5 rounded-md">
+                            +{sendToSuggestions.filter((s) => s.email?.toLowerCase() !== recipientEmail.toLowerCase()).length + ccSuggestions.length} CC
+                          </span>
+                        )}
                       </button>
                       <button
                         onClick={copyEmailDraft}
@@ -1153,7 +1260,7 @@ export default function Home() {
                       </button>
                     </div>
                     <p className="mt-3 text-xs text-gray-500">
-                      One click flow: set recipient + subject, then use <strong>Open in Mail App</strong>. Subject and body are auto-filled.
+                      Click <strong>Open in Mail App</strong> to send to the primary authority with all other contacts auto-CC&apos;d. Subject, body, and recipients are pre-filled.
                     </p>
                     {emailError && <p className="mt-2 text-red-400 text-sm">{emailError}</p>}
                   </div>
@@ -1191,59 +1298,85 @@ export default function Home() {
 }
 
 /* ─── Sub-components ─── */
-function PermitPreviewCard() {
+function PermitPreviewCard({ permit }: { permit: Permit | null }) {
+  const toTitle = (value: string) =>
+    String(value || "")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+
+  const reference = String(
+    permit?.external_id || permit?.reference || permit?.id || "Latest official record"
+  ).trim();
+  const status = String(permit?.status || "Pending");
+  const statusLower = status.toLowerCase();
+  const statusClass = statusLower.includes("approved")
+    ? "bg-emerald-500/10 text-emerald-600 border-emerald-200/50"
+    : statusLower.includes("rejected")
+      ? "bg-rose-500/10 text-rose-600 border-rose-200/50"
+      : statusLower.includes("review")
+        ? "bg-blue-500/10 text-blue-600 border-blue-200/50"
+        : "bg-amber-500/10 text-amber-600 border-amber-200/50";
+
+  const observedAt = permitPreviewTimestamp(permit);
+  const observedLabel = observedAt
+    ? new Date(observedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+    : "Unknown date";
+  const locationLine = [permit?.location, permit?.country].filter(Boolean).join(" · ");
+
   return (
     <div className="glass-card p-5 space-y-4 shadow-xl border border-slate-100/80">
       {/* Permit header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-          <span className="text-[11px] text-gray-400 font-mono">APP/2024/00892</span>
+          <span className="text-[11px] text-gray-400 font-mono">{reference}</span>
         </div>
-        <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 text-[10px] rounded-full font-medium border border-amber-200/50">
-          Pending Review
+        <span className={`px-2 py-0.5 text-[10px] rounded-full font-medium border ${statusClass}`}>
+          {status}
         </span>
       </div>
 
       {/* Title + location */}
       <div>
         <h4 className="font-semibold text-slate-900 text-sm leading-snug">
-          Riverside Intensive Poultry Unit Expansion
+          {permit?.project_title || "Loading latest pending permit..."}
         </h4>
         <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-1">
           <MapPin className="w-3 h-3" />
-          North Yorkshire, UK · 85,000 birds
+          {locationLine || "Official permit source"}
         </div>
       </div>
 
-      {/* Impact metrics */}
+      {/* Core details */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-slate-50 rounded-lg p-3">
-          <div className="text-[10px] text-gray-400 mb-1">Animals at risk</div>
-          <div className="text-xl font-bold text-slate-900">85,000</div>
+          <div className="text-[10px] text-gray-400 mb-1">Permit type</div>
+          <div className="text-xs font-semibold text-slate-900 leading-snug">
+            {permit?.permit_domain ? toTitle(String(permit.permit_domain)) : "Pending review"}
+          </div>
         </div>
         <div className="bg-slate-50 rounded-lg p-3">
-          <div className="text-[10px] text-gray-400 mb-1">Laws applicable</div>
-          <div className="text-xl font-bold text-slate-900">12</div>
+          <div className="text-[10px] text-gray-400 mb-1">Last updated</div>
+          <div className="text-xs font-semibold text-slate-900">{observedLabel}</div>
         </div>
       </div>
 
-      {/* AI analysis */}
+      {/* Source block */}
       <div className="bg-slate-50 rounded-lg p-3 space-y-2">
         <div className="flex items-center justify-between text-[11px]">
           <span className="text-gray-500 flex items-center gap-1.5">
             <Sparkles className="w-3 h-3 text-blue-400" />
-            Analysing against UK planning law...
+            Source-verified permit record
           </span>
-          <span className="text-emerald-600 font-medium">Done</span>
+          <span className="text-emerald-600 font-medium">Live</span>
         </div>
         <div className="h-1 rounded-full bg-slate-200 overflow-hidden">
           <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-blue-400 w-full" />
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {["Animal Welfare Act", "Environment Act", "Planning Policy"].map((l) => (
-            <span key={l} className="px-2 py-0.5 bg-blue-50 text-blue-500 text-[9px] rounded border border-blue-100">
-              {l}
+          {[permit?.source_name || "Official Government Source", permit?.activity || "Permit Activity"].map((label) => (
+            <span key={label} className="px-2 py-0.5 bg-blue-50 text-blue-500 text-[9px] rounded border border-blue-100">
+              {label}
             </span>
           ))}
         </div>
@@ -1255,8 +1388,8 @@ function PermitPreviewCard() {
           <CheckCircle className="w-4 h-4 text-emerald-500" />
         </div>
         <div>
-          <p className="text-xs font-semibold text-emerald-800">Legal objection ready to send</p>
-          <p className="text-[10px] text-emerald-600 mt-0.5">Generated in 1 min 42 sec · 847 words</p>
+          <p className="text-xs font-semibold text-emerald-800">Using latest real pending permit data</p>
+          <p className="text-[10px] text-emerald-600 mt-0.5">Automatically refreshed from trusted public sources</p>
         </div>
       </div>
     </div>

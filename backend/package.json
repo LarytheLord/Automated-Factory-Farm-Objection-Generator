@@ -9,6 +9,7 @@
     "migrate:feedback-submissions": "node scripts/migrations/migrate-feedback-submissions.js",
     "migrate:json-accounts": "node scripts/migrations/migrate-json-accounts-to-supabase.js",
     "backfill:access-approvals": "node scripts/migrations/backfill-access-approvals-from-users.js",
+    "cleanup:untrusted-demo-permits": "node scripts/migrations/remove-untrusted-demo-permits.js",
     "validate:sources": "node scripts/validate-permit-sources.js --remote-only",
     "validate:sources:all": "node scripts/validate-permit-sources.js --include-disabled",
     "sync:sources": "node scripts/sync-permit-sources.js --remote-only",
@@ -16,7 +17,9 @@
     "sync:recipients": "node scripts/sync-recipient-directory.js",
     "migrate:permits-source-metadata": "node scripts/migrations/migrate-permits-source-metadata.js",
     "sync:uk-pending-permits": "node scripts/sync-uk-pending-permits-to-supabase.js",
-    "sync:global-pending-permits": "node scripts/sync-global-pending-permits-to-supabase.js"
+    "sync:global-pending-permits": "node scripts/sync-global-pending-permits-to-supabase.js",
+    "sync:india-farm-pending-permits": "node scripts/sync-india-farm-pending-permits-to-supabase.js",
+    "sync:india-ocmms-farm-pending": "node scripts/sync-india-ocmms-farm-pending-to-supabase.js"
   },
   "keywords": [],
   "author": "",
