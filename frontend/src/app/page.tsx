@@ -315,6 +315,8 @@ export default function Home() {
   const [emailSubject, setEmailSubject] = useState("");
   const [letterMode, setLetterMode] = useState<"concise" | "detailed">("concise");
   const [recipientSuggestions, setRecipientSuggestions] = useState<RecipientSuggestion[]>([]);
+  const [sendToSuggestions, setSendToSuggestions] = useState<RecipientSuggestion[]>([]);
+  const [ccSuggestions, setCcSuggestions] = useState<RecipientSuggestion[]>([]);
   const [recommendedRecipient, setRecommendedRecipient] = useState<RecipientSuggestion | null>(null);
   const [recipientGuidance, setRecipientGuidance] = useState<string | null>(null);
   const [loadingRecipients, setLoadingRecipients] = useState(false);
@@ -451,6 +453,8 @@ export default function Home() {
     const loadRecipientSuggestions = async () => {
       if (!selectedPermit) {
         setRecipientSuggestions([]);
+        setSendToSuggestions([]);
+        setCcSuggestions([]);
         setRecommendedRecipient(null);
         setRecipientGuidance(null);
         setRecipientEmail("");
@@ -480,7 +484,11 @@ export default function Home() {
 
         const payload = await res.json();
         const suggestions = Array.isArray(payload?.suggestions) ? payload.suggestions : [];
+        const sendTo = Array.isArray(payload?.sendTo) ? payload.sendTo : suggestions.filter((s: RecipientSuggestion) => s.type === "email" && (s as any).recipient_type !== "ngo");
+        const cc = Array.isArray(payload?.cc) ? payload.cc : suggestions.filter((s: RecipientSuggestion) => (s as any).recipient_type === "ngo");
         setRecipientSuggestions(suggestions);
+        setSendToSuggestions(sendTo);
+        setCcSuggestions(cc);
         setRecommendedRecipient(payload?.recommended || null);
         setRecipientGuidance(payload?.guidance || null);
 
@@ -496,6 +504,8 @@ export default function Home() {
         }
       } catch (err) {
         setRecipientSuggestions([]);
+        setSendToSuggestions([]);
+        setCcSuggestions([]);
         setRecommendedRecipient(null);
         setRecipientGuidance(err instanceof Error ? err.message : "Could not load recipient suggestions.");
       } finally {
@@ -628,7 +638,21 @@ export default function Home() {
       return;
     }
     const draft = buildEmailDraft();
-    const mailtoUrl = `mailto:${encodeURIComponent(draft.to)}?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}`;
+    // Build CC list: other government authorities + NGO/advocacy orgs
+    const toEmail = draft.to.toLowerCase();
+    const otherGovEmails = sendToSuggestions
+      .filter((s) => s.email && s.email.toLowerCase() !== toEmail)
+      .map((s) => s.email!)
+      .slice(0, 3);
+    const ngoCcEmails = ccSuggestions
+      .filter((s) => s.email && s.email.toLowerCase() !== toEmail)
+      .map((s) => s.email!)
+      .slice(0, 4);
+    const allCc = [...otherGovEmails, ...ngoCcEmails];
+    let mailtoUrl = `mailto:${encodeURIComponent(draft.to)}?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}`;
+    if (allCc.length > 0) {
+      mailtoUrl += `&cc=${encodeURIComponent(allCc.join(","))}`;
+    }
     window.location.href = mailtoUrl;
   };
 
@@ -638,7 +662,19 @@ export default function Home() {
       return;
     }
     const draft = buildEmailDraft();
-    const text = `To: ${draft.to || "[Add recipient email]"}\nSubject: ${draft.subject}\n\n${draft.body}`;
+    const toEmail = draft.to.toLowerCase();
+    const otherGovEmails = sendToSuggestions
+      .filter((s) => s.email && s.email.toLowerCase() !== toEmail)
+      .map((s) => s.email!).slice(0, 3);
+    const ngoCcEmails = ccSuggestions
+      .filter((s) => s.email && s.email.toLowerCase() !== toEmail)
+      .map((s) => s.email!).slice(0, 4);
+    const allCc = [...otherGovEmails, ...ngoCcEmails];
+    let text = `To: ${draft.to || "[Add recipient email]"}`;
+    if (allCc.length > 0) {
+      text += `\nCC: ${allCc.join(", ")}`;
+    }
+    text += `\nSubject: ${draft.subject}\n\n${draft.body}`;
     try {
       await navigator.clipboard.writeText(text);
       setCopiedMailDraft(true);
@@ -1116,18 +1152,55 @@ export default function Home() {
                     {loadingRecipients && (
                       <p className="text-xs text-gray-500 mb-3">Finding official recipient contacts...</p>
                     )}
-                    {!loadingRecipients && recipientSuggestions.length > 0 && (
-                      <div className="mb-3 flex flex-wrap gap-2">
-                        {recipientSuggestions.map((suggestion) => (
-                          suggestion.type === "email" ? (
+
+                    {/* Send To: Government / Authority contacts */}
+                    {!loadingRecipients && sendToSuggestions.length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Send to</p>
+                        <div className="flex flex-wrap gap-2">
+                          {sendToSuggestions.map((suggestion) => (
                             <button
                               key={suggestion.id}
                               onClick={() => useSuggestedRecipient(suggestion)}
-                              className="text-xs px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors"
+                              className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                                recipientEmail === suggestion.email
+                                  ? "bg-blue-100 border-blue-400 text-blue-800 font-medium"
+                                  : "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                              }`}
+                              title={suggestion.reason}
                             >
-                              Use {suggestion.email || suggestion.label}
+                              {suggestion.label}
                             </button>
-                          ) : (
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* CC: NGO / Advocacy orgs */}
+                    {!loadingRecipients && ccSuggestions.length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">CC &mdash; advocacy orgs to amplify</p>
+                        <div className="flex flex-wrap gap-2">
+                          {ccSuggestions.map((suggestion) => (
+                            <button
+                              key={suggestion.id}
+                              onClick={() => useSuggestedRecipient(suggestion)}
+                              className="text-xs px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors"
+                              title={suggestion.reason}
+                            >
+                              {suggestion.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Official portals / webform links */}
+                    {!loadingRecipients && recipientSuggestions.filter((s) => s.type === "webform").length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Official portals</p>
+                        <div className="flex flex-wrap gap-2">
+                          {recipientSuggestions.filter((s) => s.type === "webform").map((suggestion) => (
                             <button
                               key={suggestion.id}
                               onClick={() => openSuggestionLink(suggestion)}
@@ -1136,10 +1209,11 @@ export default function Home() {
                               <ExternalLink className="w-3 h-3" />
                               {suggestion.label}
                             </button>
-                          )
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     )}
+
                     {recipientGuidance && (
                       <p className="text-xs text-gray-500 mb-3">{recipientGuidance}</p>
                     )}
@@ -1167,10 +1241,15 @@ export default function Home() {
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         onClick={openInMailApp}
-                        className="px-4 py-2 text-sm rounded-xl border border-slate-200 hover:border-blue-400/50 hover:bg-blue-50 text-slate-700 transition-colors flex items-center gap-2"
+                        className="px-5 py-2.5 text-sm rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors flex items-center gap-2 shadow-sm"
                       >
-                        <ExternalLink className="w-4 h-4" />
+                        <Mail className="w-4 h-4" />
                         Open in Mail App
+                        {(sendToSuggestions.length + ccSuggestions.length) > 1 && (
+                          <span className="text-xs bg-blue-500 px-1.5 py-0.5 rounded-md">
+                            +{sendToSuggestions.filter((s) => s.email?.toLowerCase() !== recipientEmail.toLowerCase()).length + ccSuggestions.length} CC
+                          </span>
+                        )}
                       </button>
                       <button
                         onClick={copyEmailDraft}
@@ -1181,7 +1260,7 @@ export default function Home() {
                       </button>
                     </div>
                     <p className="mt-3 text-xs text-gray-500">
-                      One click flow: set recipient + subject, then use <strong>Open in Mail App</strong>. Subject and body are auto-filled.
+                      Click <strong>Open in Mail App</strong> to send to the primary authority with all other contacts auto-CC&apos;d. Subject, body, and recipients are pre-filled.
                     </p>
                     {emailError && <p className="mt-2 text-red-400 text-sm">{emailError}</p>}
                   </div>

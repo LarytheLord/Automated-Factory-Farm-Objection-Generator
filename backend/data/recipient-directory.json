@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "generated_at": "2026-03-05T17:36:20.338Z",
+  "version": 2,
+  "generated_at": "2026-03-06T18:00:00.000Z",
   "source_audit": [
     {
       "source_key": "nc_deq_application_tracker",
@@ -50,6 +50,13 @@
       "fetched_at": "2026-03-05T17:36:20.338Z",
       "status": "static_directory",
       "emails_found": 1
+    },
+    {
+      "source_key": "global_verified_recipients_csv",
+      "url": "manual import from open-permit-objection-recipients.csv",
+      "fetched_at": "2026-03-06T18:00:00.000Z",
+      "status": "verified_manual",
+      "emails_found": 40
     }
   ],
   "entries": [
@@ -63,9 +70,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "reviewer_match"
-      ],
+      "tags": ["reviewer_match"],
       "reason": "Matched to NC DEQ reviewer listed in permit metadata"
     },
     {
@@ -78,9 +83,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "reviewer_match"
-      ],
+      "tags": ["reviewer_match"],
       "reason": "Matched to NC DEQ reviewer listed in permit metadata"
     },
     {
@@ -93,9 +96,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "reviewer_match"
-      ],
+      "tags": ["reviewer_match"],
       "reason": "Matched to NC DEQ reviewer listed in permit metadata"
     },
     {
@@ -108,9 +109,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "reviewer_match"
-      ],
+      "tags": ["reviewer_match"],
       "reason": "Matched to NC DEQ reviewer listed in permit metadata"
     },
     {
@@ -123,9 +122,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -138,9 +135,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -153,9 +148,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -168,9 +161,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -183,9 +174,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -198,9 +187,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -213,9 +200,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -228,9 +213,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -243,9 +226,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -258,9 +239,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -273,9 +252,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -288,9 +265,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -303,9 +278,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -318,9 +291,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -333,9 +304,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -348,9 +317,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -363,9 +330,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -378,9 +343,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -393,9 +356,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -408,9 +369,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.deq.nc.gov/about/divisions/water-resources/water-quality-permitting/animal-feeding-operations/contacts",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Listed on NC DEQ Animal Feeding Operations contacts directory"
     },
     {
@@ -422,9 +381,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.gov.uk/access-the-public-register-for-environmental-information",
-      "tags": [
-        "support"
-      ],
+      "tags": ["support"],
       "reason": "Published on UK government guidance for Environment Agency public register contact"
     },
     {
@@ -436,9 +393,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.gov.uk/access-the-public-register-for-environmental-information",
-      "tags": [
-        "primary"
-      ],
+      "tags": ["primary"],
       "reason": "Published on UK government guidance for Environment Agency public register contact"
     },
     {
@@ -450,9 +405,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.adeq.state.ar.us/home/pdssql/pds.aspx",
-      "tags": [
-        "program_contact"
-      ],
+      "tags": ["program_contact"],
       "reason": "Published on Arkansas DEQ Permit Data System page"
     },
     {
@@ -465,9 +418,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.epa.ie/who-we-are/contact-us/",
-      "tags": [
-        "primary"
-      ],
+      "tags": ["primary"],
       "reason": "Official Ireland EPA licensing contact route for permit and licence queries"
     },
     {
@@ -480,9 +431,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.dcceew.gov.au/environment/epbc/referrals",
-      "tags": [
-        "primary"
-      ],
+      "tags": ["primary"],
       "reason": "Official EPBC referrals submission contact for Commonwealth environment referrals"
     },
     {
@@ -495,9 +444,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.ontario.ca/page/environmental-compliance-approval",
-      "tags": [
-        "primary"
-      ],
+      "tags": ["primary"],
       "reason": "Official Ontario Environmental Compliance Approval submissions mailbox"
     },
     {
@@ -510,9 +457,7 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://www.ontario.ca/page/environmental-compliance-approval",
-      "tags": [
-        "support"
-      ],
+      "tags": ["support"],
       "reason": "Official Ontario ECA submission mailbox published by Ontario government"
     },
     {
@@ -525,11 +470,650 @@
       "type": "email",
       "confidence": "official_directory",
       "source_url": "https://environmentclearance.nic.in/state_portal1.aspx",
-      "tags": [
-        "primary",
-        "state_contact"
-      ],
+      "tags": ["primary", "state_contact"],
       "reason": "Official PARIVESH support contact for state EC process communication routing"
+    },
+
+    {
+      "id": "in-cpcb-chairman",
+      "country": "India",
+      "authority_name": "CPCB Chairman",
+      "email": "ccb.cpcb@nic.in",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://cpcb.nic.in/",
+      "tier": "primary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["primary", "pollution_control"],
+      "reason": "Central authority for all pollution control — oversees all SPCBs"
+    },
+    {
+      "id": "in-cpcb-member-secretary",
+      "country": "India",
+      "authority_name": "CPCB Member Secretary",
+      "email": "mscb.cpcb@nic.in",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://cpcb.nic.in/",
+      "tier": "primary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["primary", "pollution_control"],
+      "reason": "Operational head of CPCB — handles day-to-day complaints and enforcement"
+    },
+    {
+      "id": "in-cpcb-envis",
+      "country": "India",
+      "authority_name": "CPCB ENVIS",
+      "email": "cpcb@envis.nic.in",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://cpcbenvis.nic.in/",
+      "tier": "secondary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["secondary", "pollution_control"],
+      "reason": "Environmental data and information wing of CPCB — data-backed complaints"
+    },
+    {
+      "id": "in-gpcb-chairman-official",
+      "country": "India",
+      "state": "Gujarat",
+      "authority_name": "Gujarat PCB Chairman",
+      "email": "chairman-gpcb@gujarat.gov.in",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://gpcb.gujarat.gov.in/",
+      "tier": "primary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["primary", "pollution_control", "state_contact"],
+      "reason": "Gujarat State Pollution Control Board Chairman — official government email"
+    },
+    {
+      "id": "in-gpcb-surat",
+      "country": "India",
+      "state": "Gujarat",
+      "authority_name": "GPCB Surat Regional Office",
+      "email": "vo-gpcb-sura@gujarat.gov.in",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://gpcb.gujarat.gov.in/",
+      "tier": "primary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "industrial_infra"],
+      "tags": ["primary", "pollution_control", "state_contact"],
+      "state_region": "Surat",
+      "reason": "GPCB regional office for Surat zone — faster response for local issues"
+    },
+    {
+      "id": "in-gpcb-rajkot",
+      "country": "India",
+      "state": "Gujarat",
+      "authority_name": "GPCB Rajkot Regional Office",
+      "email": "vo-gpcb-rajk@gujarat.gov.in",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://gpcb.gujarat.gov.in/",
+      "tier": "primary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "industrial_infra"],
+      "tags": ["primary", "pollution_control", "state_contact"],
+      "state_region": "Rajkot",
+      "reason": "GPCB Saurashtra region — significant dairy/poultry operations"
+    },
+    {
+      "id": "in-rpcb-rajasthan",
+      "country": "India",
+      "state": "Rajasthan",
+      "authority_name": "Rajasthan State PCB",
+      "email": "member-secretary@rpcb.nic.in",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://rpcb.nic.in/",
+      "tier": "primary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["primary", "pollution_control", "state_contact"],
+      "reason": "Rajasthan SPCB — handles pollution complaints including dairy and mining"
+    },
+    {
+      "id": "in-bspcb-bihar",
+      "country": "India",
+      "state": "Bihar",
+      "authority_name": "Bihar State PCB",
+      "email": "bspcb@yahoo.com",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://bspcb.bih.nic.in/",
+      "tier": "primary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "industrial_infra"],
+      "tags": ["primary", "pollution_control", "state_contact"],
+      "reason": "Bihar SPCB — growing poultry and dairy sector"
+    },
+    {
+      "id": "in-dpcc-delhi",
+      "country": "India",
+      "state": "Delhi",
+      "authority_name": "Delhi Pollution Control Committee",
+      "email": "srscitdpcc.delhi@nic.in",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.dpcc.delhigovt.nic.in/",
+      "tier": "primary",
+      "recipient_type": "government",
+      "permit_domains": ["industrial_infra", "pollution_industrial"],
+      "tags": ["primary", "pollution_control", "state_contact"],
+      "reason": "Delhi NCR pollution control — meat processing units and industrial"
+    },
+    {
+      "id": "in-awbi-primary",
+      "country": "India",
+      "authority_name": "Animal Welfare Board of India (AWBI)",
+      "email": "support@awbi.gov.in",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://awbi.gov.in/",
+      "tier": "primary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal"],
+      "tags": ["primary", "animal_welfare"],
+      "reason": "Statutory authority under Prevention of Cruelty to Animals Act 1960 — THE key authority for factory farming"
+    },
+    {
+      "id": "in-awbi-alternate",
+      "country": "India",
+      "authority_name": "AWBI (alternate)",
+      "email": "support-awbi@awbi.gov.in",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://awbi.gov.in/",
+      "tier": "primary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal"],
+      "tags": ["secondary", "animal_welfare"],
+      "reason": "Alternate AWBI contact for factory farming objections"
+    },
+    {
+      "id": "in-fssai-helpdesk",
+      "country": "India",
+      "authority_name": "FSSAI (Food Safety Authority)",
+      "email": "helpdesk-foscos@fssai.gov.in",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://fssai.gov.in/",
+      "tier": "primary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal"],
+      "tags": ["primary", "food_safety"],
+      "reason": "Food safety regulator — contamination, unsafe meat/dairy, hygiene violations from factory farms"
+    },
+    {
+      "id": "in-fssai-jc",
+      "country": "India",
+      "authority_name": "FSSAI Joint Commissioner",
+      "email": "jc-foodhq@gov.in",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://fssai.gov.in/",
+      "tier": "secondary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal"],
+      "tags": ["secondary", "food_safety"],
+      "reason": "Senior FSSAI official for escalated food safety complaints"
+    },
+    {
+      "id": "in-dahd",
+      "country": "India",
+      "authority_name": "Dept of Animal Husbandry & Dairying",
+      "email": "dahd@nic.in",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://dahd.gov.in/",
+      "tier": "primary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal"],
+      "tags": ["primary", "animal_welfare"],
+      "reason": "Central government dept overseeing animal husbandry — parent ministry of AWBI"
+    },
+    {
+      "id": "in-dahd-secretary",
+      "country": "India",
+      "authority_name": "Secretary — Dept of Animal Husbandry",
+      "email": "secy-dahd@gov.in",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://dahd.gov.in/",
+      "tier": "secondary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal"],
+      "tags": ["secondary", "animal_welfare"],
+      "reason": "Secretary level contact for serious factory farming violations"
+    },
+    {
+      "id": "in-moefcc-grievance",
+      "country": "India",
+      "authority_name": "MoEFCC Grievance Cell",
+      "email": "grievance.moefcc@gov.in",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://moef.gov.in/",
+      "tier": "secondary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["secondary", "pollution_control"],
+      "reason": "Ministry of Environment — environmental clearance violations and policy-level complaints"
+    },
+    {
+      "id": "in-moefcc-envis",
+      "country": "India",
+      "authority_name": "MoEFCC ENVIS Secretariat",
+      "email": "envisect@nic.in",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://envis.nic.in/",
+      "tier": "secondary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["secondary", "pollution_control"],
+      "reason": "Ministry of Environment information system — policy-level complaints"
+    },
+    {
+      "id": "us-epa-oig-hotline",
+      "country": "United States",
+      "authority_name": "EPA Inspector General Hotline",
+      "email": "OIG_Hotline@epa.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.epaoig.gov/",
+      "tier": "primary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["primary", "pollution_control"],
+      "reason": "EPA fraud, waste, abuse — serious regulatory failures regarding permits"
+    },
+    {
+      "id": "us-epa-safewater",
+      "country": "United States",
+      "authority_name": "EPA Safe Drinking Water Hotline",
+      "email": "safewater@epa.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.epa.gov/",
+      "tier": "primary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "pollution_industrial"],
+      "tags": ["primary", "pollution_control"],
+      "reason": "Drinking water contamination from factory farm runoff or industrial discharge"
+    },
+    {
+      "id": "us-epa-tips",
+      "country": "United States",
+      "authority_name": "EPA Tips Portal",
+      "email": "tips@epa.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.epa.gov/tips",
+      "tier": "primary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["primary", "pollution_control"],
+      "reason": "General EPA tips and violation reporting — forwards to appropriate regional office"
+    },
+    {
+      "id": "us-epa-p2hub",
+      "country": "United States",
+      "authority_name": "EPA Pollution Prevention Hub",
+      "email": "p2hub@epa.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.epa.gov/",
+      "tier": "secondary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["secondary", "pollution_control"],
+      "reason": "Pollution prevention — industrial and farm pollution issues"
+    },
+    {
+      "id": "us-epa-community-hotline",
+      "country": "United States",
+      "authority_name": "EPA Community Hotline",
+      "email": "CommunityHotline@epa.gov",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.epa.gov/",
+      "tier": "secondary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "industrial_infra"],
+      "tags": ["secondary", "pollution_control"],
+      "reason": "Communities affected by environmental issues from nearby farms or factories"
+    },
+    {
+      "id": "uk-oep",
+      "country": "United Kingdom",
+      "authority_name": "Office for Environmental Protection",
+      "email": "info@theoep.org.uk",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.theoep.org.uk/",
+      "tier": "secondary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["secondary", "pollution_control"],
+      "reason": "UK environmental watchdog — investigates serious failures by public authorities"
+    },
+    {
+      "id": "uk-sepa-scotland",
+      "country": "United Kingdom",
+      "state": "Scotland",
+      "authority_name": "SEPA (Scotland)",
+      "email": "info@sepa.org.uk",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.sepa.org.uk/",
+      "tier": "primary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["primary", "pollution_control", "state_contact"],
+      "reason": "Scotland environmental regulator — farming pollution in Scotland"
+    },
+    {
+      "id": "uk-nrw-wales",
+      "country": "United Kingdom",
+      "state": "Wales",
+      "authority_name": "Natural Resources Wales",
+      "email": "info@naturalresourceswales.gov.uk",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://naturalresources.wales/",
+      "tier": "primary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["primary", "pollution_control", "state_contact"],
+      "reason": "Wales environmental regulator — farming pollution complaints in Wales"
+    },
+    {
+      "id": "uk-niea",
+      "country": "United Kingdom",
+      "state": "Northern Ireland",
+      "authority_name": "NI Environment Agency",
+      "email": "info@niea.gov.uk",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.daera-ni.gov.uk/",
+      "tier": "primary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["primary", "pollution_control", "state_contact"],
+      "reason": "Northern Ireland environmental regulator — farming pollution in NI"
+    },
+    {
+      "id": "ie-epa-contact",
+      "country": "Ireland",
+      "authority_name": "Irish EPA",
+      "email": "contact@epa.ie",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.epa.ie/",
+      "tier": "primary",
+      "recipient_type": "government",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["primary", "pollution_control"],
+      "reason": "Ireland EPA — environmental violations including intensive farming"
+    },
+    {
+      "id": "ngo-ciwf",
+      "country": "Global",
+      "authority_name": "Compassion in World Farming",
+      "email": "info@ciwf.org",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.ciwf.org/",
+      "tier": "cc",
+      "recipient_type": "ngo",
+      "permit_domains": ["farm_animal"],
+      "tags": ["cc", "ngo", "animal_welfare"],
+      "reason": "Leading global NGO ending factory farming — active campaigns across EU, UK, US"
+    },
+    {
+      "id": "ngo-mfa",
+      "country": "Global",
+      "authority_name": "Mercy For Animals",
+      "email": "info@mercyforanimals.org",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://mercyforanimals.org/",
+      "tier": "cc",
+      "recipient_type": "ngo",
+      "permit_domains": ["farm_animal"],
+      "tags": ["cc", "ngo", "animal_welfare"],
+      "reason": "Major factory farming investigation and advocacy NGO — active in India, Brazil, Mexico, US, Canada"
+    },
+    {
+      "id": "ngo-mfa-india",
+      "country": "India",
+      "authority_name": "Mercy For Animals India",
+      "email": "info@mercyforanimals.in",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://mercyforanimals.in/",
+      "tier": "cc",
+      "recipient_type": "ngo",
+      "permit_domains": ["farm_animal"],
+      "tags": ["cc", "ngo", "animal_welfare"],
+      "reason": "India chapter — campaigns to end industrial animal agriculture in India"
+    },
+    {
+      "id": "ngo-humane-league",
+      "country": "Global",
+      "authority_name": "The Humane League",
+      "email": "info@humaneleague.org",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://thehumaneleague.org/",
+      "tier": "cc",
+      "recipient_type": "ngo",
+      "permit_domains": ["farm_animal"],
+      "tags": ["cc", "ngo", "animal_welfare"],
+      "reason": "Major farm animal welfare org — runs corporate campaigns against cage confinement"
+    },
+    {
+      "id": "ngo-animal-equality",
+      "country": "Global",
+      "authority_name": "Animal Equality",
+      "email": "info@animalequality.org",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://animalequality.org/",
+      "tier": "cc",
+      "recipient_type": "ngo",
+      "permit_domains": ["farm_animal"],
+      "tags": ["cc", "ngo", "animal_welfare"],
+      "reason": "International animal protection — investigations in India, US, UK, Germany, Italy, Spain"
+    },
+    {
+      "id": "ngo-wap",
+      "country": "Global",
+      "authority_name": "World Animal Protection",
+      "email": "campaign@worldanimalprotection.org",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.worldanimalprotection.org/",
+      "tier": "cc",
+      "recipient_type": "ngo",
+      "permit_domains": ["farm_animal"],
+      "tags": ["cc", "ngo", "animal_welfare"],
+      "reason": "Global animal welfare NGO — campaigns against intensive farming in 50+ countries"
+    },
+    {
+      "id": "ngo-animals-australia",
+      "country": "Australia",
+      "authority_name": "Animals Australia",
+      "email": "info@animalsaustralia.org",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://animalsaustralia.org/",
+      "tier": "cc",
+      "recipient_type": "ngo",
+      "permit_domains": ["farm_animal"],
+      "tags": ["cc", "ngo", "animal_welfare"],
+      "reason": "Australia's leading animal protection org — factory farming and live export"
+    },
+    {
+      "id": "ngo-greenpeace-india",
+      "country": "India",
+      "authority_name": "Greenpeace India",
+      "email": "india@greenpeace.org",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.greenpeace.org/india/",
+      "tier": "cc",
+      "recipient_type": "ngo",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["cc", "ngo", "pollution_control"],
+      "reason": "Indian arm of Greenpeace — air pollution, industrial waste campaigns"
+    },
+    {
+      "id": "ngo-cse-india",
+      "country": "India",
+      "authority_name": "Centre for Science and Environment",
+      "email": "cse@cseindia.org",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.cseindia.org/",
+      "tier": "cc",
+      "recipient_type": "ngo",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["cc", "ngo", "pollution_control"],
+      "reason": "Premier Indian environmental research org — influential in policy making"
+    },
+    {
+      "id": "ngo-greenpeace-intl",
+      "country": "Global",
+      "authority_name": "Greenpeace International",
+      "email": "info@greenpeace.org",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.greenpeace.org/",
+      "tier": "cc",
+      "recipient_type": "ngo",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["cc", "ngo", "pollution_control"],
+      "reason": "Global environmental advocacy — industrial agriculture and deforestation"
+    },
+    {
+      "id": "ngo-sierra-club",
+      "country": "United States",
+      "authority_name": "Sierra Club",
+      "email": "contact@sierraclub.org",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.sierraclub.org/",
+      "tier": "cc",
+      "recipient_type": "ngo",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["cc", "ngo", "pollution_control"],
+      "reason": "Largest grassroots environmental org in US — campaigns against industrial pollution and CAFOs"
+    },
+    {
+      "id": "ngo-clientearth",
+      "country": "Global",
+      "authority_name": "ClientEarth",
+      "email": "info@clientearth.org",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.clientearth.org/",
+      "tier": "cc",
+      "recipient_type": "ngo",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["cc", "ngo"],
+      "reason": "Environmental law charity — strategic litigation to protect environment"
+    },
+    {
+      "id": "ngo-earthjustice",
+      "country": "United States",
+      "authority_name": "Earthjustice",
+      "email": "info@earthjustice.org",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://earthjustice.org/",
+      "tier": "cc",
+      "recipient_type": "ngo",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["cc", "ngo"],
+      "reason": "US nonprofit environmental law firm — pro bono cases including factory farm pollution"
+    },
+    {
+      "id": "ngo-eeb",
+      "country": "Global",
+      "authority_name": "European Environmental Bureau",
+      "email": "info@eeb.org",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://eeb.org/",
+      "tier": "cc",
+      "recipient_type": "ngo",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["cc", "ngo"],
+      "reason": "Largest network of environmental citizen orgs in Europe — 180+ members"
+    },
+    {
+      "id": "ngo-faunalytics",
+      "country": "Global",
+      "authority_name": "Faunalytics",
+      "email": "info@faunalytics.org",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://faunalytics.org/",
+      "tier": "cc",
+      "recipient_type": "ngo",
+      "permit_domains": ["farm_animal"],
+      "tags": ["cc", "ngo", "animal_welfare"],
+      "reason": "Animal advocacy research org — data and studies to support objections"
+    },
+    {
+      "id": "ngo-rivers-trust-uk",
+      "country": "United Kingdom",
+      "authority_name": "The Rivers Trust",
+      "email": "contact@riverstrust.org",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://theriverstrust.org/",
+      "tier": "cc",
+      "recipient_type": "ngo",
+      "permit_domains": ["farm_animal", "pollution_industrial"],
+      "tags": ["cc", "ngo", "pollution_control"],
+      "reason": "UK river conservation — water pollution from factory farms near waterways"
+    },
+    {
+      "id": "ngo-elf-uk",
+      "country": "United Kingdom",
+      "authority_name": "Environmental Law Foundation",
+      "email": "info@elflaw.org",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://www.elflaw.org/",
+      "tier": "cc",
+      "recipient_type": "ngo",
+      "permit_domains": ["farm_animal", "industrial_infra", "pollution_industrial"],
+      "tags": ["cc", "ngo"],
+      "reason": "Free legal advice on environmental law — can strengthen objection letters"
+    },
+    {
+      "id": "ngo-openpaws",
+      "country": "Global",
+      "authority_name": "Open Paws",
+      "email": "info@openpaws.org",
+      "type": "email",
+      "confidence": "official_directory",
+      "source_url": "https://openpaws.org/",
+      "tier": "cc",
+      "recipient_type": "ngo",
+      "permit_domains": ["farm_animal"],
+      "tags": ["cc", "ngo", "animal_welfare"],
+      "reason": "Open-source animal welfare tech platform — amplification partner"
     }
   ]
 }
