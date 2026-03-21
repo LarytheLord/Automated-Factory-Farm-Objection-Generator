@@ -1,0 +1,45 @@
+name: open-permit-backend
+region: blr  # Bangalore — lowest latency for India users
+services:
+  - name: api
+    github:
+      repo: LarytheLord/Automated-Factory-Farm-Objection-Generator
+      branch: main
+      deploy_on_push: true
+    source_dir: /backend
+    dockerfile_path: backend/Dockerfile
+    http_port: 3000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    health_check:
+      http_path: /api/health
+      initial_delay_seconds: 10
+      period_seconds: 30
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3
+    envs:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: SUPABASE_URL
+        type: SECRET
+      - key: SUPABASE_KEY
+        type: SECRET
+      - key: DATABASE_URL
+        type: SECRET
+      - key: GEMINI_API_KEY
+        type: SECRET
+      - key: JWT_SECRET
+        type: SECRET
+      - key: ALLOWED_ORIGINS
+        value: "https://openpermit.vercel.app"
+      - key: TRUST_PROXY
+        value: "true"
+      - key: STRICT_SECURITY_HEADERS
+        value: "true"
+      - key: REAL_PERMITS_ONLY
+        value: "true"
+      - key: ENABLE_PERMIT_SYNC
+        value: "false"

@@ -17,7 +17,7 @@ const { sanitizeLetterText } = require('./letterSanitizer');
 const { getRecipientSuggestions } = require('./recipientFinder');
 
 const app = express();
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 3000;
 const isProduction = process.env.NODE_ENV === 'production';
 
 function parseCsvEnv(value) {
@@ -2620,3 +2620,12 @@ app.use((err, req, res, next) => {
 
 // Export the app for use in root server
 module.exports = { app };
+
+// Start listening when run directly (standalone deploy / DigitalOcean)
+if (require.main === module) {
+    app.listen(port, () => {
+        console.log(`\n🚀 Open Permit Backend running on port ${port}`);
+        console.log(`   API: http://localhost:${port}/api`);
+        console.log(`   Health: http://localhost:${port}/api/health\n`);
+    });
+}
