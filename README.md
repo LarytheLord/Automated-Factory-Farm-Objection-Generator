@@ -1,6 +1,6 @@
 # Open Permit — Civic Intelligence Platform
 
-Open Permit is a unified Next.js + Express platform that monitors development permits, generates AI-powered legally grounded objection letters, and provides civic intelligence for citizens, NGOs, and legal advocates.
+Open Permit is a unified Advocacy platform that monitors development permits, generates AI-powered legally grounded objection letters, and provides civic intelligence for citizens, NGOs, and legal advocates.
 
 > **Origin:** Built in 10 hours at [Code 4 Compassion](https://www.codeforcompassion.com/) Mumbai (hosted by [Open Paws](https://www.openpaws.ai/) & Electric Sheep). Evolved through the AARC Pre-Accelerator. Originally called AFOG — now Open Permit, covering all permit types across environmental, health, economic, and social impact.
 
