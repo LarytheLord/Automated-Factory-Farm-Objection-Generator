@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "framework": null,
+  "installCommand": "npm install",
   "builds": [
     {
       "src": "api/index.js",
