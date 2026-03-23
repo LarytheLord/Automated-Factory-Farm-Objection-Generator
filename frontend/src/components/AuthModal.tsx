@@ -54,7 +54,7 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
                 const responseError = typeof data?.error === "string" ? data.error : null;
                 if (responseError) throw new Error(responseError);
                 if (res.status === 404) {
-                    throw new Error("API endpoint unavailable. On Vercel, set API_PROXY_TARGET to your Railway backend origin.");
+                    throw new Error("API endpoint unavailable. On Vercel, set API_PROXY_TARGET to your backend origin.");
                 }
                 throw new Error("Authentication failed");
             }

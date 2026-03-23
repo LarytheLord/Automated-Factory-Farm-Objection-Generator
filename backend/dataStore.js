@@ -3,13 +3,18 @@ const path = require('path');
 
 const dataDir = path.join(__dirname, 'data');
 
+// Vercel serverless has a read-only filesystem — skip all writes.
+const isReadOnly = Boolean(process.env.VERCEL);
+
 function ensureDataDir() {
+  if (isReadOnly) return;
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
 }
 
 function ensureFile(filePath, defaultValue) {
+  if (isReadOnly) return;
   if (!fs.existsSync(filePath)) {
     fs.writeFileSync(filePath, JSON.stringify(defaultValue, null, 2));
   }
@@ -19,7 +24,6 @@ function readArrayFile(fileName) {
   ensureDataDir();
   const filePath = path.join(dataDir, fileName);
   ensureFile(filePath, []);
-
   try {
     const raw = fs.readFileSync(filePath, 'utf8');
     const parsed = JSON.parse(raw);
@@ -30,6 +34,7 @@ function readArrayFile(fileName) {
 }
 
 function writeArrayFile(fileName, data) {
+  if (isReadOnly) return;
   ensureDataDir();
   const filePath = path.join(dataDir, fileName);
   const tmpPath = `${filePath}.tmp`;
@@ -43,7 +48,6 @@ function readJsonFile(fileName, defaultValue) {
   ensureDataDir();
   const filePath = path.join(dataDir, fileName);
   ensureFile(filePath, defaultValue);
-
   try {
     const raw = fs.readFileSync(filePath, 'utf8');
     return JSON.parse(raw);
@@ -53,6 +57,7 @@ function readJsonFile(fileName, defaultValue) {
 }
 
 function writeJsonFile(fileName, data) {
+  if (isReadOnly) return;
   ensureDataDir();
   const filePath = path.join(dataDir, fileName);
   const tmpPath = `${filePath}.tmp`;

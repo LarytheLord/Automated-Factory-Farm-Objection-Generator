@@ -1,0 +1,49 @@
+services:
+  - type: web
+    name: open-permit-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    region: singapore  # closest to India users
+    plan: starter      # free tier
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: ALLOWED_ORIGINS
+        value: "https://openpermit.vercel.app"
+      - key: TRUST_PROXY
+        value: "true"
+      - key: STRICT_SECURITY_HEADERS
+        value: "true"
+      - key: REAL_PERMITS_ONLY
+        value: "true"
+      - key: ENABLE_PERMIT_SYNC
+        value: "true"
+      - key: PERMIT_SYNC_INTERVAL_MINUTES
+        value: "360"
+      - key: INCLUDE_STATIC_PERMITS
+        value: "false"
+      - key: FREE_DAILY_LETTERS
+        value: "15"
+      - key: FREE_MONTHLY_LETTERS
+        value: "120"
+      - key: ANON_DAILY_LETTERS
+        value: "6"
+      - key: ANON_DAILY_EMAILS
+        value: "3"
+      - key: USER_DAILY_EMAILS
+        value: "20"
+      # Secrets — Render will prompt for these during setup
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false

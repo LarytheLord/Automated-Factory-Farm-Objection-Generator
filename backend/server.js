@@ -17,7 +17,7 @@ const { sanitizeLetterText } = require('./letterSanitizer');
 const { getRecipientSuggestions } = require('./recipientFinder');
 
 const app = express();
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 3000;
 const isProduction = process.env.NODE_ENV === 'production';
 
 function parseCsvEnv(value) {
@@ -550,12 +550,16 @@ async function runBackgroundPermitSync(reason = 'scheduled') {
     }
 }
 
-if (permitSyncEnabled) {
+if (permitSyncEnabled && !process.env.VERCEL) {
+    // setInterval only works on persistent servers (not Vercel serverless).
+    // On Vercel, permit sync runs via cron → GET /api/cron/permit-sync.
     console.log(`✅ Background permit sync enabled (${permitSyncIntervalMinutes} min interval)`);
     runBackgroundPermitSync('startup');
     setInterval(() => {
         runBackgroundPermitSync('scheduled');
     }, permitSyncIntervalMinutes * 60 * 1000).unref();
+} else if (permitSyncEnabled && process.env.VERCEL) {
+    console.log('✅ Permit sync enabled (Vercel cron mode — setInterval skipped)');
 }
 
 // ─── Rate Limiting (with automatic stale-IP cleanup) ───
@@ -2565,6 +2569,22 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// ─── Vercel Cron: permit sync ───
+// Vercel cron hits this endpoint on schedule (see vercel.json).
+// Secured with CRON_SECRET to prevent unauthorized triggers.
+app.get('/api/cron/permit-sync', async (req, res) => {
+    const cronSecret = process.env.CRON_SECRET;
+    if (cronSecret && req.headers.authorization !== `Bearer ${cronSecret}`) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    try {
+        await runBackgroundPermitSync('vercel-cron');
+        res.json({ status: 'ok', message: 'Permit sync completed' });
+    } catch (error) {
+        res.status(500).json({ error: 'Permit sync failed', detail: error.message });
+    }
+});
+
 // Root route
 app.get('/api', (req, res) => {
     res.json({
@@ -2620,3 +2640,12 @@ app.use((err, req, res, next) => {
 
 // Export the app for use in root server
 module.exports = { app };
+
+// Start listening when run directly (standalone deploy / DigitalOcean)
+if (require.main === module) {
+    app.listen(port, () => {
+        console.log(`\n🚀 Open Permit Backend running on port ${port}`);
+        console.log(`   API: http://localhost:${port}/api`);
+        console.log(`   Health: http://localhost:${port}/api/health\n`);
+    });
+}
