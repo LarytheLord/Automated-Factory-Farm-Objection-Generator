@@ -14,7 +14,7 @@
   "crons": [
     {
       "path": "/api/cron/permit-sync",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
