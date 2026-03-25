@@ -1,0 +1,65 @@
+name: Permit Source Sync
+
+on:
+  schedule:
+    # Run 3x/day — each call auto-picks the next eligible fast source.
+    # With 5 fast sources, each gets scraped roughly every 1.7 days.
+    - cron: '0 2,10,18 * * *'
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'Specific source key to sync (leave empty for auto-rotation)'
+        required: false
+        type: string
+
+jobs:
+  sync-fast-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Trigger permit sync
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          SOURCE_PARAM=""
+          if [ -n "${{ inputs.source }}" ]; then
+            SOURCE_PARAM="?source=${{ inputs.source }}&trigger=github-actions"
+          else
+            SOURCE_PARAM="?trigger=github-actions"
+          fi
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${BACKEND_URL}/api/cron/permit-sync${SOURCE_PARAM}")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "HTTP Status: ${HTTP_CODE}"
+          echo "Response: ${BODY}"
+
+          if [ "$HTTP_CODE" -ge 400 ]; then
+            echo "::error::Permit sync failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+
+  # Weekly job for slow sources (India, UK GOV.UK, Ontario ERO).
+  # These need minutes, not seconds — run as full Node scripts.
+  sync-slow-sources:
+    if: github.event_name == 'schedule' && github.event.schedule == '0 2 * * 0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+      - name: Run global pending permit sync
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          GLOBAL_PENDING_INCLUDE_NON_FARM: 'true'
+        run: node backend/scripts/sync-global-pending-permits-to-supabase.js
