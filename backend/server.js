@@ -1704,7 +1704,7 @@ app.post('/api/generate-letter', optionalAuth, letterRateLimiter, async (req, re
 
     // Sanitize notes — strip raw JSON payloads, source metadata, and truncate
     if (permitDetails.notes) {
-        permitDetails = { ...permitDetails, notes: sanitizePermitNotes(permitDetails.notes) };
+        permitDetails.notes = sanitizePermitNotes(permitDetails.notes);
     }
 
     try {
