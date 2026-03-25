@@ -15,6 +15,8 @@ const { buildSourceValidationReport } = require('./sourceRollout');
 const { annotateAndSortPermits } = require('./permitPriority');
 const { sanitizeLetterText } = require('./letterSanitizer');
 const { getRecipientSuggestions } = require('./recipientFinder');
+const { getPersonaConfig, normalizePersonaId, PERSONA_LIST } = require('./personaConfig');
+const { pickNextSource, runSingleSourceSync } = require('./permitScheduler');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -1668,12 +1670,18 @@ app.post('/api/recipient-suggestions', optionalAuth, (req, res) => {
     }
 });
 
+// ─── Persona list ───
+app.get('/api/personas', (_req, res) => {
+    res.json({ personas: PERSONA_LIST });
+});
+
 app.post('/api/generate-letter', optionalAuth, letterRateLimiter, async (req, res) => {
     if (!isFeatureEnabled('letterGenerationEnabled')) {
         return res.status(503).json({ error: 'Letter generation is temporarily disabled' });
     }
     const { permitDetails } = req.body;
     const letterMode = normalizeLetterMode(req.body?.letterMode);
+    const persona = normalizePersonaId(req.body?.persona);
     if (!permitDetails) {
         return res.status(400).json({ error: 'permitDetails is required' });
     }
@@ -1698,39 +1706,59 @@ app.post('/api/generate-letter', optionalAuth, letterRateLimiter, async (req, re
         // Try AI generation first
         if (genAI) {
             const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-            const prompt = buildAIPrompt(permitDetails, letterMode);
+            const prompt = buildAIPrompt(permitDetails, letterMode, persona);
             const result = await model.generateContent(prompt);
             const letter = sanitizeLetterText(result.response.text());
             recordUsage(req, 'generate_letter');
-            return res.json({ letter, mode: letterMode });
+            return res.json({ letter, mode: letterMode, persona });
         }
 
         // Fallback: Built-in legal template engine
-        const letter = sanitizeLetterText(generateTemplatedLetter(permitDetails, letterMode));
+        const letter = sanitizeLetterText(generateTemplatedLetter(permitDetails, letterMode, persona));
         recordUsage(req, 'generate_letter');
-        res.json({ letter, mode: letterMode });
+        res.json({ letter, mode: letterMode, persona });
     } catch (error) {
         console.error('Letter generation error:', error);
         // Even if AI fails, use template fallback
         try {
-            const letter = sanitizeLetterText(generateTemplatedLetter(permitDetails, letterMode));
+            const letter = sanitizeLetterText(generateTemplatedLetter(permitDetails, letterMode, persona));
             recordUsage(req, 'generate_letter');
-            res.json({ letter, mode: letterMode });
+            res.json({ letter, mode: letterMode, persona });
         } catch (fallbackError) {
             res.status(500).json({ error: 'Failed to generate letter' });
         }
     }
 });
 
-function buildAIPrompt(details, mode = 'concise') {
+function buildAIPrompt(details, mode = 'concise', personaId = 'general') {
+    const persona = getPersonaConfig(personaId);
     const countryLaws = getCountryLegalFramework(details.country);
+
+    // For "general" persona, preserve the original prompt exactly
+    const isGeneral = persona.id === 'general';
+
+    const roleText = isGeneral
+        ? 'You are an expert environmental lawyer and animal welfare advocate.'
+        : `You are ${persona.aiRole}.`;
+
+    const perspectiveSection = isGeneral ? '' : `
+STAKEHOLDER PERSPECTIVE:
+You are writing from the perspective of a ${persona.label}. Your primary concerns are:
+${persona.aiConcerns.map((c) => `- ${c}`).join('\n')}
+
+Your objection should be supported by evidence such as:
+${persona.aiEvidenceTypes.map((e) => `- ${e}`).join('\n')}
+
+Personal context: ${persona.aiEmotionalFrame}
+`;
+
     const modeInstructions = mode === 'detailed'
         ? `INSTRUCTIONS:
 1. Write a formal objection letter addressed to the relevant regulatory authority
 2. Open with the objector's details and the permit reference
-3. Cite AT LEAST 4-5 specific laws/sections from the legal framework above
-4. Address environmental impact (water pollution, air quality, waste management)
-5. Address animal welfare concerns where applicable
+3. Cite AT LEAST 4-5 specific laws/sections from the legal framework above${!isGeneral ? `, prioritizing those most relevant to a ${persona.label}` : ''}
+4. ${isGeneral ? 'Address environmental impact (water pollution, air quality, waste management)' : `Lead with the stakeholder-specific concerns listed above`}
+5. ${isGeneral ? 'Address animal welfare concerns where applicable' : 'Address how the facility directly harms your specific situation and livelihood'}
 6. Address community health and safety concerns
 7. Address economic impact on local communities
 8. Request specific actions (denial of permit, additional environmental impact assessment, public hearing)
@@ -1738,13 +1766,13 @@ function buildAIPrompt(details, mode = 'concise') {
 10. End with a formal closing`
         : `INSTRUCTIONS:
 1. Write a concise but formal objection letter (target 220-320 words)
-2. Focus only on the TOP 3 strongest reasons the permit should be stopped
+2. Focus only on the TOP 3 strongest reasons the permit should be stopped${!isGeneral ? `, weighted toward concerns specific to a ${persona.label}` : ''}
 3. Include 2-3 specific legal hooks from the framework above (not exhaustive list)
 4. Use clear, impactful language that an authority can act on quickly
 5. End with a concrete action request: deny permit / hold pending review / require public hearing`;
 
-    return `You are an expert environmental lawyer and animal welfare advocate. Generate a formal, legally-grounded objection letter against a factory farm / industrial facility permit application.
-
+    return `${roleText} Generate a formal, legally-grounded objection letter against a factory farm / industrial facility permit application.
+${perspectiveSection}
 PERMIT DETAILS:
 - Project: ${details.project_title}
 - Location: ${details.location}, ${details.country}
@@ -1832,10 +1860,13 @@ function getCountryLegalFramework(country) {
     return frameworks[key] || frameworks['India'];
 }
 
-function generateTemplatedLetter(details, mode = 'concise') {
+function generateTemplatedLetter(details, mode = 'concise', personaId = 'general') {
     if (mode !== 'detailed') {
-        return generateConciseTemplatedLetter(details);
+        return generateConciseTemplatedLetter(details, personaId);
     }
+
+    const persona = getPersonaConfig(personaId);
+    const isGeneral = persona.id === 'general';
 
     const name = details.yourName || '[Your Name]';
     const address = [details.yourAddress, details.yourCity, details.yourPostalCode].filter(Boolean).join(', ') || '[Your Address]';
@@ -1858,6 +1889,32 @@ function generateTemplatedLetter(details, mode = 'concise') {
 
     const laws = getCountryLegalFramework(country);
 
+    // Section 1: primary concern (persona-specific or generic environmental)
+    const section1 = isGeneral
+        ? `1. ENVIRONMENTAL CONCERNS
+
+The proposed facility poses significant environmental risks to the surrounding area. Industrial operations of this nature and scale are known to cause:
+
+(a) Water Pollution: Effluent discharge and runoff from operations of this scale risk contaminating local water sources, groundwater reserves, and downstream ecosystems. ${notesText ? `Notably: ${notesText}` : ''}
+
+(b) Air Quality Degradation: Emissions including ammonia, hydrogen sulfide, particulate matter, and greenhouse gases from facilities of this type significantly degrade ambient air quality for surrounding communities.
+
+(c) Waste Management Risks: The volume of waste generated by a facility operating at ${capacity} presents serious challenges for safe disposal and treatment, with risks of soil contamination and pathogen spread.`
+        : `1. ${persona.fallbackConcernHeading}
+
+${persona.fallbackConcernBody}
+
+The proposed ${details.activity || 'industrial operation'} with a capacity of ${capacity} at ${details.location} will directly and severely impact my situation. ${notesText ? `Notably: ${notesText}` : ''}`;
+
+    // Section 3: animal welfare (persona-specific or generic)
+    const animalActivity = details.activity && (details.activity.toLowerCase().includes('poultry') || details.activity.toLowerCase().includes('dairy') || details.activity.toLowerCase().includes('swine') || details.activity.toLowerCase().includes('livestock') || details.activity.toLowerCase().includes('layer') || details.activity.toLowerCase().includes('broiler') || details.activity.toLowerCase().includes('slaughter') || details.activity.toLowerCase().includes('hatchery') || details.activity.toLowerCase().includes('piggery') || details.activity.toLowerCase().includes('CAFO') || details.activity.toLowerCase().includes('farm'));
+
+    const section3 = isGeneral
+        ? (animalActivity
+            ? `The proposed ${details.activity} operation at a scale of ${capacity} raises serious animal welfare concerns. Intensive confinement systems at this scale are associated with significant suffering, including restricted movement, chronic stress, and increased disease susceptibility. The facility must demonstrate compliance with all applicable animal welfare standards and provide evidence of humane treatment protocols.`
+            : `While this facility is primarily industrial in nature, any ancillary impacts on local wildlife, ecosystems, and domesticated animals in the surrounding area must be assessed and mitigated.`)
+        : `As a ${persona.label}, I also note that operations of this nature have well-documented secondary impacts on animal welfare, local ecosystems, and the broader community. These compounding harms must be assessed holistically.`;
+
     return `${name}
 ${address}
 Email: ${email}
@@ -1873,19 +1930,11 @@ Subject: FORMAL OBJECTION TO PERMIT APPLICATION — ${(details.project_title || 
 
 Dear Sir/Madam,
 
-I am writing to formally register my objection to the permit application for "${details.project_title}" located at ${details.location}, ${country}. This facility proposes to undertake ${details.activity || 'industrial operations'} with a capacity of ${capacity}.
+I am writing ${isGeneral ? 'to formally register my objection' : `as a ${persona.label} to formally register my objection`} to the permit application for "${details.project_title}" located at ${details.location}, ${country}. This facility proposes to undertake ${details.activity || 'industrial operations'} with a capacity of ${capacity}.
 
 I respectfully submit that this application should be DENIED or subjected to a comprehensive Environmental Impact Assessment for the following reasons:
 
-1. ENVIRONMENTAL CONCERNS
-
-The proposed facility poses significant environmental risks to the surrounding area. Industrial operations of this nature and scale are known to cause:
-
-(a) Water Pollution: Effluent discharge and runoff from operations of this scale risk contaminating local water sources, groundwater reserves, and downstream ecosystems. ${notesText ? `Notably: ${notesText}` : ''}
-
-(b) Air Quality Degradation: Emissions including ammonia, hydrogen sulfide, particulate matter, and greenhouse gases from facilities of this type significantly degrade ambient air quality for surrounding communities.
-
-(c) Waste Management Risks: The volume of waste generated by a facility operating at ${capacity} presents serious challenges for safe disposal and treatment, with risks of soil contamination and pathogen spread.
+${section1}
 
 2. LEGAL FRAMEWORK VIOLATIONS
 
@@ -1894,11 +1943,9 @@ ${laws}
 
 The applicant has not demonstrated adequate compliance with the environmental protection standards required under these statutes. Specifically, the application fails to adequately address effluent treatment, air emission controls, and waste management protocols mandated by law.
 
-3. ANIMAL WELFARE CONCERNS
+3. ${isGeneral ? 'ANIMAL WELFARE CONCERNS' : 'ADDITIONAL IMPACT CONCERNS'}
 
-${details.activity && (details.activity.toLowerCase().includes('poultry') || details.activity.toLowerCase().includes('dairy') || details.activity.toLowerCase().includes('swine') || details.activity.toLowerCase().includes('livestock') || details.activity.toLowerCase().includes('layer') || details.activity.toLowerCase().includes('broiler') || details.activity.toLowerCase().includes('slaughter') || details.activity.toLowerCase().includes('hatchery') || details.activity.toLowerCase().includes('piggery') || details.activity.toLowerCase().includes('CAFO') || details.activity.toLowerCase().includes('farm'))
-? `The proposed ${details.activity} operation at a scale of ${capacity} raises serious animal welfare concerns. Intensive confinement systems at this scale are associated with significant suffering, including restricted movement, chronic stress, and increased disease susceptibility. The facility must demonstrate compliance with all applicable animal welfare standards and provide evidence of humane treatment protocols.`
-: `While this facility is primarily industrial in nature, any ancillary impacts on local wildlife, ecosystems, and domesticated animals in the surrounding area must be assessed and mitigated.`}
+${section3}
 
 4. PUBLIC HEALTH AND COMMUNITY IMPACT
 
@@ -1930,7 +1977,10 @@ ${email}
 ${phone}`;
 }
 
-function generateConciseTemplatedLetter(details) {
+function generateConciseTemplatedLetter(details, personaId = 'general') {
+    const persona = getPersonaConfig(personaId);
+    const isGeneral = persona.id === 'general';
+
     const name = details.yourName || '[Your Name]';
     const address = [details.yourAddress, details.yourCity, details.yourPostalCode].filter(Boolean).join(', ') || '[Your Address]';
     const email = details.yourEmail || '[Your Email]';
@@ -1944,6 +1994,13 @@ function generateConciseTemplatedLetter(details) {
         .slice(0, 3)
         .join('\n');
 
+    const reasons = isGeneral
+        ? `1) Environmental risk: The proposed ${details.activity || 'industrial operation'} creates credible risks to water quality, air quality, and local public health.
+2) Welfare and community impact: The scale and model of operation raise serious welfare concerns and disproportionate burdens for nearby communities.
+3) Legal insufficiency: The current record does not demonstrate full compliance with core legal duties, including:
+${laws}`
+        : persona.fallbackTopReasons.map((r, i) => `${i + 1}) ${r}`).join('\n') + `\n\nApplicable legal duties include:\n${laws}`;
+
     return `${name}
 ${address}
 Email: ${email}
@@ -1955,13 +2012,12 @@ Subject: Objection to permit — ${details.project_title || '[Project Title]'}
 
 To whom it may concern,
 
-I object to the proposed permit for "${details.project_title}" at ${details.location}, ${country}. This proposal should be paused and rejected unless strict legal and environmental compliance is proven.
+${isGeneral
+    ? `I object to the proposed permit for "${details.project_title}" at ${details.location}, ${country}. This proposal should be paused and rejected unless strict legal and environmental compliance is proven.`
+    : `As a ${persona.label}, I object to the proposed permit for "${details.project_title}" at ${details.location}, ${country}. This facility directly threatens my ${persona.category === 'proximity' ? 'livelihood and daily life' : persona.category === 'health' ? 'health and the health of my community' : persona.category === 'environment' ? 'local environment and natural resources' : persona.category === 'infrastructure' ? 'local infrastructure and economic wellbeing' : persona.category === 'rights' ? 'rights and the rights of my community' : 'professional concerns and public welfare'}.`}
 
 Key reasons for objection:
-1) Environmental risk: The proposed ${details.activity || 'industrial operation'} creates credible risks to water quality, air quality, and local public health.
-2) Welfare and community impact: The scale and model of operation raise serious welfare concerns and disproportionate burdens for nearby communities.
-3) Legal insufficiency: The current record does not demonstrate full compliance with core legal duties, including:
-${laws}
+${reasons}
 
 Requested action:
 - Reject the permit in its current form; or
@@ -2572,14 +2628,62 @@ app.get('/api/health', (req, res) => {
 // ─── Vercel Cron: permit sync ───
 // Vercel cron hits this endpoint on schedule (see vercel.json).
 // Secured with CRON_SECRET to prevent unauthorized triggers.
+// Supports ?source=<key> to target a specific source, or auto-rotates.
 app.get('/api/cron/permit-sync', async (req, res) => {
     const cronSecret = process.env.CRON_SECRET;
     if (cronSecret && req.headers.authorization !== `Bearer ${cronSecret}`) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
+
+    // If Supabase is available, use the new source-rotation pipeline
+    if (supabase) {
+        try {
+            const requestedSource = req.query.source;
+            let sourceConfig = null;
+
+            if (requestedSource) {
+                // Target a specific source
+                sourceConfig = permitSourcesData.find((s) => s.key === requestedSource);
+                if (!sourceConfig) {
+                    return res.status(404).json({ error: `Source not found: ${requestedSource}` });
+                }
+            } else {
+                // Auto-pick next eligible source from ingestion_schedule
+                const next = await pickNextSource(supabase);
+                if (!next) {
+                    return res.json({ status: 'skipped', message: 'All sources are up-to-date' });
+                }
+                sourceConfig = permitSourcesData.find((s) => s.key === next.source_key);
+                if (!sourceConfig) {
+                    return res.json({ status: 'skipped', message: `Source config not found for ${next.source_key}` });
+                }
+            }
+
+            const trigger = req.query.trigger || 'cron';
+            const stats = await runSingleSourceSync(supabase, sourceConfig, {
+                trigger,
+                fetchTimeoutMs: 7000,
+            });
+
+            return res.json({
+                status: stats.errors > 0 ? (stats.inserted > 0 ? 'partial' : 'failed') : 'ok',
+                source: sourceConfig.key,
+                fetched: stats.fetched,
+                inserted: stats.inserted,
+                updated: stats.updated,
+                skipped: stats.skipped,
+                errors: stats.errors,
+                durationMs: stats.durationMs,
+            });
+        } catch (error) {
+            return res.status(500).json({ error: 'Permit sync failed', detail: error.message });
+        }
+    }
+
+    // Fallback: legacy in-memory sync (non-Vercel persistent servers)
     try {
         await runBackgroundPermitSync('vercel-cron');
-        res.json({ status: 'ok', message: 'Permit sync completed' });
+        res.json({ status: 'ok', message: 'Permit sync completed (legacy mode)' });
     } catch (error) {
         res.status(500).json({ error: 'Permit sync failed', detail: error.message });
     }

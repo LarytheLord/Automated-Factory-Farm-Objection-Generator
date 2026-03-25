@@ -314,6 +314,8 @@ export default function Home() {
   const [recipientEmail, setRecipientEmail] = useState("");
   const [emailSubject, setEmailSubject] = useState("");
   const [letterMode, setLetterMode] = useState<"concise" | "detailed">("concise");
+  const [persona, setPersona] = useState("general");
+  const [personaOptions, setPersonaOptions] = useState<{id: string; label: string; category: string; categoryLabel: string; description: string}[]>([]);
   const [recipientSuggestions, setRecipientSuggestions] = useState<RecipientSuggestion[]>([]);
   const [sendToSuggestions, setSendToSuggestions] = useState<RecipientSuggestion[]>([]);
   const [ccSuggestions, setCcSuggestions] = useState<RecipientSuggestion[]>([]);
@@ -382,12 +384,17 @@ export default function Home() {
           permitHeaders.Authorization = `Bearer ${token}`;
         }
 
-        const [permitsRes, statsData, heroPermitData] = await Promise.all([
+        const personaPromise = fetch(`${API_BASE}/api/personas`)
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null);
+
+        const [permitsRes, statsData, heroPermitData, personaData] = await Promise.all([
           fetch(`${API_BASE}/api/permits`, {
             headers: permitHeaders,
           }),
           statsPromise,
           heroPermitPromise,
+          personaPromise,
         ]);
 
         if (!permitsRes.ok) {
@@ -400,6 +407,7 @@ export default function Home() {
         setPermits(normalizedPermits);
         setStats(statsData);
         setHeroPermit(heroPermitData || pickLatestPendingPermit(normalizedPermits));
+        if (personaData?.personas) setPersonaOptions(personaData.personas);
       } catch (err) {
         console.error("Fetch error:", err);
         setError(err instanceof Error ? err.message : "Could not connect to the API. Please try again.");
@@ -539,6 +547,7 @@ export default function Home() {
         body: JSON.stringify({
           permitDetails: { ...selectedPermit, ...formData, currentDate },
           letterMode,
+          persona,
         }),
       }, 35000);
       if (!res.ok) {
@@ -1083,16 +1092,43 @@ export default function Home() {
                     <FormInput name="yourPostalCode" label="Postal Code" value={formData.yourPostalCode} onChange={handleInputChange} />
                     <FormInput name="yourPhone" label="Phone" value={formData.yourPhone} onChange={handleInputChange} />
                   </div>
-                  <div className="mt-4">
-                    <label className="block text-xs text-gray-600 mb-1.5">Letter Style</label>
-                    <select
-                      value={letterMode}
-                      onChange={(e) => setLetterMode(e.target.value === "detailed" ? "detailed" : "concise")}
-                      className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:border-emerald-500/30 text-slate-700"
-                    >
-                      <option value="concise">Concise (Most Impactful)</option>
-                      <option value="detailed">Detailed (Full Legal Context)</option>
-                    </select>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1.5">Letter Style</label>
+                      <select
+                        value={letterMode}
+                        onChange={(e) => setLetterMode(e.target.value === "detailed" ? "detailed" : "concise")}
+                        className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:border-emerald-500/30 text-slate-700"
+                      >
+                        <option value="concise">Concise (Most Impactful)</option>
+                        <option value="detailed">Detailed (Full Legal Context)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1.5">Stakeholder Perspective</label>
+                      <select
+                        value={persona}
+                        onChange={(e) => setPersona(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:border-emerald-500/30 text-slate-700"
+                      >
+                        {personaOptions.length > 0 ? (
+                          Object.entries(
+                            personaOptions.reduce<Record<string, typeof personaOptions>>((groups, p) => {
+                              (groups[p.categoryLabel] ??= []).push(p);
+                              return groups;
+                            }, {})
+                          ).map(([catLabel, items]) => (
+                            <optgroup key={catLabel} label={catLabel}>
+                              {items.map((p) => (
+                                <option key={p.id} value={p.id}>{p.label}</option>
+                              ))}
+                            </optgroup>
+                          ))
+                        ) : (
+                          <option value="general">General (Environmental Law Expert)</option>
+                        )}
+                      </select>
+                    </div>
                   </div>
                   <button
                     onClick={generateLetter}
