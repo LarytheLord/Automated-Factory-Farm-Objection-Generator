@@ -118,11 +118,97 @@ function transformUkEaRecord(record) {
   };
 }
 
+// ─── Australia EPBC Referrals (ArcGIS) ───
+
+const AU_NOT_PENDING_RE = /\b(completed|post-approval|lapsed|withdrawn|refused|approval decision made|referral decision made)\b/i;
+
+function inferAuStatus(record) {
+  const status = normalizeText(pick(record, ['STATUS_DESCRIPTION', 'STAGE_NAME']), '');
+  if (!status) return 'Pending';
+  if (AU_NOT_PENDING_RE.test(status)) return 'Approved';
+  return 'Pending';
+}
+
+function transformAuEpbcRecord(record) {
+  const statusDesc = normalizeText(pick(record, ['STATUS_DESCRIPTION']), '');
+  const stageName = normalizeText(pick(record, ['STAGE_NAME']), '');
+  const notes = [statusDesc, stageName].filter(Boolean).join(' | ');
+
+  let sourceUrl = pick(record, ['REFERRAL_URL']);
+  if (!sourceUrl || !/^https?:\/\//i.test(sourceUrl)) {
+    sourceUrl = 'https://epbcnotices.environment.gov.au/referralslist/';
+  }
+
+  return {
+    external_id: pick(record, ['REFERENCE_NUMBER', 'REFERRAL_NUMBER']),
+    project_title: pick(record, ['NAME', 'REFERRAL_TITLE', 'PROJECT_NAME'], 'Unnamed AU Referral'),
+    location: pick(record, ['PRIMARY_JURISDICTION', 'STATE'], 'Australia'),
+    country: 'Australia',
+    activity: pick(record, ['REFERRAL_TYPE'], 'EPBC Referral'),
+    status: inferAuStatus(record),
+    category: 'Unknown',
+    notes,
+    source_url: sourceUrl,
+  };
+}
+
+// ─── Ireland EPA LEAP (JSON URL) ───
+
+function transformIeEpaLeapRecord(record) {
+  const sector = normalizeText(pick(record, ['sector']), '');
+  const licenceType = normalizeText(pick(record, ['type']), '');
+  const activity = [licenceType, sector].filter(Boolean).join(' - ') || 'Industrial Emissions Licence';
+  const notes = [sector, licenceType].filter(Boolean).join(' | ');
+
+  return {
+    external_id: pick(record, ['authorisationnumber', 'licenceid']),
+    project_title: pick(record, ['authorisationname', 'facility', 'facilityname'], 'Ireland EPA Licence'),
+    location: pick(record, ['county', 'address'], 'Ireland'),
+    country: 'Ireland',
+    activity,
+    status: pick(record, ['status'], 'Pending'),
+    category: 'Unknown',
+    notes,
+    source_url: 'https://leap.epa.ie/',
+  };
+}
+
+// ─── Arkansas DEQ (CSV) ───
+
+function transformArkansasDeqRecord(record) {
+  const city = normalizeText(pick(record, ['FacSiteCity']), '');
+  const county = normalizeText(pick(record, ['FacCountyName']), '');
+  const location = [city, county, 'AR'].filter(Boolean).join(', ') || 'Arkansas';
+
+  const statusDesc = normalizeText(pick(record, ['PmtStatusDesc']), '');
+  const naicsDesc = normalizeText(pick(record, ['FacPrimaryNAICSDesc']), '');
+  const notes = [statusDesc, naicsDesc].filter(Boolean).join(' | ');
+
+  // Try to extract a date
+  const rawDate = pick(record, ['PmtStatusDate', 'RecModifiedDate', 'RecCreatedDate']);
+
+  return {
+    external_id: pick(record, ['PmtNbr']),
+    project_title: pick(record, ['FacName'], 'Arkansas Permit'),
+    location,
+    country: 'United States',
+    activity: naicsDesc || 'Animal Production Permit',
+    status: statusDesc || 'Pending',
+    category: 'Unknown',
+    notes,
+    source_url: 'https://www.adeq.state.ar.us/home/pdssql/pds.aspx',
+  };
+}
+
 function getSourceTransformer(sourceKeyOrName) {
   const key = normalizeText(sourceKeyOrName, '');
   const transformers = {
     nc_deq_application_tracker: transformNcDeqRecord,
+    us_nc_deq_application_tracker: transformNcDeqRecord,
     uk_ea_public_register: transformUkEaRecord,
+    au_epbc_referrals: transformAuEpbcRecord,
+    ie_epa_leap: transformIeEpaLeapRecord,
+    us_arkansas_deq_pds: transformArkansasDeqRecord,
   };
   return transformers[key] || null;
 }
@@ -131,4 +217,7 @@ module.exports = {
   getSourceTransformer,
   transformNcDeqRecord,
   transformUkEaRecord,
+  transformAuEpbcRecord,
+  transformIeEpaLeapRecord,
+  transformArkansasDeqRecord,
 };

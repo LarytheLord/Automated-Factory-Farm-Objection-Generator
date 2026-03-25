@@ -121,9 +121,15 @@
     "country": "United States",
     "trust_level": "official",
     "type": "csv_url",
-    "tier": "fast",
+    "tier": "slow",
+    "transform": "us_arkansas_deq_pds",
     "url": "https://www.adeq.state.ar.us/downloads/WebDatabases/PDS/FacAndPmtSummary.csv",
     "enabled": true,
+    "include_keywords": [
+      "poultry", "broiler", "pig", "swine", "hog", "livestock",
+      "dairy", "layer", "egg", "farm", "animal production"
+    ],
+    "filter_fields": ["project_title", "activity", "notes"],
     "poll_interval_hours": 24,
     "notes": "Official Arkansas DEQ permit table download used by the global pending sync script."
   },
@@ -146,8 +152,20 @@
     "trust_level": "official",
     "type": "arcgis_mapserver",
     "tier": "fast",
+    "transform": "au_epbc_referrals",
     "url": "https://gis.environment.gov.au/gispubmap/rest/services/ogc_services/EPBC_Referrals/MapServer/0/query",
     "enabled": true,
+    "query": {
+      "where": "1=1",
+      "outFields": "REFERENCE_NUMBER,NAME,PRIMARY_JURISDICTION,STATUS_DESCRIPTION,STAGE_NAME,REFERRAL_URL,YEAR,REFERRAL_TYPE",
+      "resultRecordCount": 500,
+      "f": "json"
+    },
+    "include_keywords": [
+      "poultry", "pig", "broiler", "swine", "hog", "livestock",
+      "dairy", "farm", "animal", "intensive", "feedlot"
+    ],
+    "filter_fields": ["project_title", "activity", "notes"],
     "poll_interval_hours": 24,
     "notes": "Official EPBC referrals feed used by the global pending sync script."
   },
@@ -158,7 +176,9 @@
     "trust_level": "official",
     "type": "json_url",
     "tier": "fast",
-    "url": "https://data.epa.ie/leap/api/v1/Licence/licencesearchlistfilters",
+    "transform": "ie_epa_leap",
+    "url": "https://data.epa.ie/leap/api/v1/Licence/licencesearchlistfilters?page=1&per_page=100&status_filter=Application%20Pending&sector_filter=Intensive%20Agriculture&type_filter=Industrial%20Emissions%20Licence",
+    "records_path": "list",
     "enabled": true,
     "poll_interval_hours": 24,
     "notes": "Official LEAP API source used by the global pending sync script."

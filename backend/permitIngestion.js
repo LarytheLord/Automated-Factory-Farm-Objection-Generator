@@ -293,6 +293,74 @@ async function readJsonUrlPermits(source, fetchImpl) {
   return records.map((record) => mapSourceRecordToPermit(record, source));
 }
 
+function parseCsvLine(line) {
+  const fields = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        current += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      fields.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  fields.push(current.trim());
+  return fields;
+}
+
+async function readCsvUrlPermits(source, fetchImpl) {
+  const url = normalizeText(source.url);
+  if (!url) {
+    throw new Error(`Source ${source.key} is missing url`);
+  }
+
+  const fetcher = getFetcher(fetchImpl);
+  const timeout = withTimeout(source.timeout_ms || 15000);
+  let rawCsv;
+  try {
+    const response = await fetcher(url, { signal: timeout.signal });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} ${response.statusText}`);
+    }
+    rawCsv = await response.text();
+  } finally {
+    timeout.clear();
+  }
+
+  const lines = rawCsv.split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length < 2) return [];
+
+  const headers = parseCsvLine(lines[0]);
+  const records = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCsvLine(lines[i]);
+    const record = {};
+    for (let j = 0; j < headers.length; j++) {
+      record[headers[j]] = values[j] || '';
+    }
+    records.push(mapSourceRecordToPermit(record, source));
+  }
+
+  return records;
+}
+
 async function readSourcePermits(source, baseDir, fetchImpl) {
   const type = normalizeText(source.type, 'local_file');
 
@@ -304,6 +372,9 @@ async function readSourcePermits(source, baseDir, fetchImpl) {
   }
   if (type === 'json_url') {
     return readJsonUrlPermits(source, fetchImpl);
+  }
+  if (type === 'csv_url') {
+    return readCsvUrlPermits(source, fetchImpl);
   }
 
   throw new Error(`Unsupported source type: ${type}`);
