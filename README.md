@@ -9,6 +9,8 @@
 
 ---
 
+[![Sponsor Us](https://img.shields.io/badge/Sponsor%20Us-Razorpay-0C73EB?style=for-the-badge&logo=razorpay&logoColor=white)](https://razorpay.me/@LarytheLord)
+
 Factory farms and polluting facilities get approved because communities can't respond fast enough. Permits move through technical legal processes in days — objection windows close before most people even find out. **Open Permit changes that.**
 
 We monitor permit filings across **8 countries**, match them against **40+ legal frameworks**, and generate **legally cited objection letters** from **12 stakeholder perspectives** — in seconds, not weeks.
