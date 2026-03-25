@@ -2,7 +2,7 @@
 
 Open Permit is a unified Advocacy platform that monitors development permits, generates AI-powered legally grounded objection letters, and provides civic intelligence for citizens, NGOs, and legal advocates.
 
-[![Sponsor Me](https://img.shields.io/badge/Sponsor%20Me-Razorpay-0C73EB?style=for-the-badge&logo=razorpay&logoColor=white)](https://razorpay.me/@LarytheLord)
+[![Sponsor Us](https://img.shields.io/badge/Sponsor%20Us-Razorpay-0C73EB?style=for-the-badge&logo=razorpay&logoColor=white)](https://razorpay.me/@LarytheLord)
 
 > **Origin:** Built in 10 hours at [Code 4 Compassion](https://www.codeforcompassion.com/) Mumbai (hosted by [Open Paws](https://www.openpaws.ai/) & Electric Sheep). Evolved through the AARC Pre-Accelerator. Originally called AFOG — now Open Permit, covering all permit types across environmental, health, economic, and social impact.
 
