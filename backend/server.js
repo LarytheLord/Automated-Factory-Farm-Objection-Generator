@@ -1702,6 +1702,11 @@ app.post('/api/generate-letter', optionalAuth, letterRateLimiter, async (req, re
         currentDate, capacity, details
     } = permitDetails;
 
+    // Sanitize notes — strip raw JSON payloads, source metadata, and truncate
+    if (permitDetails.notes) {
+        permitDetails = { ...permitDetails, notes: sanitizePermitNotes(permitDetails.notes) };
+    }
+
     try {
         // Try AI generation first
         if (genAI) {
@@ -1729,6 +1734,27 @@ app.post('/api/generate-letter', optionalAuth, letterRateLimiter, async (req, re
         }
     }
 });
+
+function sanitizePermitNotes(raw) {
+    if (!raw || typeof raw !== 'string') return '';
+    // Strip everything from "Original Payload JSON:" onward
+    let clean = raw.split(/Original Payload JSON:/i)[0];
+    // Strip metadata lines that leak from scraping
+    clean = clean.replace(/^Source Key:.*$/gm, '');
+    clean = clean.replace(/^Source Name:.*$/gm, '');
+    clean = clean.replace(/^Source URL:.*$/gm, '');
+    clean = clean.replace(/^External ID:.*$/gm, '');
+    clean = clean.replace(/^Published at:.*$/gm, '');
+    clean = clean.replace(/^Consultation deadline:.*$/gm, '');
+    clean = clean.replace(/^Summary:.*$/gm, '');
+    // Strip any remaining JSON blobs
+    clean = clean.replace(/\{[\s\S]*?"truncated"[\s\S]*?\}/g, '');
+    // Collapse whitespace
+    clean = clean.replace(/\n{3,}/g, '\n').trim();
+    // Cap at 300 chars to keep prompts/templates focused
+    if (clean.length > 300) clean = clean.slice(0, 300).replace(/\s+\S*$/, '') + '...';
+    return clean;
+}
 
 function buildAIPrompt(details, mode = 'concise', personaId = 'general') {
     const persona = getPersonaConfig(personaId);
