@@ -25,6 +25,7 @@ import Link from "next/link";
 import AuthModal from "../components/AuthModal";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import PersonaSelector, { type PersonaOption } from "../components/PersonaSelector";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -315,7 +316,7 @@ export default function Home() {
   const [emailSubject, setEmailSubject] = useState("");
   const [letterMode, setLetterMode] = useState<"concise" | "detailed">("concise");
   const [persona, setPersona] = useState("general");
-  const [personaOptions, setPersonaOptions] = useState<{id: string; label: string; category: string; categoryLabel: string; description: string}[]>([]);
+  const [personaOptions, setPersonaOptions] = useState<PersonaOption[]>([]);
   const [recipientSuggestions, setRecipientSuggestions] = useState<RecipientSuggestion[]>([]);
   const [sendToSuggestions, setSendToSuggestions] = useState<RecipientSuggestion[]>([]);
   const [ccSuggestions, setCcSuggestions] = useState<RecipientSuggestion[]>([]);
@@ -1092,7 +1093,7 @@ export default function Home() {
                     <FormInput name="yourPostalCode" label="Postal Code" value={formData.yourPostalCode} onChange={handleInputChange} />
                     <FormInput name="yourPhone" label="Phone" value={formData.yourPhone} onChange={handleInputChange} />
                   </div>
-                  <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
                     <div>
                       <label className="block text-xs text-gray-600 mb-1.5">Letter Style</label>
                       <select
@@ -1106,28 +1107,14 @@ export default function Home() {
                     </div>
                     <div>
                       <label className="block text-xs text-gray-600 mb-1.5">Stakeholder Perspective</label>
-                      <select
+                      <p className="mb-2.5 text-xs leading-relaxed text-gray-500">
+                        Choose the perspective that best reflects how this permit would affect you or your community.
+                      </p>
+                      <PersonaSelector
+                        options={personaOptions}
                         value={persona}
-                        onChange={(e) => setPersona(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:border-emerald-500/30 text-slate-700"
-                      >
-                        {personaOptions.length > 0 ? (
-                          Object.entries(
-                            personaOptions.reduce<Record<string, typeof personaOptions>>((groups, p) => {
-                              (groups[p.categoryLabel] ??= []).push(p);
-                              return groups;
-                            }, {})
-                          ).map(([catLabel, items]) => (
-                            <optgroup key={catLabel} label={catLabel}>
-                              {items.map((p) => (
-                                <option key={p.id} value={p.id}>{p.label}</option>
-                              ))}
-                            </optgroup>
-                          ))
-                        ) : (
-                          <option value="general">General (Environmental Law Expert)</option>
-                        )}
-                      </select>
+                        onChange={setPersona}
+                      />
                     </div>
                   </div>
                   <button
