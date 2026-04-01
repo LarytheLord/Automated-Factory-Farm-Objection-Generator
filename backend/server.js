@@ -239,6 +239,7 @@ const FALLBACK_TRUSTED_SOURCE_KEYS = new Set([
     'ca_on_ero_instruments',
     'in_parivesh_seiaa_pending_ec',
     'in_ocmms_pending_consent',
+    'dc_ballot_initiative_85',
 ]);
 
 function allPermits() {
@@ -346,7 +347,10 @@ function hasTrustedSourceUrl(permit) {
                 host === 'ero.ontario.ca' ||
                 host === 'consult.environment-agency.gov.uk' ||
                 host === 'environmentclearance.nic.in' ||
-                host === 'ocmms.nic.in'
+                host === 'ocmms.nic.in' ||
+                host === 'www.dcboe.org' ||
+                host === 'dcboe.org' ||
+                host === 'proanimaldc.org'
             );
         } catch (_error) {
             return false;
