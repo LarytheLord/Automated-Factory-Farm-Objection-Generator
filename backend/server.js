@@ -14,6 +14,12 @@ const { applySourcePatch } = require('./permitSourceConfig');
 const { buildSourceValidationReport } = require('./sourceRollout');
 const { annotateAndSortPermits } = require('./permitPriority');
 const { sanitizeLetterText } = require('./letterSanitizer');
+const {
+    LETTER_PROMPT_VERSION,
+    buildLetterGenerationRunRecord,
+    clampLetterGenerationRuns,
+    createLetterGenerationRunId,
+} = require('./letterGenerationRuns');
 const { getRecipientSuggestions } = require('./recipientFinder');
 const { getPersonaConfig, normalizePersonaId, PERSONA_LIST } = require('./personaConfig');
 const { pickNextSource, runSingleSourceSync } = require('./permitScheduler');
@@ -190,6 +196,7 @@ let feedbackSubmissionsData = readArrayFile('feedback-submissions.json');
 let usageEvents = readArrayFile('usage-events.json');
 let permitStatusHistoryData = readArrayFile('permit-status-history.json');
 let ingestionRunsData = readArrayFile('ingestion-runs.json');
+let letterGenerationRunsData = readArrayFile('letter-generation-runs.json');
 let permitSourcesData = readArrayFile('permit-sources.json');
 let activityLog = [];
 let platformConfig = sanitizePlatformConfig(readJsonFile('platform-config.json', DEFAULT_PLATFORM_CONFIG));
@@ -445,6 +452,10 @@ function persistPermitIngestionData() {
 
 function persistPermitSources() {
     writeArrayFile('permit-sources.json', permitSourcesData);
+}
+
+function persistLetterGenerationRuns() {
+    writeArrayFile('letter-generation-runs.json', letterGenerationRunsData);
 }
 
 function persistAccessApprovals() {
@@ -1642,6 +1653,69 @@ function normalizeLetterMode(mode) {
     return 'concise';
 }
 
+function buildLetterGenerationActor(req) {
+    if (req.user?.id) {
+        return {
+            actor_kind: 'authenticated',
+            actor_user_id: String(req.user.id),
+            actor_role: String(req.user.role || 'citizen'),
+        };
+    }
+
+    return {
+        actor_kind: 'anonymous',
+        actor_user_id: null,
+        actor_role: 'anonymous',
+    };
+}
+
+async function persistLetterGenerationRun(runRecord) {
+    if (supabase) {
+        const { error } = await supabase
+            .from('letter_generation_runs')
+            .insert([runRecord]);
+
+        if (!error) {
+            return;
+        }
+
+        if (!isMissingSupabaseTableError(error, 'letter_generation_runs')) {
+            console.warn(`Supabase letter_generation_runs insert failed, using fallback: ${error.message}`);
+        }
+    }
+
+    letterGenerationRunsData.push(runRecord);
+    letterGenerationRunsData = clampLetterGenerationRuns(letterGenerationRunsData);
+    persistLetterGenerationRuns();
+}
+
+async function listLetterGenerationRunsForUser(userId) {
+    const actorUserId = String(userId || '').trim();
+    if (!actorUserId) return [];
+
+    if (supabase) {
+        const { data, error } = await supabase
+            .from('letter_generation_runs')
+            .select('*')
+            .eq('actor_user_id', actorUserId)
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        if (!error && Array.isArray(data)) {
+            return data;
+        }
+
+        if (!isMissingSupabaseTableError(error, 'letter_generation_runs')) {
+            throw error;
+        }
+    }
+
+    return letterGenerationRunsData
+        .filter((run) => run.actor_user_id === actorUserId)
+        .sort((a, b) => Date.parse(b.created_at || 0) - Date.parse(a.created_at || 0))
+        .slice(0, 50);
+}
+
 function buildRecipientLookupPermit(reqBody, reqParamId) {
     if (reqBody?.permitDetails && typeof reqBody.permitDetails === 'object') {
         return reqBody.permitDetails;
@@ -1673,6 +1747,19 @@ app.post('/api/recipient-suggestions', optionalAuth, (req, res) => {
 // ─── Persona list ───
 app.get('/api/personas', (_req, res) => {
     res.json({ personas: PERSONA_LIST });
+});
+
+app.get('/api/letter-generation-runs', authenticateToken, requireApprovedAccess, async (req, res) => {
+    try {
+        const runs = await listLetterGenerationRunsForUser(req.user.id);
+        return res.json({
+            promptVersion: LETTER_PROMPT_VERSION,
+            runs,
+        });
+    } catch (error) {
+        console.error('Get letter generation runs error:', error);
+        return res.status(500).json({ error: 'Failed to fetch letter generation runs' });
+    }
 });
 
 app.post('/api/generate-letter', optionalAuth, letterRateLimiter, async (req, res) => {
@@ -1707,30 +1794,147 @@ app.post('/api/generate-letter', optionalAuth, letterRateLimiter, async (req, re
         permitDetails.notes = sanitizePermitNotes(permitDetails.notes);
     }
 
+    const runId = createLetterGenerationRunId();
+    const actor = buildLetterGenerationActor(req);
+    const startedAt = new Date().toISOString();
+
     try {
         // Try AI generation first
         if (genAI) {
-            const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+            const modelName = 'gemini-2.0-flash';
+            const model = genAI.getGenerativeModel({ model: modelName });
             const prompt = buildAIPrompt(permitDetails, letterMode, persona);
             const result = await model.generateContent(prompt);
             const letter = sanitizeLetterText(result.response.text());
-            recordUsage(req, 'generate_letter');
-            return res.json({ letter, mode: letterMode, persona });
+            const completedAt = new Date().toISOString();
+            const runRecord = buildLetterGenerationRunRecord({
+                runId,
+                actor,
+                permitDetails,
+                letterMode,
+                persona,
+                status: 'success',
+                generationStrategy: 'gemini',
+                modelName,
+                startedAt,
+                completedAt,
+                outputLength: letter.length,
+            });
+            await persistLetterGenerationRun(runRecord);
+            recordUsage(req, 'generate_letter', { strategy: 'gemini' });
+            return res.json({
+                letter,
+                mode: letterMode,
+                persona,
+                provenance: {
+                    runId,
+                    status: runRecord.status,
+                    generationStrategy: runRecord.generation_strategy,
+                    fallbackUsed: runRecord.fallback_used,
+                    modelName: runRecord.model_name,
+                    promptVersion: runRecord.prompt_version,
+                },
+            });
         }
 
         // Fallback: Built-in legal template engine
         const letter = sanitizeLetterText(generateTemplatedLetter(permitDetails, letterMode, persona));
-        recordUsage(req, 'generate_letter');
-        res.json({ letter, mode: letterMode, persona });
+        const completedAt = new Date().toISOString();
+        const runRecord = buildLetterGenerationRunRecord({
+            runId,
+            actor,
+            permitDetails,
+            letterMode,
+            persona,
+            status: 'fallback',
+            generationStrategy: 'template',
+            fallbackUsed: true,
+            fallbackReason: 'gemini_unconfigured',
+            startedAt,
+            completedAt,
+            outputLength: letter.length,
+        });
+        await persistLetterGenerationRun(runRecord);
+        recordUsage(req, 'generate_letter', { strategy: 'template', reason: 'gemini_unconfigured' });
+        return res.json({
+            letter,
+            mode: letterMode,
+            persona,
+            provenance: {
+                runId,
+                status: runRecord.status,
+                generationStrategy: runRecord.generation_strategy,
+                fallbackUsed: runRecord.fallback_used,
+                modelName: runRecord.model_name,
+                promptVersion: runRecord.prompt_version,
+            },
+        });
     } catch (error) {
         console.error('Letter generation error:', error);
         // Even if AI fails, use template fallback
         try {
             const letter = sanitizeLetterText(generateTemplatedLetter(permitDetails, letterMode, persona));
-            recordUsage(req, 'generate_letter');
-            res.json({ letter, mode: letterMode, persona });
+            const completedAt = new Date().toISOString();
+            const runRecord = buildLetterGenerationRunRecord({
+                runId,
+                actor,
+                permitDetails,
+                letterMode,
+                persona,
+                status: 'fallback',
+                generationStrategy: 'template',
+                fallbackUsed: true,
+                fallbackReason: 'gemini_error',
+                errorMessage: String(error.message || error).slice(0, 500),
+                startedAt,
+                completedAt,
+                outputLength: letter.length,
+            });
+            await persistLetterGenerationRun(runRecord);
+            recordUsage(req, 'generate_letter', { strategy: 'template', reason: 'gemini_error' });
+            return res.json({
+                letter,
+                mode: letterMode,
+                persona,
+                provenance: {
+                    runId,
+                    status: runRecord.status,
+                    generationStrategy: runRecord.generation_strategy,
+                    fallbackUsed: runRecord.fallback_used,
+                    modelName: runRecord.model_name,
+                    promptVersion: runRecord.prompt_version,
+                },
+            });
         } catch (fallbackError) {
-            res.status(500).json({ error: 'Failed to generate letter' });
+            const completedAt = new Date().toISOString();
+            const runRecord = buildLetterGenerationRunRecord({
+                runId,
+                actor,
+                permitDetails,
+                letterMode,
+                persona,
+                status: 'failed',
+                generationStrategy: genAI ? 'gemini' : 'template',
+                fallbackUsed: Boolean(genAI),
+                fallbackReason: genAI ? 'template_error' : 'template_unavailable',
+                modelName: genAI ? 'gemini-2.0-flash' : null,
+                errorMessage: String(fallbackError.message || fallbackError).slice(0, 500),
+                startedAt,
+                completedAt,
+                outputLength: 0,
+            });
+            await persistLetterGenerationRun(runRecord);
+            return res.status(500).json({
+                error: 'Failed to generate letter',
+                provenance: {
+                    runId,
+                    status: runRecord.status,
+                    generationStrategy: runRecord.generation_strategy,
+                    fallbackUsed: runRecord.fallback_used,
+                    modelName: runRecord.model_name,
+                    promptVersion: runRecord.prompt_version,
+                },
+            });
         }
     }
 });
@@ -2728,6 +2932,7 @@ app.get('/api', (req, res) => {
             'POST /api/permits',
             'POST /api/recipient-suggestions',
             'POST /api/generate-letter',
+            'GET  /api/letter-generation-runs',
             'GET  /api/usage',
             'GET  /api/admin/quotas',
             'PATCH /api/admin/quotas',
