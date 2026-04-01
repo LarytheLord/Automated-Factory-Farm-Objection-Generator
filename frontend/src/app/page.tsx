@@ -315,6 +315,7 @@ export default function Home() {
   const [recipientEmail, setRecipientEmail] = useState("");
   const [emailSubject, setEmailSubject] = useState("");
   const [letterMode, setLetterMode] = useState<"concise" | "detailed">("concise");
+  const [letterType, setLetterType] = useState<"objection" | "support">("objection");
   const [persona, setPersona] = useState("general");
   const [personaOptions, setPersonaOptions] = useState<PersonaOption[]>([]);
   const [recipientSuggestions, setRecipientSuggestions] = useState<RecipientSuggestion[]>([]);
@@ -548,6 +549,7 @@ export default function Home() {
         body: JSON.stringify({
           permitDetails: { ...selectedPermit, ...formData, currentDate },
           letterMode,
+          letterType,
           persona,
         }),
       }, 35000);
@@ -1093,6 +1095,33 @@ export default function Home() {
                     <FormInput name="yourPostalCode" label="Postal Code" value={formData.yourPostalCode} onChange={handleInputChange} />
                     <FormInput name="yourPhone" label="Phone" value={formData.yourPhone} onChange={handleInputChange} />
                   </div>
+                  <div className="mt-4">
+                    <label className="block text-xs text-gray-600 mb-1.5">Letter Type</label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setLetterType("objection")}
+                        className={`flex-1 py-2 px-3 text-sm rounded-xl border transition-all font-medium ${
+                          letterType === "objection"
+                            ? "bg-red-50 border-red-300 text-red-700"
+                            : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
+                        }`}
+                      >
+                        Objection
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLetterType("support")}
+                        className={`flex-1 py-2 px-3 text-sm rounded-xl border transition-all font-medium ${
+                          letterType === "support"
+                            ? "bg-emerald-50 border-emerald-300 text-emerald-700"
+                            : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
+                        }`}
+                      >
+                        Support
+                      </button>
+                    </div>
+                  </div>
                   <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
                     <div>
                       <label className="block text-xs text-gray-600 mb-1.5">Letter Style</label>
@@ -1130,7 +1159,7 @@ export default function Home() {
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4" />
-                        Generate AI Objection Letter
+                        Generate AI {letterType === "support" ? "Support" : "Objection"} Letter
                       </>
                     )}
                   </button>
@@ -1150,7 +1179,7 @@ export default function Home() {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-base font-semibold flex items-center gap-2">
                       <FileText className="w-4 h-4 text-emerald-400" />
-                      Generated Objection Letter
+                      Generated {letterType === "support" ? "Support" : "Objection"} Letter
                     </h3>
                     <div className="flex items-center gap-2">
                       {saveMessage && <span className="text-xs text-emerald-400 animate-fade-in">{saveMessage}</span>}
