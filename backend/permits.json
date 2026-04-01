@@ -412,5 +412,20 @@
             "air_emission_standard": "Odour Impact Assessment",
             "notes": "Rejected due to proximity to watercourse."
         }
+    },
+    {
+        "country": "United States",
+        "project_title": "Prohibiting Force-Feeding of Birds Act (Initiative 85)",
+        "location": "Washington, D.C.",
+        "coordinates": { "lat": 38.9072, "lng": -77.0369 },
+        "category": "Green",
+        "activity": "Ballot Initiative — Ban on foie gras production and sale via force-feeding",
+        "status": "Pending",
+        "permit_domain": "farm_animal",
+        "notes": "D.C. Initiative 85 would prohibit force-feeding birds (gavage) to produce foie gras and ban the sale of foie gras products within D.C. Currently in signature collection phase — needs 25,000+ voter signatures across 5+ wards to qualify for the November 2026 ballot. Sponsored by Pro-Animal DC (local chapter of Pro-Animal Future). If passed, effective July 1, 2027. Penalties: $1,000-$5,000 civil fines per violation. Enforcement by DOEE.",
+        "details": {
+            "capacity": "N/A — legislative initiative, not a facility permit",
+            "notes": "Goosapalooza volunteer mobilization: April 13 - May 31, 2026. Free housing and plant-based meals for signature collectors. Registration: proanimaldc.org/goosapalooza"
+        }
     }
 ]

@@ -22,6 +22,7 @@ We monitor permit filings across **8 countries**, match them against **40+ legal
 3. **Adapts to your perspective** — Choose from 12 stakeholder personas (farmer, resident, parent, business owner, health advocate, indigenous community, etc.) to generate letters that speak to YOUR specific harm
 4. **Finds the right recipients** — Suggests the correct government authority, email, and submission method for each permit
 5. **Falls back gracefully** — If AI is unavailable, a built-in legal template engine generates the letter using the same legal frameworks
+6. **Records generation provenance** — Captures the prompt version, generation strategy, fallback status, and permit metadata for each generated letter so approved users can audit how a draft was produced
 
 ### Numbers
 
@@ -81,6 +82,7 @@ final-azure-nu.vercel.app (Backend — Express on Vercel Serverless)
 │   ├── permitIngestion.js Multi-format permit scraper (ArcGIS, JSON, CSV)
 │   ├── recipientFinder.js Government authority matcher
 │   ├── letterSanitizer.js Output cleanup (strips markdown, control chars)
+│   ├── letterGenerationRuns.js Letter-generation provenance helpers
 │   ├── database/          SQL migrations
 │   ├── data/              Permit source configs, ingested data
 │   └── scripts/           Sync scripts for each country
@@ -121,6 +123,10 @@ npm run dev           # Runs on http://localhost:3000
 | `ALLOWED_ORIGINS` | Production | Comma-separated allowed CORS origins |
 
 See [`backend/.env.example`](backend/.env.example) for the full list including quotas, rate limits, and sync options.
+
+### Letter Generation Audit Trail
+
+Generated letters now carry a small provenance payload in the `POST /api/generate-letter` response so the frontend or downstream tools can record how the draft was created. Approved users can review their recent runs through `GET /api/letter-generation-runs`, which returns the prompt version, generation strategy, fallback status, and summarized permit metadata without storing the full generated letter body.
 
 ---
 
