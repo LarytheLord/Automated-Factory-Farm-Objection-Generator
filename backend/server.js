@@ -1642,6 +1642,12 @@ function normalizeLetterMode(mode) {
     return 'concise';
 }
 
+function normalizeLetterType(type) {
+    const value = String(type || '').trim().toLowerCase();
+    if (value === 'support') return 'support';
+    return 'objection';
+}
+
 function buildRecipientLookupPermit(reqBody, reqParamId) {
     if (reqBody?.permitDetails && typeof reqBody.permitDetails === 'object') {
         return reqBody.permitDetails;
@@ -1681,6 +1687,7 @@ app.post('/api/generate-letter', optionalAuth, letterRateLimiter, async (req, re
     }
     const { permitDetails } = req.body;
     const letterMode = normalizeLetterMode(req.body?.letterMode);
+    const letterType = normalizeLetterType(req.body?.letterType);
     const persona = normalizePersonaId(req.body?.persona);
     if (!permitDetails) {
         return res.status(400).json({ error: 'permitDetails is required' });
@@ -1711,24 +1718,24 @@ app.post('/api/generate-letter', optionalAuth, letterRateLimiter, async (req, re
         // Try AI generation first
         if (genAI) {
             const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-            const prompt = buildAIPrompt(permitDetails, letterMode, persona);
+            const prompt = buildAIPrompt(permitDetails, letterMode, persona, letterType);
             const result = await model.generateContent(prompt);
             const letter = sanitizeLetterText(result.response.text());
             recordUsage(req, 'generate_letter');
-            return res.json({ letter, mode: letterMode, persona });
+            return res.json({ letter, mode: letterMode, persona, letterType });
         }
 
         // Fallback: Built-in legal template engine
-        const letter = sanitizeLetterText(generateTemplatedLetter(permitDetails, letterMode, persona));
+        const letter = sanitizeLetterText(generateTemplatedLetter(permitDetails, letterMode, persona, letterType));
         recordUsage(req, 'generate_letter');
-        res.json({ letter, mode: letterMode, persona });
+        res.json({ letter, mode: letterMode, persona, letterType });
     } catch (error) {
         console.error('Letter generation error:', error);
         // Even if AI fails, use template fallback
         try {
-            const letter = sanitizeLetterText(generateTemplatedLetter(permitDetails, letterMode, persona));
+            const letter = sanitizeLetterText(generateTemplatedLetter(permitDetails, letterMode, persona, letterType));
             recordUsage(req, 'generate_letter');
-            res.json({ letter, mode: letterMode, persona });
+            res.json({ letter, mode: letterMode, persona, letterType });
         } catch (fallbackError) {
             res.status(500).json({ error: 'Failed to generate letter' });
         }
@@ -1756,30 +1763,56 @@ function sanitizePermitNotes(raw) {
     return clean;
 }
 
-function buildAIPrompt(details, mode = 'concise', personaId = 'general') {
+function buildAIPrompt(details, mode = 'concise', personaId = 'general', letterType = 'objection') {
     const persona = getPersonaConfig(personaId);
-    const countryLaws = getCountryLegalFramework(details.country);
+    const jurisdiction = inferJurisdiction(details.location, details.country);
+    const countryLaws = getCountryLegalFramework(details.country, jurisdiction);
+    const isSupport = letterType === 'support';
 
-    // For "general" persona, preserve the original prompt exactly
+    // For "general" persona, preserve the original prompt exactly (when objecting)
     const isGeneral = persona.id === 'general';
 
     const roleText = isGeneral
         ? 'You are an expert environmental lawyer and animal welfare advocate.'
         : `You are ${persona.aiRole}.`;
 
+    const missionText = isSupport
+        ? 'Generate a formal, legally-grounded letter of support for the following legislative initiative or policy proposal.'
+        : 'Generate a formal, legally-grounded objection letter against a factory farm / industrial facility permit application.';
+
     const perspectiveSection = isGeneral ? '' : `
 STAKEHOLDER PERSPECTIVE:
 You are writing from the perspective of a ${persona.label}. Your primary concerns are:
 ${persona.aiConcerns.map((c) => `- ${c}`).join('\n')}
 
-Your objection should be supported by evidence such as:
+Your ${isSupport ? 'support should be grounded in' : 'objection should be supported by'} evidence such as:
 ${persona.aiEvidenceTypes.map((e) => `- ${e}`).join('\n')}
 
 Personal context: ${persona.aiEmotionalFrame}
 `;
 
-    const modeInstructions = mode === 'detailed'
-        ? `INSTRUCTIONS:
+    let modeInstructions;
+    if (isSupport) {
+        modeInstructions = mode === 'detailed'
+            ? `INSTRUCTIONS:
+1. Write a formal letter of support addressed to the relevant authority (council, board of elections, or regulatory body)
+2. Open with the author's details and the initiative/proposal reference
+3. Cite AT LEAST 4-5 specific laws/sections from the legal framework above that justify this initiative${!isGeneral ? `, prioritizing those most relevant to a ${persona.label}` : ''}
+4. ${isGeneral ? 'Address why current law is insufficient and why this initiative fills a critical gap' : `Explain how this initiative directly benefits your situation as a ${persona.label}`}
+5. Address the public interest, community welfare, and ethical justification
+6. Reference precedent from other jurisdictions where similar measures have succeeded
+7. Request specific actions (approve the measure, advance to ballot, implement promptly)
+8. Maintain a professional, constructive tone throughout
+9. End with a formal closing`
+            : `INSTRUCTIONS:
+1. Write a concise but formal letter of support (target 220-320 words)
+2. Focus on the TOP 3 strongest reasons this initiative should advance${!isGeneral ? `, weighted toward benefits specific to a ${persona.label}` : ''}
+3. Include 2-3 specific legal hooks from the framework above (not exhaustive list)
+4. Use clear, compelling language that an authority can act on
+5. End with a concrete action request: approve / advance to ballot / implement`;
+    } else {
+        modeInstructions = mode === 'detailed'
+            ? `INSTRUCTIONS:
 1. Write a formal objection letter addressed to the relevant regulatory authority
 2. Open with the objector's details and the permit reference
 3. Cite AT LEAST 4-5 specific laws/sections from the legal framework above${!isGeneral ? `, prioritizing those most relevant to a ${persona.label}` : ''}
@@ -1790,16 +1823,17 @@ Personal context: ${persona.aiEmotionalFrame}
 8. Request specific actions (denial of permit, additional environmental impact assessment, public hearing)
 9. Maintain a professional, firm tone throughout
 10. End with a formal closing`
-        : `INSTRUCTIONS:
+            : `INSTRUCTIONS:
 1. Write a concise but formal objection letter (target 220-320 words)
 2. Focus only on the TOP 3 strongest reasons the permit should be stopped${!isGeneral ? `, weighted toward concerns specific to a ${persona.label}` : ''}
 3. Include 2-3 specific legal hooks from the framework above (not exhaustive list)
 4. Use clear, impactful language that an authority can act on quickly
 5. End with a concrete action request: deny permit / hold pending review / require public hearing`;
+    }
 
-    return `${roleText} Generate a formal, legally-grounded objection letter against a factory farm / industrial facility permit application.
+    return `${roleText} ${missionText}
 ${perspectiveSection}
-PERMIT DETAILS:
+${isSupport ? 'INITIATIVE' : 'PERMIT'} DETAILS:
 - Project: ${details.project_title}
 - Location: ${details.location}, ${details.country}
 - Activity: ${details.activity}
@@ -1808,14 +1842,14 @@ PERMIT DETAILS:
 - Capacity: ${details.capacity || details.details?.capacity || 'N/A'}
 - Notes: ${details.notes || details.details?.notes || 'None'}
 
-OBJECTOR DETAILS:
+AUTHOR DETAILS:
 - Name: ${details.yourName || '[Your Name]'}
 - Address: ${details.yourAddress || ''}, ${details.yourCity || ''} ${details.yourPostalCode || ''}
 - Email: ${details.yourEmail || ''}
 - Phone: ${details.yourPhone || ''}
 - Date: ${details.currentDate || new Date().toISOString().split('T')[0]}
 
-APPLICABLE LEGAL FRAMEWORK FOR ${(details.country || 'India').toUpperCase()}:
+APPLICABLE LEGAL FRAMEWORK FOR ${(jurisdiction || details.country || 'India').toUpperCase()}:
 ${countryLaws}
 
 ${modeInstructions}
@@ -1823,7 +1857,31 @@ ${modeInstructions}
 Generate the complete letter text only, no markdown formatting.`;
 }
 
-function getCountryLegalFramework(country) {
+function inferJurisdiction(location, country) {
+    const loc = String(location || '').toLowerCase();
+    const ctry = String(country || '').toLowerCase();
+    if (loc.includes('washington, d.c.') || loc.includes('district of columbia') || loc.includes('washington dc')) {
+        return 'Washington, D.C.';
+    }
+    return '';
+}
+
+function getCountryLegalFramework(country, jurisdiction) {
+    // Jurisdiction-specific sub-frameworks
+    if (jurisdiction) {
+        const jKey = String(jurisdiction).toLowerCase();
+        if (jKey.includes('d.c.') || jKey.includes('district of columbia')) {
+            return `
+- D.C. Code Section 22-1001 (Prevention of Cruelty to Animals) — current statute prohibits cruel treatment but lacks explicit force-feeding prohibition; Initiative 85 fills this gap
+- D.C. Law 24-346, Animal Care and Control Omnibus Amendment Act of 2022 — expanded D.C. animal protection framework; demonstrates progressive legislative trajectory
+- California Health and Safety Code Section 25982 — precedent: California banned foie gras production via gavage; upheld by 9th Circuit in Association des Eleveurs de Canards v. Becerra (2020)
+- D.C. Code Section 1-1001.16 (Initiative, Referendum, and Recall Procedures) — citizens' right to propose legislation through ballot initiative; requires 5% of registered voters
+- D.C. Code Section 8-1801 et seq. (DOEE Authority) — Department of Energy and Environment enforcement powers for environmental and animal welfare regulations
+- D.C. Code Section 22-1012.01 (Unlawful Cat Declawing) — demonstrates D.C. precedent for species-specific animal welfare legislation
+- New York City Administrative Code Section 17-1702 (proposed) — parallel foie gras sales ban showing nationwide momentum`;
+        }
+    }
+
     const frameworks = {
         'India': `
 - Prevention of Cruelty to Animals Act, 1960 (Section 3: Duties of persons in charge of animals; Section 11: Treating animals cruelly; Section 38: Rule-making powers)
@@ -1886,7 +1944,12 @@ function getCountryLegalFramework(country) {
     return frameworks[key] || frameworks['India'];
 }
 
-function generateTemplatedLetter(details, mode = 'concise', personaId = 'general') {
+function generateTemplatedLetter(details, mode = 'concise', personaId = 'general', letterType = 'objection') {
+    if (letterType === 'support') {
+        return mode === 'detailed'
+            ? generateDetailedSupportLetter(details, personaId)
+            : generateConciseSupportLetter(details, personaId);
+    }
     if (mode !== 'detailed') {
         return generateConciseTemplatedLetter(details, personaId);
     }
@@ -2050,6 +2113,151 @@ Requested action:
 - Hold decision until an independent impact review and public hearing are completed.
 
 Please record this objection in the official file and confirm receipt.
+
+Sincerely,
+${name}`;
+}
+
+// ─── Support Letter Templates ───
+
+function generateDetailedSupportLetter(details, personaId = 'general') {
+    const persona = getPersonaConfig(personaId);
+    const isGeneral = persona.id === 'general';
+
+    const name = details.yourName || '[Your Name]';
+    const address = [details.yourAddress, details.yourCity, details.yourPostalCode].filter(Boolean).join(', ') || '[Your Address]';
+    const email = details.yourEmail || '[Your Email]';
+    const phone = details.yourPhone || '[Your Phone]';
+    const date = details.currentDate || new Date().toISOString().split('T')[0];
+    const country = details.country || 'United States';
+    const jurisdiction = inferJurisdiction(details.location, country);
+    const laws = getCountryLegalFramework(country, jurisdiction);
+
+    const authorityMap = {
+        'Washington, D.C.': 'Chairman\nD.C. Council',
+        'India': 'The Chairperson\nState Pollution Control Board',
+        'United States': 'Director\nState Department of Environmental Quality',
+        'United Kingdom': 'Head of Planning\nLocal Planning Authority',
+        'Australia': 'Director\nEnvironment Protection Authority',
+        'Canada': 'Director\nProvincial Ministry of Environment',
+    };
+    const authority = (jurisdiction && authorityMap[jurisdiction]) || authorityMap[country] || authorityMap['United States'];
+
+    const personaIntro = isGeneral
+        ? 'I am writing to express my strong support for'
+        : `I am writing as a ${persona.label} to express my strong support for`;
+
+    const section1 = isGeneral
+        ? `1. WHY THIS INITIATIVE IS NEEDED
+
+Current law does not adequately address the specific harms this initiative targets. The existing regulatory framework has a critical gap that allows practices harmful to animals, public health, and community welfare to continue unchecked. This initiative fills that gap with clear, enforceable standards backed by established legal precedent from other jurisdictions.`
+        : `1. ${persona.fallbackConcernHeading || 'WHY THIS INITIATIVE MATTERS'}
+
+${persona.fallbackConcernBody || `As a ${persona.label}, I have direct experience with the harms this initiative addresses.`} This initiative provides the legal framework needed to protect our community from these documented harms.`;
+
+    return `${name}
+${address}
+Email: ${email}
+Phone: ${phone}
+
+Date: ${date}
+
+To,
+${authority}
+Re: ${details.location || '[Location]'}
+
+Subject: FORMAL LETTER OF SUPPORT — ${(details.project_title || '[Initiative Title]').toUpperCase()}
+
+Dear Sir/Madam,
+
+${personaIntro} the initiative "${details.project_title}" in ${details.location}, ${country}. ${details.activity ? `This initiative proposes to ${details.activity.toLowerCase()}.` : ''}
+
+I respectfully submit that this initiative should be APPROVED and advanced for the following reasons:
+
+${section1}
+
+2. LEGAL JUSTIFICATION AND PRECEDENT
+
+This initiative is supported by the following legal framework:
+${laws}
+
+Other jurisdictions have already enacted similar measures successfully, demonstrating both the legal viability and public demand for this type of protection. This initiative builds on established precedent and strengthens our jurisdiction's commitment to progressive, evidence-based governance.
+
+3. PUBLIC INTEREST AND COMMUNITY BENEFIT
+
+This initiative serves the public interest by:
+- Protecting community welfare and public health
+- Closing gaps in current regulatory protections
+- Aligning our laws with the values of our community
+- Setting a positive precedent for other jurisdictions to follow
+- Creating enforceable standards where only voluntary guidelines existed
+
+4. REQUEST FOR ACTION
+
+Based on the above grounds, I respectfully request that the relevant authority:
+
+(a) APPROVE and advance this initiative;
+(b) Prioritize its implementation timeline;
+(c) Ensure adequate enforcement resources are allocated;
+(d) Communicate the initiative's benefits to the broader public.
+
+Thank you for your consideration and your service to our community. I trust this initiative will be given the serious attention it deserves.
+
+Yours faithfully,
+
+${name}
+${email}
+${phone}`;
+}
+
+function generateConciseSupportLetter(details, personaId = 'general') {
+    const persona = getPersonaConfig(personaId);
+    const isGeneral = persona.id === 'general';
+
+    const name = details.yourName || '[Your Name]';
+    const address = [details.yourAddress, details.yourCity, details.yourPostalCode].filter(Boolean).join(', ') || '[Your Address]';
+    const email = details.yourEmail || '[Your Email]';
+    const phone = details.yourPhone || '[Your Phone]';
+    const date = details.currentDate || new Date().toISOString().split('T')[0];
+    const country = details.country || 'United States';
+    const jurisdiction = inferJurisdiction(details.location, country);
+    const laws = getCountryLegalFramework(country, jurisdiction)
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .slice(0, 3)
+        .join('\n');
+
+    const reasons = (isGeneral || !persona.fallbackTopReasons)
+        ? `1) Current law has a critical gap that allows harmful practices to continue unchecked — this initiative closes that gap.
+2) Other jurisdictions have enacted similar measures successfully, demonstrating legal viability and broad public support.
+3) This initiative aligns with established legal duties, including:
+${laws}`
+        : persona.fallbackTopReasons.map((r, i) => `${i + 1}) ${r}`).join('\n') + `\n\nSupporting legal framework:\n${laws}`;
+
+    return `${name}
+${address}
+Email: ${email}
+Phone: ${phone}
+
+Date: ${date}
+
+Subject: Letter of support — ${details.project_title || '[Initiative Title]'}
+
+To whom it may concern,
+
+${isGeneral
+    ? `I strongly support the initiative "${details.project_title}" in ${details.location}, ${country}. This proposal advances public welfare and should be approved without delay.`
+    : `As a ${persona.label}, I strongly support the initiative "${details.project_title}" in ${details.location}, ${country}. This proposal directly benefits my community and addresses real harms I have witnessed firsthand.`}
+
+Key reasons for support:
+${reasons}
+
+Requested action:
+- Approve and advance this initiative; and
+- Prioritize implementation to protect the community as soon as possible.
+
+Please record this letter of support in the official file and confirm receipt.
 
 Sincerely,
 ${name}`;

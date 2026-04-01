@@ -197,14 +197,28 @@ function extractStateFromPermit(permit) {
     'delhi', 'new delhi',
   ];
   const ukRegions = ['scotland', 'wales', 'northern ireland', 'england'];
+  const usJurisdictions = [
+    'district of columbia', 'washington, d.c.', 'washington dc',
+    'north carolina', 'arkansas', 'california', 'new york', 'texas',
+    'florida', 'ohio', 'pennsylvania', 'illinois', 'georgia', 'michigan',
+    'virginia', 'maryland', 'colorado', 'oregon', 'iowa', 'minnesota',
+  ];
 
-  for (const s of [...indianStates, ...ukRegions]) {
+  // Check D.C. first (special matching for "Washington, D.C." format)
+  if (location.includes('washington, d.c.') || location.includes('washington dc') || location.includes('district of columbia')) {
+    return 'district of columbia';
+  }
+
+  for (const s of [...indianStates, ...ukRegions, ...usJurisdictions]) {
     if (location.includes(s)) return s;
   }
 
   // Try extracting from notes
   const notes = normalizeText(permit?.notes).toLowerCase();
-  for (const s of [...indianStates, ...ukRegions]) {
+  if (notes.includes('washington, d.c.') || notes.includes('district of columbia')) {
+    return 'district of columbia';
+  }
+  for (const s of [...indianStates, ...ukRegions, ...usJurisdictions]) {
     if (notes.includes(s)) return s;
   }
 
@@ -519,6 +533,28 @@ function buildOfficialFallbacks(permit) {
       action_url: 'https://echo.epa.gov/report-environmental-violations',
       reason: 'Online form to report violations directly to EPA enforcement personnel',
       score: 65,
+    });
+  }
+
+  const permitState = extractStateFromPermit(permit);
+  if (permitState === 'district of columbia') {
+    suggestions.push({
+      id: 'dc-boe-initiatives',
+      label: 'D.C. Board of Elections — Initiatives',
+      type: 'webform',
+      confidence: 'official',
+      action_url: 'https://www.dcboe.org/Initiatives-Referenda',
+      reason: 'Official D.C. Board of Elections portal for ballot initiative information',
+      score: 75,
+    });
+    suggestions.push({
+      id: 'dc-council-portal',
+      label: 'D.C. Council — Contact your Councilmember',
+      type: 'webform',
+      confidence: 'official',
+      action_url: 'https://dccouncil.gov/council/',
+      reason: 'Find and contact your ward-specific D.C. Council member',
+      score: 60,
     });
   }
 
