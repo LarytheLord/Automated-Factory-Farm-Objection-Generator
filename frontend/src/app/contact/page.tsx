@@ -38,20 +38,29 @@ export default function ContactPage() {
     setError(null);
 
     try {
+      const additionalComments = [
+        formData.organisation ? `Organisation: ${formData.organisation}` : null,
+        formData.message,
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+
       const res = await fetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: "contact",
           name: formData.name,
           email: formData.email,
-          organisation: formData.organisation,
           role: formData.role,
-          message: formData.message,
+          feedbackType: "feedback",
+          additionalComments,
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to submit");
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload?.error || "Failed to submit");
+      }
       setSubmitted(true);
     } catch {
       setError(

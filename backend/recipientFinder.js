@@ -233,7 +233,7 @@ function parsePermitHints(permit) {
   const permitState = extractStateFromPermit(permit);
   let reviewer = normalizeText(permit?.reviewer);
 
-  if (!reviewer && sourceKey === 'nc_deq_application_tracker' && notes.includes('|')) {
+  if (!reviewer && sourceKey === 'us_nc_deq_application_tracker' && notes.includes('|')) {
     const parts = notes.split('|').map((part) => normalizeText(part));
     reviewer = normalizeText(parts[3]);
   }
@@ -421,7 +421,7 @@ function buildOfficialFallbacks(permit) {
     });
   }
 
-  if (sourceKey === 'nc_deq_application_tracker') {
+  if (sourceKey === 'us_nc_deq_application_tracker') {
     suggestions.push({
       id: 'nc-deq-contacts',
       label: 'NC DEQ Animal Feeding Operations contacts',
@@ -443,6 +443,18 @@ function buildOfficialFallbacks(permit) {
       action_url: 'https://www.adeq.state.ar.us/home/pdssql/pds.aspx',
       reason: 'Official Arkansas DEQ permit lookup and contact route',
       score: 50,
+    });
+  }
+
+  if (sourceKey === 'uk_ea_public_register') {
+    suggestions.push({
+      id: 'uk-ea-public-register',
+      label: 'Environment Agency public register',
+      type: 'webform',
+      confidence: 'official',
+      action_url: 'https://www.gov.uk/access-the-public-register-for-environmental-information',
+      reason: 'Official Environment Agency route for public register records and authority contacts',
+      score: 55,
     });
   }
 

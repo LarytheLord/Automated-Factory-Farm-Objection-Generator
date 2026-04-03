@@ -13,7 +13,7 @@ function toPositiveInteger(value, fallback) {
 function sanitizeSourcePatch(input) {
   const patch = input && typeof input === 'object' ? input : {};
   const sanitized = {};
-  const allowedTypes = new Set(['local_file', 'arcgis_mapserver', 'json_url']);
+  const allowedTypes = new Set(['local_file', 'arcgis_mapserver', 'json_url', 'csv_url']);
 
   if ('name' in patch) sanitized.name = normalizeText(patch.name);
   if ('country' in patch) sanitized.country = normalizeText(patch.country);

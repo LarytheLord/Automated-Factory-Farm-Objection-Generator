@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { ArrowLeft, BarChart3, Globe, Scale, TrendingUp, Shield } from 'lucide-react';
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
+import { getSessionUser } from "../../lib/session";
 
 interface Permit {
     id?: string | number;
@@ -34,11 +35,6 @@ interface LegalFramework {
     status: string;
 }
 
-interface AuthUser {
-    role?: string;
-    accessApproved?: boolean;
-}
-
 export default function Dashboard() {
     const [permits, setPermits] = useState<Permit[]>([]);
     const [frameworks, setFrameworks] = useState<LegalFramework[]>([]);
@@ -50,11 +46,11 @@ export default function Dashboard() {
     const API_BASE = '';
 
     useEffect(() => {
-        const fetchData = async (token: string) => {
+        const fetchData = async () => {
             try {
                 const [permitsRes, legalRes] = await Promise.all([
                     fetch(`${API_BASE}/api/permits`, {
-                        headers: { Authorization: `Bearer ${token}` },
+                        credentials: 'same-origin',
                     }).then(r => (r.ok ? r.json() : [])),
                     fetch(`${API_BASE}/api/legal-frameworks`).then(r => r.json()).catch(() => ({ frameworks: [] })),
                 ]);
@@ -70,31 +66,21 @@ export default function Dashboard() {
         };
 
         const initialize = async () => {
-            const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-            if (!token) {
+            const user = await getSessionUser();
+            if (!user) {
                 setError('Dashboard access requires an approved account.');
                 setLoading(false);
                 return;
             }
 
             try {
-                const meRes = await fetch(`${API_BASE}/api/auth/me`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                if (!meRes.ok) {
-                    setError('Session expired. Please sign in again.');
-                    setLoading(false);
-                    return;
-                }
-                const mePayload = await meRes.json();
-                const user: AuthUser | undefined = mePayload?.user;
                 const approved = !!(user && (user.role === 'admin' || user.accessApproved));
                 if (!approved) {
                     setError('Dashboard access is pending admin approval.');
                     setLoading(false);
                     return;
                 }
-                await fetchData(token);
+                await fetchData();
             } catch (fetchError) {
                 console.error('Error initializing dashboard:', fetchError);
                 setError('Unable to verify account access right now.');
@@ -159,7 +145,7 @@ export default function Dashboard() {
         if (!jsonText) return null;
         try {
             return JSON.parse(jsonText);
-        } catch (_error) {
+        } catch {
             return jsonText;
         }
     };

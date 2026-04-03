@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Shield, FileText, LogOut, CheckCircle, Clock, Menu, X } from "lucide-react";
 import Link from "next/link";
 import AuthModal from "./AuthModal";
+import { getSessionUser, logoutSession } from "../lib/session";
 
 interface User {
   id: number | string;
@@ -18,21 +19,6 @@ interface NavbarProps {
   onAuthChange?: (user: User | null, token: string | null) => void;
 }
 
-function getUserFromStorage(): User | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const user = localStorage.getItem("user");
-    return user ? JSON.parse(user) : null;
-  } catch {
-    return null;
-  }
-}
-
-function getTokenFromStorage(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
-}
-
 export default function Navbar({ onAuthChange }: NavbarProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isMounted, setIsMounted] = useState(false);
@@ -41,10 +27,10 @@ export default function Navbar({ onAuthChange }: NavbarProps) {
   const [approvalToast, setApprovalToast] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const wasPending = useRef(false);
+  const approvalToastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isAuthenticated = !!user;
   const isPending = !!(user && !user.accessApproved && user.role !== "admin");
-  const API_BASE = "";
 
   // Poll /api/auth/me for pending users to detect approval
   useEffect(() => {
@@ -53,80 +39,73 @@ export default function Navbar({ onAuthChange }: NavbarProps) {
       return;
     }
     wasPending.current = true;
-    const token = getTokenFromStorage();
-    if (!token) return;
 
     const poll = setInterval(() => {
-      fetch(`${API_BASE}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      fetch("/api/auth/me", { cache: "no-store", credentials: "same-origin" })
         .then((res) => (res.ok ? res.json() : null))
         .then((payload) => {
           if (payload?.user?.accessApproved && wasPending.current) {
             setUser(payload.user);
-            localStorage.setItem("user", JSON.stringify(payload.user));
-            onAuthChange?.(payload.user, token);
+            onAuthChange?.(payload.user, null);
             setApprovalToast(true);
             wasPending.current = false;
-            setTimeout(() => setApprovalToast(false), 6000);
+            if (approvalToastTimeout.current) {
+              clearTimeout(approvalToastTimeout.current);
+            }
+            approvalToastTimeout.current = setTimeout(() => setApprovalToast(false), 6000);
           }
         })
         .catch(() => {});
     }, 30000);
 
-    return () => clearInterval(poll);
-  }, [user, isPending]);
+    return () => {
+      clearInterval(poll);
+      if (approvalToastTimeout.current) {
+        clearTimeout(approvalToastTimeout.current);
+      }
+    };
+  }, [user, isPending, onAuthChange]);
 
   useEffect(() => {
     setIsMounted(true);
-    const storedToken = getTokenFromStorage();
-    const storedUser = getUserFromStorage();
-    if (storedToken && storedUser) {
-      setUser(storedUser);
-      onAuthChange?.(storedUser, storedToken);
-      fetch(`${API_BASE}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${storedToken}` },
+
+    let active = true;
+    getSessionUser()
+      .then((currentUser) => {
+        if (!active) return;
+        setUser(currentUser);
+        onAuthChange?.(currentUser, null);
       })
-        .then((res) => {
-          if (!res.ok) throw new Error("Session expired");
-          return res.json();
-        })
-        .then((payload) => {
-          if (payload?.user) {
-            setUser(payload.user);
-            localStorage.setItem("user", JSON.stringify(payload.user));
-            onAuthChange?.(payload.user, storedToken);
-          }
-        })
-        .catch(() => {
-          setUser(null);
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          onAuthChange?.(null, null);
-        });
-    }
+      .catch(() => {
+        if (!active) return;
+        setUser(null);
+        onAuthChange?.(null, null);
+      });
 
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+    return () => {
+      active = false;
+      window.removeEventListener("scroll", onScroll);
+      if (approvalToastTimeout.current) {
+        clearTimeout(approvalToastTimeout.current);
+      }
+    };
+  }, [onAuthChange]);
 
   const handleLogout = () => {
-    setUser(null);
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-    }
-    onAuthChange?.(null, null);
+    void logoutSession().finally(() => {
+      setUser(null);
+      setMobileOpen(false);
+      onAuthChange?.(null, null);
+    });
   };
 
   const handleLogin = (newToken: string, newUser: User) => {
+    void newToken;
     setUser(newUser);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("token", newToken);
-      localStorage.setItem("user", JSON.stringify(newUser));
-    }
-    onAuthChange?.(newUser, newToken);
+    onAuthChange?.(newUser, null);
+    setMobileOpen(false);
   };
 
   return (

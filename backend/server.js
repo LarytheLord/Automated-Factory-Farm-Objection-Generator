@@ -27,6 +27,8 @@ const { pickNextSource, runSingleSourceSync } = require('./permitScheduler');
 const app = express();
 const port = process.env.PORT || 3000;
 const isProduction = process.env.NODE_ENV === 'production';
+const SESSION_COOKIE_NAME = 'open_permit_session';
+const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 
 function parseCsvEnv(value) {
     return String(value || '')
@@ -630,6 +632,12 @@ const feedbackRateLimiter = createRateLimiter({
     maxRequests: intFromEnv('FEEDBACK_RATE_LIMIT_PER_HOUR', 20),
 });
 
+const submissionRateLimiter = createRateLimiter({
+    key: 'submission',
+    windowMs: 60 * 60 * 1000,
+    maxRequests: intFromEnv('SUBMISSION_RATE_LIMIT_PER_HOUR', 30),
+});
+
 function intFromEnv(name, fallback) {
     const value = Number.parseInt(process.env[name] || '', 10);
     return Number.isFinite(value) ? value : fallback;
@@ -708,6 +716,155 @@ function sanitizeOptionalText(value, maxLength = 5000) {
     const trimmed = value.trim();
     if (!trimmed) return null;
     return trimmed.slice(0, maxLength);
+}
+
+function sanitizeRequiredText(value, fieldName, maxLength = 255) {
+    if (typeof value !== 'string') {
+        throw new Error(`${fieldName} is required`);
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+        throw new Error(`${fieldName} is required`);
+    }
+    return trimmed.slice(0, maxLength);
+}
+
+function isValidEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(value));
+}
+
+function isValidPassword(value) {
+    return typeof value === 'string' && value.length >= 10 && value.length <= 128;
+}
+
+function sanitizePermitCategory(value) {
+    const raw = String(value || '').trim();
+    const allowed = new Set(['Red', 'Orange', 'Green', 'Unknown']);
+    if (allowed.has(raw)) return raw;
+    return 'Unknown';
+}
+
+function normalizePermitSubmissionStatus(value) {
+    const raw = String(value || '').trim().toLowerCase().replace(/[_\s]+/g, ' ');
+    if (!raw) return { api: 'Pending', db: 'pending' };
+    if (raw.includes('approve') || raw.includes('issued') || raw.includes('grant')) {
+        return { api: 'Approved', db: 'approved' };
+    }
+    if (raw.includes('reject') || raw.includes('denied') || raw.includes('refused')) {
+        return { api: 'Rejected', db: 'rejected' };
+    }
+    if (raw.includes('review')) {
+        return { api: 'Under Review', db: 'under_review' };
+    }
+    return { api: 'Pending', db: 'pending' };
+}
+
+function normalizeObjectionStatus(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    const allowed = new Set(['draft', 'sent', 'delivered', 'acknowledged', 'failed']);
+    return allowed.has(raw) ? raw : 'draft';
+}
+
+function sanitizeCoordinates(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return null;
+    }
+
+    const lat = Number(value.lat);
+    const lng = Number(value.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return null;
+    }
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return null;
+    }
+    return { lat, lng };
+}
+
+function sanitizeRecipientEmail(value) {
+    const email = normalizeEmail(value);
+    if (!email) return null;
+    if (!isValidEmail(email)) {
+        throw new Error('recipient_email must be a valid email address');
+    }
+    return email;
+}
+
+function parseCookies(headerValue) {
+    return String(headerValue || '')
+        .split(';')
+        .map((segment) => segment.trim())
+        .filter(Boolean)
+        .reduce((acc, segment) => {
+            const separatorIndex = segment.indexOf('=');
+            if (separatorIndex < 0) return acc;
+            const key = segment.slice(0, separatorIndex).trim();
+            const value = segment.slice(separatorIndex + 1).trim();
+            if (!key) return acc;
+            try {
+                acc[key] = decodeURIComponent(value);
+            } catch (_error) {
+                acc[key] = value;
+            }
+            return acc;
+        }, {});
+}
+
+function getSessionTokenFromCookies(req) {
+    const cookies = parseCookies(req?.headers?.cookie);
+    return cookies[SESSION_COOKIE_NAME] || null;
+}
+
+function appendSetCookieHeader(res, cookieValue) {
+    const existing = res.getHeader('Set-Cookie');
+    if (!existing) {
+        res.setHeader('Set-Cookie', cookieValue);
+        return;
+    }
+    if (Array.isArray(existing)) {
+        res.setHeader('Set-Cookie', [...existing, cookieValue]);
+        return;
+    }
+    res.setHeader('Set-Cookie', [String(existing), cookieValue]);
+}
+
+function buildSessionCookie(token, { clear = false } = {}) {
+    const parts = [
+        `${SESSION_COOKIE_NAME}=${clear ? '' : encodeURIComponent(String(token || ''))}`,
+        'Path=/',
+        'HttpOnly',
+        'SameSite=Lax',
+    ];
+
+    if (clear) {
+        parts.push('Max-Age=0');
+        parts.push('Expires=Thu, 01 Jan 1970 00:00:00 GMT');
+    } else {
+        parts.push(`Max-Age=${SESSION_MAX_AGE_SECONDS}`);
+    }
+
+    if (isProduction) {
+        parts.push('Secure');
+    }
+
+    return parts.join('; ');
+}
+
+function sanitizeOptionalInteger(value, fieldName) {
+    if (value === undefined || value === null || value === '') return null;
+    const parsed = Number.parseInt(String(value), 10);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        throw new Error(`${fieldName} must be a positive integer`);
+    }
+    return parsed;
+}
+
+function setSessionCookie(res, token) {
+    appendSetCookieHeader(res, buildSessionCookie(token));
+}
+
+function clearSessionCookie(res) {
+    appendSetCookieHeader(res, buildSessionCookie('', { clear: true }));
 }
 
 function normalizeFeedbackType(value) {
@@ -1076,27 +1233,36 @@ function extractBearerToken(authHeader) {
     return authHeader.slice(7).trim() || null;
 }
 
+function extractRequestToken(req) {
+    return extractBearerToken(req.headers['authorization']) || getSessionTokenFromCookies(req);
+}
+
 async function authenticateToken(req, res, next) {
-    const token = extractBearerToken(req.headers['authorization']);
+    const token = extractRequestToken(req);
     if (!token) return res.status(401).json({ error: 'Access token required' });
     try {
         await ensureAccessApprovalStoreReady();
         const decoded = jwt.verify(token, JWT_SECRET);
         const currentUser = await fetchUserById(decoded?.id);
-        if (!currentUser) return res.status(401).json({ error: 'User no longer exists' });
+        if (!currentUser) {
+            clearSessionCookie(res);
+            return res.status(401).json({ error: 'User no longer exists' });
+        }
         const roleState = getRoleAccessState(currentUser.role);
         if (roleState.disabled) {
+            clearSessionCookie(res);
             return res.status(403).json({ error: 'Account disabled' });
         }
         req.user = await decorateUserAccess(currentUser);
         return next();
     } catch (error) {
+        clearSessionCookie(res);
         return res.status(403).json({ error: 'Invalid or expired token' });
     }
 }
 
 async function optionalAuth(req, res, next) {
-    const token = extractBearerToken(req.headers['authorization']);
+    const token = extractRequestToken(req);
     if (!token) {
         return next();
     }
@@ -1164,16 +1330,34 @@ function generateToken(user) {
 // ═══════════════════════════════════════════════════
 
 app.post('/api/auth/register', authRateLimiter, async (req, res) => {
-    const { email, password, name, role = 'citizen', adminBootstrapToken } = req.body;
+    const email = normalizeEmail(req.body?.email);
+    const password = typeof req.body?.password === 'string' ? req.body.password : '';
+    const adminBootstrapToken = typeof req.body?.adminBootstrapToken === 'string'
+        ? req.body.adminBootstrapToken
+        : '';
+    let name;
+    try {
+        name = sanitizeRequiredText(req.body?.name, 'name', 120);
+    } catch (error) {
+        return res.status(400).json({ error: error.message });
+    }
+
     if (!isFeatureEnabled('signupEnabled')) {
         return res.status(503).json({ error: 'Registration is temporarily disabled' });
     }
-    if (!email || !password || !name) {
+    if (!email || !password) {
         return res.status(400).json({ error: 'Email, password, and name are required' });
     }
+    if (!isValidEmail(email)) {
+        return res.status(400).json({ error: 'Enter a valid email address' });
+    }
+    if (!isValidPassword(password)) {
+        return res.status(400).json({ error: 'Password must be 10-128 characters long' });
+    }
     const allowedRoles = new Set(['citizen', 'ngo', 'ngo_admin', 'ngo_member', 'lawyer']);
-    let safeRole = allowedRoles.has(role) ? role : 'citizen';
-    if (role === 'admin') {
+    const requestedRole = normalizeRole(req.body?.role);
+    let safeRole = allowedRoles.has(requestedRole) ? requestedRole : 'citizen';
+    if (requestedRole === 'admin') {
         const bootstrap = process.env.ADMIN_BOOTSTRAP_TOKEN;
         if (!bootstrap || adminBootstrapToken !== bootstrap) {
             return res.status(403).json({ error: 'Admin registration is restricted' });
@@ -1198,11 +1382,12 @@ app.post('/api/auth/register', authRateLimiter, async (req, res) => {
                 note: safeRole === 'admin' ? 'Auto-approved admin user' : null,
             });
             const token = generateToken(user);
+            setSessionCookie(res, token);
             return res.status(201).json({ user: await decorateUserAccess(user), token });
         }
 
         // JSON fallback
-        if (usersData.find(u => u.email === email)) {
+        if (usersData.find((u) => normalizeEmail(u.email) === email)) {
             return res.status(409).json({ error: 'User already exists' });
         }
         const passwordHash = await bcrypt.hash(password, 10);
@@ -1221,6 +1406,7 @@ app.post('/api/auth/register', authRateLimiter, async (req, res) => {
             note: safeRole === 'admin' ? 'Auto-approved admin user' : null,
         });
         const token = generateToken(safeUser);
+        setSessionCookie(res, token);
         res.status(201).json({ user: await decorateUserAccess(safeUser), token });
     } catch (error) {
         console.error('Registration error:', error);
@@ -1229,9 +1415,13 @@ app.post('/api/auth/register', authRateLimiter, async (req, res) => {
 });
 
 app.post('/api/auth/login', authRateLimiter, async (req, res) => {
-    const { email, password } = req.body;
+    const email = normalizeEmail(req.body?.email);
+    const password = typeof req.body?.password === 'string' ? req.body.password : '';
     if (!email || !password) {
         return res.status(400).json({ error: 'Email and password are required' });
+    }
+    if (!isValidEmail(email)) {
+        return res.status(400).json({ error: 'Enter a valid email address' });
     }
 
     try {
@@ -1247,11 +1437,17 @@ app.post('/api/auth/login', authRateLimiter, async (req, res) => {
         if (!isValid) return res.status(401).json({ error: 'Invalid email or password' });
         const { password_hash, ...userWithoutPassword } = user;
         const token = generateToken(userWithoutPassword);
+        setSessionCookie(res, token);
         res.json({ user: await decorateUserAccess(userWithoutPassword), token });
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ error: 'Failed to login' });
     }
+});
+
+app.post('/api/auth/logout', (_req, res) => {
+    clearSessionCookie(res);
+    return res.status(204).end();
 });
 
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
@@ -1467,7 +1663,12 @@ app.get('/api/permits', optionalAuth, async (req, res) => {
             const countryQuery = String(country).toLowerCase();
             filtered = filtered.filter((p) => String(p.country || '').toLowerCase().includes(countryQuery));
         }
-        if (status) filtered = filtered.filter((p) => String(p.status || '') === String(status));
+        if (status) {
+            const statusQuery = String(status).trim().toLowerCase().replace(/_/g, ' ');
+            filtered = filtered.filter((p) =>
+                String(p.status || '').trim().toLowerCase().replace(/_/g, ' ') === statusQuery
+            );
+        }
         if (category) filtered = filtered.filter((p) => String(p.category || '') === String(category));
         if (permitDomain) filtered = filtered.filter((p) => String(p.permit_domain || '') === permitDomain);
         filtered = annotateAndSortPermits(filtered);
@@ -1527,22 +1728,64 @@ app.get('/api/permits/:id', optionalAuth, async (req, res) => {
     }
 });
 
-app.post('/api/permits', authenticateToken, requireApprovedAccess, async (req, res) => {
-    const { project_title, location, country, activity, status = 'Pending', category, capacity, species, coordinates, notes } = req.body;
-    if (!project_title || !location || !country || !activity) {
-        return res.status(400).json({ error: 'project_title, location, country, and activity are required' });
+app.post('/api/permits', authenticateToken, requireApprovedAccess, submissionRateLimiter, async (req, res) => {
+    let projectTitle;
+    let location;
+    let country;
+    let activity;
+    try {
+        projectTitle = sanitizeRequiredText(req.body?.project_title, 'project_title', 240);
+        location = sanitizeRequiredText(req.body?.location, 'location', 240);
+        country = sanitizeRequiredText(req.body?.country, 'country', 120);
+        activity = sanitizeRequiredText(req.body?.activity, 'activity', 500);
+    } catch (error) {
+        return res.status(400).json({ error: error.message });
     }
+
+    const status = normalizePermitSubmissionStatus(req.body?.status);
+    const category = sanitizePermitCategory(req.body?.category);
+    let capacity = null;
+    try {
+        capacity = sanitizeOptionalInteger(req.body?.capacity, 'capacity');
+    } catch (error) {
+        return res.status(400).json({ error: error.message });
+    }
+    const species = sanitizeOptionalText(req.body?.species, 120);
+    const coordinates = sanitizeCoordinates(req.body?.coordinates);
+    const notes = sanitizeOptionalText(req.body?.notes, 5000);
+
     try {
         if (supabase) {
             const { data, error } = await supabase.from('permits')
-                .insert([{ project_title, location, country, activity, status, category, capacity, species, coordinates, notes, submitted_by: req.user.id }])
+                .insert([{
+                    project_title: projectTitle,
+                    location,
+                    country,
+                    activity,
+                    status: status.db,
+                    category,
+                    capacity,
+                    species,
+                    coordinates,
+                    notes,
+                    submitted_by: req.user.id,
+                }])
                 .select().single();
             if (error) throw error;
             return res.status(201).json(data);
         }
         const newPermit = {
             id: `s-${Date.now()}-${nextId(submittedPermitsData)}`,
-            project_title, location, country, activity, status, category, capacity, species, coordinates, notes,
+            project_title: projectTitle,
+            location,
+            country,
+            activity,
+            status: status.api,
+            category,
+            capacity,
+            species,
+            coordinates,
+            notes,
             submitted_by: req.user.id,
             created_at: new Date().toISOString(),
         };
@@ -1587,9 +1830,16 @@ app.get('/api/objections', authenticateToken, requireApprovedAccess, async (req,
     }
 });
 
-app.post('/api/objections', authenticateToken, requireApprovedAccess, async (req, res) => {
+app.post('/api/objections', authenticateToken, requireApprovedAccess, submissionRateLimiter, async (req, res) => {
     const { permit_id, generated_letter, generated_text, project_title, location, country, status = 'draft', recipient_email } = req.body;
     const letterContent = sanitizeLetterText(generated_letter || generated_text || '');
+    const safeStatus = normalizeObjectionStatus(status);
+    let safeRecipientEmail = null;
+    try {
+        safeRecipientEmail = sanitizeRecipientEmail(recipient_email);
+    } catch (error) {
+        return res.status(400).json({ error: error.message });
+    }
 
     if (!letterContent) {
         return res.status(400).json({ error: 'generated_letter or generated_text is required' });
@@ -1602,8 +1852,8 @@ app.post('/api/objections', authenticateToken, requireApprovedAccess, async (req
                     permit_id,
                     user_id: req.user.id,
                     generated_letter: letterContent,
-                    status: status || 'draft',
-                    recipient_email
+                    status: safeStatus,
+                    recipient_email: safeRecipientEmail,
                 }])
                 .select().single();
             if (!error && data) {
@@ -1618,11 +1868,11 @@ app.post('/api/objections', authenticateToken, requireApprovedAccess, async (req
             permit_id: permit_id || null,
             user_id: req.user.id,
             generated_letter: letterContent,
-            project_title: project_title || 'Unknown Permit',
-            location: location || '',
-            country: country || '',
-            status,
-            recipient_email,
+            project_title: sanitizeOptionalText(project_title, 240) || 'Unknown Permit',
+            location: sanitizeOptionalText(location, 240) || '',
+            country: sanitizeOptionalText(country, 120) || '',
+            status: safeStatus,
+            recipient_email: safeRecipientEmail,
             created_at: new Date().toISOString(),
         };
         objectionsData.push(objection);
@@ -2070,7 +2320,6 @@ Generate the complete letter text only, no markdown formatting.`;
 
 function inferJurisdiction(location, country) {
     const loc = String(location || '').toLowerCase();
-    const ctry = String(country || '').toLowerCase();
     if (loc.includes('washington, d.c.') || loc.includes('district of columbia') || loc.includes('washington dc')) {
         return 'Washington, D.C.';
     }
@@ -2078,7 +2327,6 @@ function inferJurisdiction(location, country) {
 }
 
 function getCountryLegalFramework(country, jurisdiction) {
-    // Jurisdiction-specific sub-frameworks
     if (jurisdiction) {
         const jKey = String(jurisdiction).toLowerCase();
         if (jKey.includes('d.c.') || jKey.includes('district of columbia')) {
@@ -2091,6 +2339,38 @@ function getCountryLegalFramework(country, jurisdiction) {
 - D.C. Code Section 22-1012.01 (Unlawful Cat Declawing) — demonstrates D.C. precedent for species-specific animal welfare legislation
 - New York City Administrative Code Section 17-1702 (proposed) — parallel foie gras sales ban showing nationwide momentum`;
         }
+    }
+
+    const normalizedCountry = String(country || '').toLowerCase();
+
+    if (normalizedCountry.includes('ireland')) {
+        return `
+- Environmental Protection Agency Act 1992 (Sections 83-84: licence applications and decisions for scheduled activities; Section 87: licence review; Section 90: submissions and objections)
+- Planning and Development Act 2000 (Section 34: planning permission decisions and conditions; Section 172: environmental impact assessment; Section 173: environmental impact assessment reports and reasoned conclusions)
+- Waste Management Act 1996 (Sections 39-42: waste licence requirement, applications, and grant/refusal decisions; Section 44: oral hearings)
+- Local Government (Water Pollution) Act 1977 (Section 4: discharge licensing; Section 9: public register; Section 10: offences for polluting discharges)
+- Air Pollution Act 1987 (Section 24: control areas and special control areas; Section 25: prohibited emissions; Section 30: notices to prevent or limit air pollution)
+- European Communities (Birds and Natural Habitats) Regulations 2011 (Regulation 42: appropriate assessment for plans or projects affecting European sites)`;
+    }
+
+    if (normalizedCountry.includes('nigeria')) {
+        return `
+- Constitution of the Federal Republic of Nigeria 1999 (Section 20: duty of the State to protect and improve the environment and safeguard water, air, land, forest, and wildlife)
+- Environmental Impact Assessment Act, Cap E12 LFN 2004 (Section 2: prior assessment for projects likely to significantly affect the environment; Section 7: mandatory study list; Section 13: public hearing and comments)
+- National Environmental Standards and Regulations Enforcement Agency (Establishment) Act 2007 (Sections 7-8: functions and enforcement powers of the Agency; Sections 22-24: permits, water quality criteria, and effluent limitations)
+- National Environmental (Permitting and Licensing System) Regulations 2009 (Regulations 2-11: permit application and review flow; Regulations 19-23: renewal, suspension, and revocation; Regulations 33-35: offences and penalties)
+- National Environmental (Noise Standards and Control) Regulations 2009 (Regulations 1-3: scope and permissible standards; Regulation 7: compliance duties for noise-generating facilities)
+- Factories Act, Cap F1 LFN 2004 (Section 49: power to make health and safety regulations; inspection and factory registration controls administered by the Labour Ministry)`;
+    }
+
+    if (normalizedCountry.includes('brazil')) {
+        return `
+- Federal Law No. 6,938/1981 (National Environmental Policy) (Art. 9: environmental policy instruments including impact assessment and licensing; Art. 10: prior environmental licensing for potentially polluting activities)
+- Complementary Law No. 140/2011 (Arts. 7-9: allocation of licensing and enforcement competence among the Union, states, and municipalities)
+- CONAMA Resolution No. 001/1986 (Art. 2: projects subject to EIA/RIMA; Art. 6: minimum content of the environmental impact study)
+- CONAMA Resolution No. 237/1997 (Arts. 1-3: scope of environmental licensing and EIA linkage; Art. 10: administrative licensing procedure; Art. 12: licensing stages and deadlines)
+- Federal Law No. 9,605/1998 (Environmental Crimes Law) (Art. 32: abuse and cruelty against animals; Art. 54: pollution causing harm; Art. 60: operating potentially polluting establishments without a licence)
+- Decree No. 6,514/2008 (Arts. 61-62: pollution and waste-related administrative offences; Art. 66: construction, operation, or expansion without an environmental licence)`;
     }
 
     const frameworks = {
@@ -2149,8 +2429,8 @@ function getCountryLegalFramework(country, jurisdiction) {
 
     // Try exact match, then partial match
     const key = Object.keys(frameworks).find(k =>
-        k.toLowerCase() === (country || '').toLowerCase() ||
-        (country || '').toLowerCase().includes(k.toLowerCase())
+        k.toLowerCase() === normalizedCountry ||
+        normalizedCountry.includes(k.toLowerCase())
     );
     return frameworks[key] || frameworks['India'];
 }
@@ -2807,7 +3087,9 @@ app.post('/api/admin/permit-sources/preview', authenticateToken, requireAdmin, a
         });
         return res.json({ preview });
     } catch (error) {
-        return res.status(500).json({ error: 'Failed to preview source' });
+        const message = error?.message || 'Failed to preview source';
+        const statusCode = message.includes('Unsupported source type') ? 400 : 500;
+        return res.status(statusCode).json({ error: message });
     }
 });
 
@@ -2853,7 +3135,9 @@ app.post('/api/admin/permit-sources/validate', authenticateToken, requireAdmin, 
             report,
         });
     } catch (error) {
-        return res.status(500).json({ error: 'Failed to validate source' });
+        const message = error?.message || 'Failed to validate source';
+        const statusCode = message.includes('Unsupported source type') ? 400 : 500;
+        return res.status(statusCode).json({ error: message });
     }
 });
 
@@ -2947,6 +3231,9 @@ app.post('/api/admin/permit-sources/sync', authenticateToken, requireAdmin, asyn
     } catch (error) {
         if (error.message.includes('No enabled permit sources') || error.message.includes('Source not found')) {
             return res.status(404).json({ error: error.message });
+        }
+        if (error.message.includes('Unsupported source type')) {
+            return res.status(400).json({ error: error.message });
         }
         console.error('Permit sync failed:', error.message);
         return res.status(500).json({ error: 'Failed to sync permit sources' });
@@ -3043,10 +3330,13 @@ app.get('/api/legal-frameworks', (req, res) => {
             { country: 'European Union', laws: 7, keyLaw: 'Industrial Emissions Directive (IED 2.0)', status: 'Active' },
             { country: 'Australia', laws: 5, keyLaw: 'EPBC Act 1999', status: 'Active' },
             { country: 'Canada', laws: 5, keyLaw: 'Canadian Environmental Protection Act', status: 'Active' },
+            { country: 'Ireland', laws: 6, keyLaw: 'Environmental Protection Agency Act 1992', status: 'Active' },
+            { country: 'Nigeria', laws: 6, keyLaw: 'Environmental Impact Assessment Act', status: 'Active' },
+            { country: 'Brazil', laws: 6, keyLaw: 'National Environmental Policy Law (Law No. 6,938/1981)', status: 'Active' },
         ],
-        totalLaws: 40,
-        totalCountries: 8,
-        lastUpdated: '2026-02-19'
+        totalLaws: 58,
+        totalCountries: 9,
+        lastUpdated: '2026-03-29'
     });
 });
 
@@ -3174,6 +3464,7 @@ app.get('/api', (req, res) => {
             'POST /api/objections',
             'POST /api/auth/register',
             'POST /api/auth/login',
+            'POST /api/auth/logout',
             'GET  /api/auth/me',
             'GET  /api/legal-frameworks',
             'GET  /api/health',
@@ -3188,8 +3479,8 @@ app.use((err, req, res, next) => {
     return next(err);
 });
 
-// Export the app for use in root server
-module.exports = { app };
+// Export the app for tests and utility scripts.
+module.exports = { app, getCountryLegalFramework };
 
 // Start listening when run directly (standalone deploy / DigitalOcean)
 if (require.main === module) {

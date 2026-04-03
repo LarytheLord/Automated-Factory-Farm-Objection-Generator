@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "../../../components/Navbar";
 import Footer from "../../../components/Footer";
+import { getSessionUser } from "../../../lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,6 @@ function formatDate(value?: string | null) {
 
 export default function AdminAccessPage() {
   const router = useRouter();
-  const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");
   const [data, setData] = useState<AccessResponse | null>(null);
@@ -74,12 +74,10 @@ export default function AdminAccessPage() {
     });
   }, [data]);
 
-  const fetchAccessRequests = async (authToken: string, filter: StatusFilter) => {
+  const fetchAccessRequests = async (filter: StatusFilter) => {
     setError(null);
     const response = await fetch(`/api/admin/access-requests?status=${filter}`, {
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
+      credentials: "same-origin",
     });
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
@@ -94,22 +92,12 @@ export default function AdminAccessPage() {
       setLoading(true);
       setError(null);
       try {
-        const savedToken = localStorage.getItem("token");
-        if (!savedToken) {
+        const currentUser = await getSessionUser();
+        if (!currentUser) {
           setError("Admin authentication required.");
           setLoading(false);
           return;
         }
-        setToken(savedToken);
-
-        const meRes = await fetch("/api/auth/me", {
-          headers: { Authorization: `Bearer ${savedToken}` },
-        });
-        if (!meRes.ok) {
-          throw new Error("Session expired. Please sign in again.");
-        }
-        const mePayload = await meRes.json();
-        const currentUser = mePayload?.user as User;
         setUser(currentUser);
 
         if (currentUser?.role !== "admin") {
@@ -118,7 +106,7 @@ export default function AdminAccessPage() {
           return;
         }
 
-        await fetchAccessRequests(savedToken, statusFilter);
+        await fetchAccessRequests("pending");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to initialize admin page.");
       } finally {
@@ -130,14 +118,13 @@ export default function AdminAccessPage() {
   }, []);
 
   useEffect(() => {
-    if (!token || !isAdmin) return;
-    fetchAccessRequests(token, statusFilter).catch((err) => {
+    if (!isAdmin) return;
+    fetchAccessRequests(statusFilter).catch((err) => {
       setError(err instanceof Error ? err.message : "Failed to refresh access requests.");
     });
-  }, [statusFilter, token, isAdmin]);
+  }, [statusFilter, isAdmin]);
 
   const handleApproval = async (request: AccessRequest, approved: boolean) => {
-    if (!token) return;
     setActioningId(String(request.id));
     setError(null);
 
@@ -147,8 +134,8 @@ export default function AdminAccessPage() {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
+        credentials: "same-origin",
         body: JSON.stringify({
           approved,
           note: note || (approved ? "Approved via admin panel" : "Set to pending via admin panel"),
@@ -160,7 +147,7 @@ export default function AdminAccessPage() {
         throw new Error(payload?.error || "Failed to update approval state");
       }
 
-      await fetchAccessRequests(token, statusFilter);
+      await fetchAccessRequests(statusFilter);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update approval.");
     } finally {
@@ -169,22 +156,19 @@ export default function AdminAccessPage() {
   };
 
   const handleRemoveUser = async (request: AccessRequest) => {
-    if (!token) return;
     if (!window.confirm(`Remove account for ${request.email}? This cannot be undone.`)) return;
     setActioningId(String(request.id));
     setError(null);
     try {
       const response = await fetch(`/api/admin/users/${request.id}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: "same-origin",
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
         throw new Error(payload?.error || "Failed to remove user");
       }
-      await fetchAccessRequests(token, statusFilter);
+      await fetchAccessRequests(statusFilter);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to remove user.");
     } finally {
@@ -235,7 +219,7 @@ export default function AdminAccessPage() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => token && fetchAccessRequests(token, statusFilter)}
+                onClick={() => fetchAccessRequests(statusFilter)}
                 className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-100"
               >
                 Refresh

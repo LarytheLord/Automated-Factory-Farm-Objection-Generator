@@ -46,7 +46,7 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
             let data: Record<string, unknown> | null = null;
             try {
                 data = await res.json();
-            } catch (_error) {
+            } catch {
                 data = null;
             }
 
@@ -77,9 +77,15 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/30 backdrop-blur-md animate-fade-in">
-            <div className="glass-card w-full max-w-md overflow-hidden relative animate-slide-up">
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="auth-modal-title"
+                className="glass-card w-full max-w-md overflow-hidden relative animate-slide-up"
+            >
                 <button
                     onClick={onClose}
+                    aria-label="Close authentication modal"
                     className="absolute top-4 right-4 text-gray-500 hover:text-slate-900 transition-colors z-10"
                 >
                     <X className="w-5 h-5" />
@@ -89,7 +95,7 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
                     <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
                         <Shield className="w-6 h-6 text-emerald-400" />
                     </div>
-                    <h2 className="text-2xl font-bold text-slate-900 mb-1">
+                    <h2 id="auth-modal-title" className="text-2xl font-bold text-slate-900 mb-1">
                         {isLogin ? "Welcome back" : "Join Open Permit"}
                     </h2>
                     <p className="text-gray-500 text-sm">

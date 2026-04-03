@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+const UPSTREAM_TIMEOUT_MS = 30000;
 
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",
@@ -97,15 +98,22 @@ async function proxyRequest(req: NextRequest, path: string[]) {
     init.body = await req.arrayBuffer();
   }
 
-  const upstreamRes = await fetch(target, init);
-  const responseHeaders = new Headers(upstreamRes.headers);
-  responseHeaders.delete("content-encoding");
-  responseHeaders.delete("content-length");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+  init.signal = controller.signal;
+  try {
+    const upstreamRes = await fetch(target, init);
+    const responseHeaders = new Headers(upstreamRes.headers);
+    responseHeaders.delete("content-encoding");
+    responseHeaders.delete("content-length");
 
-  return new NextResponse(upstreamRes.body, {
-    status: upstreamRes.status,
-    headers: responseHeaders,
-  });
+    return new NextResponse(upstreamRes.body, {
+      status: upstreamRes.status,
+      headers: responseHeaders,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function handler(req: NextRequest, context: { params: { path: string[] } }) {

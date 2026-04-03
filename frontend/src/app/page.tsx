@@ -21,18 +21,18 @@ import {
   User,
   Save,
 } from "lucide-react";
-import Link from "next/link";
 import AuthModal from "../components/AuthModal";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-// PersonaSelector card-grid component available at ../components/PersonaSelector
-// Using a simpler grouped <select> dropdown for now
+import LetterComparisonPanel from "../components/LetterComparisonPanel";
+import type { PersonaOption } from "../components/PersonaSelector";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
 /* ─── Types ─── */
 interface Permit {
+  id?: string | number;
   project_title: string;
   location: string;
   activity: string;
@@ -40,10 +40,21 @@ interface Permit {
   country: string;
   notes: string;
   category?: string;
+  capacity?: string;
   permit_domain?: "farm_animal" | "industrial_infra" | "pollution_industrial" | "other" | string;
   permit_subtype?: string;
+  source_url?: string;
+  source_name?: string;
+  external_id?: string;
+  reference?: string;
+  published_at?: string;
+  consultation_deadline?: string;
+  observed_at?: string;
+  updated_at?: string;
+  last_seen_at?: string;
+  created_at?: string;
   coordinates?: { lat: number; lng: number };
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface Stats {
@@ -83,6 +94,7 @@ interface RecipientSuggestion {
   confidence: "official" | "source_extracted" | "inferred";
   email?: string;
   action_url?: string;
+  recipient_type?: string;
   reason?: string;
 }
 
@@ -98,6 +110,8 @@ interface ParsedPermitNotes {
   consultationDeadline?: string;
   plainNotes?: string;
 }
+
+type LetterMode = "concise" | "detailed";
 
 /* ─── Animated Counter Hook ─── */
 function useAnimatedCounter(target: number, duration = 2000) {
@@ -124,26 +138,15 @@ function useAnimatedCounter(target: number, duration = 2000) {
 }
 
 /* ─── Helper Functions ─── */
-function getUserFromStorage(): User | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const user = localStorage.getItem("user");
-    return user ? JSON.parse(user) : null;
-  } catch {
-    return null;
-  }
-}
-
-function getTokenFromStorage(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem("token");
-}
-
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 30000) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    return await fetch(url, {
+      credentials: "same-origin",
+      ...options,
+      signal: controller.signal,
+    });
   } finally {
     clearTimeout(timeout);
   }
@@ -315,10 +318,10 @@ export default function Home() {
   const [letterError, setLetterError] = useState<string | null>(null);
   const [recipientEmail, setRecipientEmail] = useState("");
   const [emailSubject, setEmailSubject] = useState("");
-  const [letterMode, setLetterMode] = useState<"concise" | "detailed">("concise");
+  const [letterMode, setLetterMode] = useState<LetterMode>("concise");
   const [letterType, setLetterType] = useState<"objection" | "support">("objection");
   const [persona, setPersona] = useState("general");
-  const [personaOptions, setPersonaOptions] = useState<{id: string; label: string; category: string; categoryLabel: string; description: string}[]>([]);
+  const [personaOptions, setPersonaOptions] = useState<PersonaOption[]>([]);
   const [recipientSuggestions, setRecipientSuggestions] = useState<RecipientSuggestion[]>([]);
   const [sendToSuggestions, setSendToSuggestions] = useState<RecipientSuggestion[]>([]);
   const [ccSuggestions, setCcSuggestions] = useState<RecipientSuggestion[]>([]);
@@ -336,11 +339,11 @@ export default function Home() {
   const [currentDate, setCurrentDate] = useState("");
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [usage, setUsage] = useState<UsageResponse | null>(null);
+  const [comparePanelOpen, setComparePanelOpen] = useState(false);
 
   const API_BASE = "";
 
@@ -348,9 +351,8 @@ export default function Home() {
   const isAuthenticated = !!user;
   const hasApprovedAccess = !!(user && (user.role === "admin" || user.accessApproved));
 
-  const handleNavAuthChange = (navUser: User | null, navToken: string | null) => {
+  const handleNavAuthChange = (navUser: User | null) => {
     setUser(navUser);
-    setToken(navToken);
   };
 
   useEffect(() => {
@@ -382,19 +384,12 @@ export default function Home() {
         const heroPermitPromise = fetch(`${API_BASE}/api/public/latest-pending-permit`)
           .then((r) => (r.ok ? r.json() : null))
           .catch(() => null);
-        const permitHeaders: HeadersInit = {};
-        if (token) {
-          permitHeaders.Authorization = `Bearer ${token}`;
-        }
-
         const personaPromise = fetch(`${API_BASE}/api/personas`)
           .then((r) => (r.ok ? r.json() : null))
           .catch(() => null);
 
         const [permitsRes, statsData, heroPermitData, personaData] = await Promise.all([
-          fetch(`${API_BASE}/api/permits`, {
-            headers: permitHeaders,
-          }),
+          fetch(`${API_BASE}/api/permits`),
           statsPromise,
           heroPermitPromise,
           personaPromise,
@@ -420,13 +415,13 @@ export default function Home() {
     };
 
     loadData();
-  }, [API_BASE, token, isMounted]);
+  }, [API_BASE, isMounted]);
 
-  const fetchUsage = async (authToken?: string | null) => {
+  const fetchUsage = async () => {
     try {
-      const headers: HeadersInit = {};
-      if (authToken) headers.Authorization = `Bearer ${authToken}`;
-      const response = await fetch(`${API_BASE}/api/usage`, { headers });
+      const response = await fetch(`${API_BASE}/api/usage`, {
+        credentials: "same-origin",
+      });
       if (!response.ok) return;
       const data = await response.json();
       setUsage(data);
@@ -437,8 +432,8 @@ export default function Home() {
 
   useEffect(() => {
     if (!isMounted) return;
-    fetchUsage(token);
-  }, [token, isMounted]);
+    fetchUsage();
+  }, [isMounted]);
 
   useEffect(() => {
     if (!hasApprovedAccess) {
@@ -449,6 +444,7 @@ export default function Home() {
       setRecipientSuggestions([]);
       setRecommendedRecipient(null);
       setRecipientGuidance(null);
+      setComparePanelOpen(false);
     }
   }, [hasApprovedAccess]);
 
@@ -479,9 +475,6 @@ export default function Home() {
         const suggestionHeaders: HeadersInit = {
           "Content-Type": "application/json",
         };
-        if (token) {
-          suggestionHeaders.Authorization = `Bearer ${token}`;
-        }
         const res = await fetchWithTimeout(`${API_BASE}/api/recipient-suggestions`, {
           method: "POST",
           headers: suggestionHeaders,
@@ -495,8 +488,14 @@ export default function Home() {
 
         const payload = await res.json();
         const suggestions = Array.isArray(payload?.suggestions) ? payload.suggestions : [];
-        const sendTo = Array.isArray(payload?.sendTo) ? payload.sendTo : suggestions.filter((s: RecipientSuggestion) => s.type === "email" && (s as any).recipient_type !== "ngo");
-        const cc = Array.isArray(payload?.cc) ? payload.cc : suggestions.filter((s: RecipientSuggestion) => (s as any).recipient_type === "ngo");
+        const sendTo = Array.isArray(payload?.sendTo)
+          ? payload.sendTo
+          : suggestions.filter(
+              (s: RecipientSuggestion) => s.type === "email" && s.recipient_type !== "ngo",
+            );
+        const cc = Array.isArray(payload?.cc)
+          ? payload.cc
+          : suggestions.filter((s: RecipientSuggestion) => s.recipient_type === "ngo");
         setRecipientSuggestions(suggestions);
         setSendToSuggestions(sendTo);
         setCcSuggestions(cc);
@@ -525,11 +524,56 @@ export default function Home() {
     };
 
     loadRecipientSuggestions();
-  }, [selectedPermit, token, API_BASE]);
+  }, [selectedPermit, API_BASE]);
 
   /* ─── Handlers ─── */
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const requestLetterGeneration = async ({
+    letterMode: requestedLetterMode,
+    persona: requestedPersona,
+  }: {
+    letterMode: LetterMode;
+    persona: string;
+  }) => {
+    if (!selectedPermit) {
+      throw new Error("Please select a permit first.");
+    }
+
+    const generateHeaders: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+
+    try {
+      const res = await fetchWithTimeout(`${API_BASE}/api/generate-letter`, {
+        method: "POST",
+        headers: generateHeaders,
+        body: JSON.stringify({
+          permitDetails: { ...selectedPermit, ...formData, currentDate },
+          letterMode: requestedLetterMode,
+          letterType,
+          persona: requestedPersona,
+        }),
+      }, 35000);
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error || "Failed to generate letter");
+      }
+
+      const data = await res.json();
+      return stripMarkdownArtifacts(data.letter || "");
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        throw new Error("Letter generation timed out. Please try again.");
+      }
+      if (err instanceof Error) throw err;
+      throw new Error("Unknown error");
+    } finally {
+      fetchUsage();
+    }
   };
 
   const generateLetter = async () => {
@@ -538,38 +582,31 @@ export default function Home() {
     setLetterError(null);
     setGeneratedLetter("");
     try {
-      const generateHeaders: HeadersInit = {
-        "Content-Type": "application/json",
-      };
-      if (token) {
-        generateHeaders.Authorization = `Bearer ${token}`;
-      }
-      const res = await fetchWithTimeout(`${API_BASE}/api/generate-letter`, {
-        method: "POST",
-        headers: generateHeaders,
-        body: JSON.stringify({
-          permitDetails: { ...selectedPermit, ...formData, currentDate },
-          letterMode,
-          letterType,
-          persona,
-        }),
-      }, 35000);
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to generate letter");
-      }
-      const data = await res.json();
-      setGeneratedLetter(stripMarkdownArtifacts(data.letter || ""));
-      fetchUsage(token);
+      const letter = await requestLetterGeneration({ letterMode, persona });
+      setGeneratedLetter(letter);
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        setLetterError("Letter generation timed out. Please try again.");
-      } else if (err instanceof Error) setLetterError(err.message);
+      if (err instanceof Error) setLetterError(err.message);
       else setLetterError("Unknown error");
-      fetchUsage(token);
     } finally {
       setGeneratingLetter(false);
     }
+  };
+
+  const handleUseComparedDraft = ({
+    letter,
+    letterMode: chosenLetterMode,
+    persona: chosenPersona,
+  }: {
+    letter: string;
+    letterMode: LetterMode;
+    persona: string;
+  }) => {
+    setGeneratedLetter(letter);
+    setLetterMode(chosenLetterMode);
+    setPersona(chosenPersona);
+    setLetterError(null);
+    setEmailError(null);
+    setComparePanelOpen(false);
   };
 
   const handleSaveObjection = async () => {
@@ -589,7 +626,6 @@ export default function Home() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           permit_id: selectedPermit.id,
@@ -611,13 +647,9 @@ export default function Home() {
     }
   };
 
-  const handleLogin = (newToken: string, newUser: User) => {
-    setToken(newToken);
+  const handleLogin = (_newToken: string, newUser: User) => {
     setUser(newUser);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem("token", newToken);
-      localStorage.setItem("user", JSON.stringify(newUser));
-    }
+    fetchUsage();
   };
 
   const buildEmailDraft = () => {
@@ -629,7 +661,7 @@ export default function Home() {
     return { to, subject, body };
   };
 
-  const useSuggestedRecipient = (suggestion: RecipientSuggestion) => {
+  const applySuggestedRecipient = (suggestion: RecipientSuggestion) => {
     if (suggestion.email) {
       setRecipientEmail(suggestion.email);
       setEmailError(null);
@@ -698,9 +730,14 @@ export default function Home() {
   };
 
   const copyLetter = () => {
-    navigator.clipboard.writeText(generatedLetter);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard.writeText(generatedLetter)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {
+        setLetterError("Could not copy the letter to the clipboard.");
+      });
   };
 
   const uniqueCountries = Array.from(new Set(permits.map((p) => p.country))).sort();
@@ -718,10 +755,13 @@ export default function Home() {
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(" ");
   const filteredPermits = permits.filter((p) => {
+    const projectTitle = String(p.project_title || "");
+    const location = String(p.location || "");
+    const activity = String(p.activity || "");
     const matchSearch =
-      p.project_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.activity.toLowerCase().includes(searchTerm.toLowerCase());
+      projectTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      activity.toLowerCase().includes(searchTerm.toLowerCase());
     const matchCountry = selectedCountry === "All" || p.country === selectedCountry;
     const matchDomain =
       selectedPermitDomain === "All" ||
@@ -735,6 +775,22 @@ export default function Home() {
   const animObjections = useAnimatedCounter(stats?.objectionsGenerated || 0);
   const lettersUsage = usage?.letters?.usage;
   const selectedPermitNotes = parsePermitNotes(selectedPermit);
+  const normalizedSelectedPermitStatus = String(selectedPermit?.status || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, " ");
+  const selectedPermitStatusClass = normalizedSelectedPermitStatus.includes("approved")
+    ? "badge-approved"
+    : normalizedSelectedPermitStatus.includes("reject")
+      ? "badge-rejected"
+      : normalizedSelectedPermitStatus.includes("review")
+        ? "badge-under-review"
+        : "badge-pending";
+  const selectedPermitStatusLabel = normalizedSelectedPermitStatus
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ") || "Pending";
 
   /* ─── Loading ─── */
   if (loading) {
@@ -994,6 +1050,7 @@ export default function Home() {
                       setGeneratedLetter("");
                       setLetterError(null);
                       setEmailError(null);
+                      setComparePanelOpen(false);
                     }}
                   >
                     <div className="flex justify-between items-start mb-3">
@@ -1026,7 +1083,7 @@ export default function Home() {
           ) : (
             <div>
               <button
-                onClick={() => { setSelectedPermit(null); setGeneratedLetter(""); setLetterError(null); }}
+                onClick={() => { setSelectedPermit(null); setGeneratedLetter(""); setLetterError(null); setComparePanelOpen(false); }}
                 className="flex items-center gap-2 text-gray-500 hover:text-slate-900 mb-8 transition-colors text-sm"
               >
                 <ArrowLeft className="w-4 h-4" /> Back to all permits
@@ -1036,8 +1093,8 @@ export default function Home() {
                 <div className="glass-card p-6">
                   <div className="flex items-start justify-between mb-5">
                     <h2 className="text-xl font-bold leading-snug pr-4">{selectedPermit.project_title}</h2>
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider flex-shrink-0 ${selectedPermit.status === "Approved" ? "badge-approved" : selectedPermit.status === "Pending" ? "badge-pending" : selectedPermit.status === "Rejected" ? "badge-rejected" : "badge-under-review"}`}>
-                      {selectedPermit.status}
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider flex-shrink-0 ${selectedPermitStatusClass}`}>
+                      {selectedPermitStatusLabel}
                     </span>
                   </div>
                   <div className="space-y-3 text-sm">
@@ -1178,6 +1235,15 @@ export default function Home() {
                       </>
                     )}
                   </button>
+                  <button
+                    onClick={() => setComparePanelOpen((prev) => !prev)}
+                    className="w-full mt-3 py-2.5 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-slate-700 font-medium rounded-xl transition-colors"
+                  >
+                    {comparePanelOpen ? "Hide compare view" : "Compare perspectives side by side"}
+                  </button>
+                  <p className="mt-2 text-xs leading-relaxed text-gray-500">
+                    Create two alternate drafts for this permit, then keep the stronger version in your main submission flow.
+                  </p>
                   {lettersUsage && (
                     <p className="mt-2 text-xs text-gray-500">
                       Remaining today: {lettersUsage.dailyRemaining ?? "unlimited"} · This month: {lettersUsage.monthlyRemaining ?? "unlimited"}
@@ -1188,6 +1254,18 @@ export default function Home() {
                   )}
                 </div>
               </div>
+
+              {comparePanelOpen && (
+                <LetterComparisonPanel
+                  permitTitle={selectedPermit.project_title}
+                  personaOptions={personaOptions}
+                  defaultPersona={persona}
+                  defaultLetterMode={letterMode}
+                  onGenerate={requestLetterGeneration}
+                  onUseDraft={handleUseComparedDraft}
+                  onClose={() => setComparePanelOpen(false)}
+                />
+              )}
 
               {generatedLetter && (
                 <div className="glass-card p-6 mt-6">
@@ -1228,7 +1306,7 @@ export default function Home() {
                           {sendToSuggestions.map((suggestion) => (
                             <button
                               key={suggestion.id}
-                              onClick={() => useSuggestedRecipient(suggestion)}
+                              onClick={() => applySuggestedRecipient(suggestion)}
                               className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
                                 recipientEmail === suggestion.email
                                   ? "bg-blue-100 border-blue-400 text-blue-800 font-medium"
@@ -1251,7 +1329,7 @@ export default function Home() {
                           {ccSuggestions.map((suggestion) => (
                             <button
                               key={suggestion.id}
-                              onClick={() => useSuggestedRecipient(suggestion)}
+                              onClick={() => applySuggestedRecipient(suggestion)}
                               className="text-xs px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors"
                               title={suggestion.reason}
                             >

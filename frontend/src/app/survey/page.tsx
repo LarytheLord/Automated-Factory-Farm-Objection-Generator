@@ -270,6 +270,8 @@ export default function SurveyPage() {
                       key={star}
                       type="button"
                       onClick={() => handleRatingChange(star)}
+                      aria-label={`Rate ${star} star${star === 1 ? "" : "s"}`}
+                      aria-pressed={star === formData.rating}
                       className={`text-2xl transition-colors ${
                         star <= formData.rating ? "text-yellow-500" : "text-slate-300"
                       }`}
