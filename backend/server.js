@@ -2070,7 +2070,6 @@ Generate the complete letter text only, no markdown formatting.`;
 
 function inferJurisdiction(location, country) {
     const loc = String(location || '').toLowerCase();
-    const ctry = String(country || '').toLowerCase();
     if (loc.includes('washington, d.c.') || loc.includes('district of columbia') || loc.includes('washington dc')) {
         return 'Washington, D.C.';
     }
@@ -2078,7 +2077,6 @@ function inferJurisdiction(location, country) {
 }
 
 function getCountryLegalFramework(country, jurisdiction) {
-    // Jurisdiction-specific sub-frameworks
     if (jurisdiction) {
         const jKey = String(jurisdiction).toLowerCase();
         if (jKey.includes('d.c.') || jKey.includes('district of columbia')) {
@@ -2091,6 +2089,38 @@ function getCountryLegalFramework(country, jurisdiction) {
 - D.C. Code Section 22-1012.01 (Unlawful Cat Declawing) — demonstrates D.C. precedent for species-specific animal welfare legislation
 - New York City Administrative Code Section 17-1702 (proposed) — parallel foie gras sales ban showing nationwide momentum`;
         }
+    }
+
+    const normalizedCountry = String(country || '').toLowerCase();
+
+    if (normalizedCountry.includes('ireland')) {
+        return `
+- Environmental Protection Agency Act 1992 (Sections 83-84: licence applications and decisions for scheduled activities; Section 87: licence review; Section 90: submissions and objections)
+- Planning and Development Act 2000 (Section 34: planning permission decisions and conditions; Section 172: environmental impact assessment; Section 173: environmental impact assessment reports and reasoned conclusions)
+- Waste Management Act 1996 (Sections 39-42: waste licence requirement, applications, and grant/refusal decisions; Section 44: oral hearings)
+- Local Government (Water Pollution) Act 1977 (Section 4: discharge licensing; Section 9: public register; Section 10: offences for polluting discharges)
+- Air Pollution Act 1987 (Section 24: control areas and special control areas; Section 25: prohibited emissions; Section 30: notices to prevent or limit air pollution)
+- European Communities (Birds and Natural Habitats) Regulations 2011 (Regulation 42: appropriate assessment for plans or projects affecting European sites)`;
+    }
+
+    if (normalizedCountry.includes('nigeria')) {
+        return `
+- Constitution of the Federal Republic of Nigeria 1999 (Section 20: duty of the State to protect and improve the environment and safeguard water, air, land, forest, and wildlife)
+- Environmental Impact Assessment Act, Cap E12 LFN 2004 (Section 2: prior assessment for projects likely to significantly affect the environment; Section 7: mandatory study list; Section 13: public hearing and comments)
+- National Environmental Standards and Regulations Enforcement Agency (Establishment) Act 2007 (Sections 7-8: functions and enforcement powers of the Agency; Sections 22-24: permits, water quality criteria, and effluent limitations)
+- National Environmental (Permitting and Licensing System) Regulations 2009 (Regulations 2-11: permit application and review flow; Regulations 19-23: renewal, suspension, and revocation; Regulations 33-35: offences and penalties)
+- National Environmental (Noise Standards and Control) Regulations 2009 (Regulations 1-3: scope and permissible standards; Regulation 7: compliance duties for noise-generating facilities)
+- Factories Act, Cap F1 LFN 2004 (Section 49: power to make health and safety regulations; inspection and factory registration controls administered by the Labour Ministry)`;
+    }
+
+    if (normalizedCountry.includes('brazil')) {
+        return `
+- Federal Law No. 6,938/1981 (National Environmental Policy) (Art. 9: environmental policy instruments including impact assessment and licensing; Art. 10: prior environmental licensing for potentially polluting activities)
+- Complementary Law No. 140/2011 (Arts. 7-9: allocation of licensing and enforcement competence among the Union, states, and municipalities)
+- CONAMA Resolution No. 001/1986 (Art. 2: projects subject to EIA/RIMA; Art. 6: minimum content of the environmental impact study)
+- CONAMA Resolution No. 237/1997 (Arts. 1-3: scope of environmental licensing and EIA linkage; Art. 10: administrative licensing procedure; Art. 12: licensing stages and deadlines)
+- Federal Law No. 9,605/1998 (Environmental Crimes Law) (Art. 32: abuse and cruelty against animals; Art. 54: pollution causing harm; Art. 60: operating potentially polluting establishments without a licence)
+- Decree No. 6,514/2008 (Arts. 61-62: pollution and waste-related administrative offences; Art. 66: construction, operation, or expansion without an environmental licence)`;
     }
 
     const frameworks = {
@@ -2149,8 +2179,8 @@ function getCountryLegalFramework(country, jurisdiction) {
 
     // Try exact match, then partial match
     const key = Object.keys(frameworks).find(k =>
-        k.toLowerCase() === (country || '').toLowerCase() ||
-        (country || '').toLowerCase().includes(k.toLowerCase())
+        k.toLowerCase() === normalizedCountry ||
+        normalizedCountry.includes(k.toLowerCase())
     );
     return frameworks[key] || frameworks['India'];
 }
@@ -3043,10 +3073,13 @@ app.get('/api/legal-frameworks', (req, res) => {
             { country: 'European Union', laws: 7, keyLaw: 'Industrial Emissions Directive (IED 2.0)', status: 'Active' },
             { country: 'Australia', laws: 5, keyLaw: 'EPBC Act 1999', status: 'Active' },
             { country: 'Canada', laws: 5, keyLaw: 'Canadian Environmental Protection Act', status: 'Active' },
+            { country: 'Ireland', laws: 6, keyLaw: 'Environmental Protection Agency Act 1992', status: 'Active' },
+            { country: 'Nigeria', laws: 6, keyLaw: 'Environmental Impact Assessment Act', status: 'Active' },
+            { country: 'Brazil', laws: 6, keyLaw: 'National Environmental Policy Law (Law No. 6,938/1981)', status: 'Active' },
         ],
-        totalLaws: 40,
-        totalCountries: 8,
-        lastUpdated: '2026-02-19'
+        totalLaws: 58,
+        totalCountries: 9,
+        lastUpdated: '2026-03-29'
     });
 });
 
@@ -3188,8 +3221,8 @@ app.use((err, req, res, next) => {
     return next(err);
 });
 
-// Export the app for use in root server
-module.exports = { app };
+// Export the app for tests and utility scripts.
+module.exports = { app, getCountryLegalFramework };
 
 // Start listening when run directly (standalone deploy / DigitalOcean)
 if (require.main === module) {

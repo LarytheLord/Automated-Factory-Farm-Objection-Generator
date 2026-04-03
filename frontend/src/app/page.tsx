@@ -25,8 +25,8 @@ import Link from "next/link";
 import AuthModal from "../components/AuthModal";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-// PersonaSelector card-grid component available at ../components/PersonaSelector
-// Using a simpler grouped <select> dropdown for now
+import LetterComparisonPanel from "../components/LetterComparisonPanel";
+import PersonaSelector, { type PersonaOption } from "../components/PersonaSelector";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -98,6 +98,8 @@ interface ParsedPermitNotes {
   consultationDeadline?: string;
   plainNotes?: string;
 }
+
+type LetterMode = "concise" | "detailed";
 
 /* ─── Animated Counter Hook ─── */
 function useAnimatedCounter(target: number, duration = 2000) {
@@ -315,10 +317,10 @@ export default function Home() {
   const [letterError, setLetterError] = useState<string | null>(null);
   const [recipientEmail, setRecipientEmail] = useState("");
   const [emailSubject, setEmailSubject] = useState("");
-  const [letterMode, setLetterMode] = useState<"concise" | "detailed">("concise");
+  const [letterMode, setLetterMode] = useState<LetterMode>("concise");
   const [letterType, setLetterType] = useState<"objection" | "support">("objection");
   const [persona, setPersona] = useState("general");
-  const [personaOptions, setPersonaOptions] = useState<{id: string; label: string; category: string; categoryLabel: string; description: string}[]>([]);
+  const [personaOptions, setPersonaOptions] = useState<PersonaOption[]>([]);
   const [recipientSuggestions, setRecipientSuggestions] = useState<RecipientSuggestion[]>([]);
   const [sendToSuggestions, setSendToSuggestions] = useState<RecipientSuggestion[]>([]);
   const [ccSuggestions, setCcSuggestions] = useState<RecipientSuggestion[]>([]);
@@ -341,6 +343,7 @@ export default function Home() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [usage, setUsage] = useState<UsageResponse | null>(null);
+  const [comparePanelOpen, setComparePanelOpen] = useState(false);
 
   const API_BASE = "";
 
@@ -449,6 +452,7 @@ export default function Home() {
       setRecipientSuggestions([]);
       setRecommendedRecipient(null);
       setRecipientGuidance(null);
+      setComparePanelOpen(false);
     }
   }, [hasApprovedAccess]);
 
@@ -532,44 +536,85 @@ export default function Home() {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  const requestLetterGeneration = async ({
+    letterMode: requestedLetterMode,
+    persona: requestedPersona,
+  }: {
+    letterMode: LetterMode;
+    persona: string;
+  }) => {
+    if (!selectedPermit) {
+      throw new Error("Please select a permit first.");
+    }
+
+    const generateHeaders: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      generateHeaders.Authorization = `Bearer ${token}`;
+    }
+
+    try {
+      const res = await fetchWithTimeout(`${API_BASE}/api/generate-letter`, {
+        method: "POST",
+        headers: generateHeaders,
+        body: JSON.stringify({
+          permitDetails: { ...selectedPermit, ...formData, currentDate },
+          letterMode: requestedLetterMode,
+          letterType,
+          persona: requestedPersona,
+        }),
+      }, 35000);
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error || "Failed to generate letter");
+      }
+
+      const data = await res.json();
+      return stripMarkdownArtifacts(data.letter || "");
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        throw new Error("Letter generation timed out. Please try again.");
+      }
+      if (err instanceof Error) throw err;
+      throw new Error("Unknown error");
+    } finally {
+      fetchUsage(token);
+    }
+  };
+
   const generateLetter = async () => {
     if (!selectedPermit) return;
     setGeneratingLetter(true);
     setLetterError(null);
     setGeneratedLetter("");
     try {
-      const generateHeaders: HeadersInit = {
-        "Content-Type": "application/json",
-      };
-      if (token) {
-        generateHeaders.Authorization = `Bearer ${token}`;
-      }
-      const res = await fetchWithTimeout(`${API_BASE}/api/generate-letter`, {
-        method: "POST",
-        headers: generateHeaders,
-        body: JSON.stringify({
-          permitDetails: { ...selectedPermit, ...formData, currentDate },
-          letterMode,
-          letterType,
-          persona,
-        }),
-      }, 35000);
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to generate letter");
-      }
-      const data = await res.json();
-      setGeneratedLetter(stripMarkdownArtifacts(data.letter || ""));
-      fetchUsage(token);
+      const letter = await requestLetterGeneration({ letterMode, persona });
+      setGeneratedLetter(letter);
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        setLetterError("Letter generation timed out. Please try again.");
-      } else if (err instanceof Error) setLetterError(err.message);
+      if (err instanceof Error) setLetterError(err.message);
       else setLetterError("Unknown error");
-      fetchUsage(token);
     } finally {
       setGeneratingLetter(false);
     }
+  };
+
+  const handleUseComparedDraft = ({
+    letter,
+    letterMode: chosenLetterMode,
+    persona: chosenPersona,
+  }: {
+    letter: string;
+    letterMode: LetterMode;
+    persona: string;
+  }) => {
+    setGeneratedLetter(letter);
+    setLetterMode(chosenLetterMode);
+    setPersona(chosenPersona);
+    setLetterError(null);
+    setEmailError(null);
+    setComparePanelOpen(false);
   };
 
   const handleSaveObjection = async () => {
@@ -994,6 +1039,7 @@ export default function Home() {
                       setGeneratedLetter("");
                       setLetterError(null);
                       setEmailError(null);
+                      setComparePanelOpen(false);
                     }}
                   >
                     <div className="flex justify-between items-start mb-3">
@@ -1026,7 +1072,7 @@ export default function Home() {
           ) : (
             <div>
               <button
-                onClick={() => { setSelectedPermit(null); setGeneratedLetter(""); setLetterError(null); }}
+                onClick={() => { setSelectedPermit(null); setGeneratedLetter(""); setLetterError(null); setComparePanelOpen(false); }}
                 className="flex items-center gap-2 text-gray-500 hover:text-slate-900 mb-8 transition-colors text-sm"
               >
                 <ArrowLeft className="w-4 h-4" /> Back to all permits
@@ -1178,6 +1224,15 @@ export default function Home() {
                       </>
                     )}
                   </button>
+                  <button
+                    onClick={() => setComparePanelOpen((prev) => !prev)}
+                    className="w-full mt-3 py-2.5 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-slate-700 font-medium rounded-xl transition-colors"
+                  >
+                    {comparePanelOpen ? "Hide compare view" : "Compare perspectives side by side"}
+                  </button>
+                  <p className="mt-2 text-xs leading-relaxed text-gray-500">
+                    Create two alternate drafts for this permit, then keep the stronger version in your main submission flow.
+                  </p>
                   {lettersUsage && (
                     <p className="mt-2 text-xs text-gray-500">
                       Remaining today: {lettersUsage.dailyRemaining ?? "unlimited"} · This month: {lettersUsage.monthlyRemaining ?? "unlimited"}
@@ -1188,6 +1243,18 @@ export default function Home() {
                   )}
                 </div>
               </div>
+
+              {comparePanelOpen && (
+                <LetterComparisonPanel
+                  permitTitle={selectedPermit.project_title}
+                  personaOptions={personaOptions}
+                  defaultPersona={persona}
+                  defaultLetterMode={letterMode}
+                  onGenerate={requestLetterGeneration}
+                  onUseDraft={handleUseComparedDraft}
+                  onClose={() => setComparePanelOpen(false)}
+                />
+              )}
 
               {generatedLetter && (
                 <div className="glass-card p-6 mt-6">
