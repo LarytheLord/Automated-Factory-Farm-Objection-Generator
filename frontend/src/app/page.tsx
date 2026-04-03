@@ -25,7 +25,7 @@ import AuthModal from "../components/AuthModal";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import LetterComparisonPanel from "../components/LetterComparisonPanel";
-import PersonaSelector, { type PersonaOption } from "../components/PersonaSelector";
+import type { PersonaOption } from "../components/PersonaSelector";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
