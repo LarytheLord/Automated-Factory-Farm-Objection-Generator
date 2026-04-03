@@ -1,5 +1,5 @@
-# Use Node.js 18 LTS image
-FROM node:18-alpine
+# Use Node.js 20 LTS image to match the application runtime requirement.
+FROM node:20-alpine
 
 # Install dependencies
 RUN apk add --no-cache libc6-compat
@@ -12,10 +12,10 @@ COPY package*.json ./
 COPY backend/package*.json ./backend/
 COPY frontend/package*.json ./frontend/
 
-# Install dependencies
-RUN npm install
-RUN cd backend && npm install
-RUN cd frontend && npm install
+# Install dependencies deterministically.
+RUN npm ci --ignore-scripts
+RUN npm ci --prefix backend
+RUN npm ci --prefix frontend
 
 # Copy all files
 COPY . .

@@ -21,7 +21,6 @@ import {
   User,
   Save,
 } from "lucide-react";
-import Link from "next/link";
 import AuthModal from "../components/AuthModal";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -33,6 +32,7 @@ export const dynamic = 'force-dynamic';
 
 /* ─── Types ─── */
 interface Permit {
+  id?: string | number;
   project_title: string;
   location: string;
   activity: string;
@@ -40,10 +40,21 @@ interface Permit {
   country: string;
   notes: string;
   category?: string;
+  capacity?: string;
   permit_domain?: "farm_animal" | "industrial_infra" | "pollution_industrial" | "other" | string;
   permit_subtype?: string;
+  source_url?: string;
+  source_name?: string;
+  external_id?: string;
+  reference?: string;
+  published_at?: string;
+  consultation_deadline?: string;
+  observed_at?: string;
+  updated_at?: string;
+  last_seen_at?: string;
+  created_at?: string;
   coordinates?: { lat: number; lng: number };
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface Stats {
@@ -83,6 +94,7 @@ interface RecipientSuggestion {
   confidence: "official" | "source_extracted" | "inferred";
   email?: string;
   action_url?: string;
+  recipient_type?: string;
   reason?: string;
 }
 
@@ -126,26 +138,15 @@ function useAnimatedCounter(target: number, duration = 2000) {
 }
 
 /* ─── Helper Functions ─── */
-function getUserFromStorage(): User | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const user = localStorage.getItem("user");
-    return user ? JSON.parse(user) : null;
-  } catch {
-    return null;
-  }
-}
-
-function getTokenFromStorage(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem("token");
-}
-
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 30000) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    return await fetch(url, {
+      credentials: "same-origin",
+      ...options,
+      signal: controller.signal,
+    });
   } finally {
     clearTimeout(timeout);
   }
@@ -338,7 +339,6 @@ export default function Home() {
   const [currentDate, setCurrentDate] = useState("");
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -351,9 +351,8 @@ export default function Home() {
   const isAuthenticated = !!user;
   const hasApprovedAccess = !!(user && (user.role === "admin" || user.accessApproved));
 
-  const handleNavAuthChange = (navUser: User | null, navToken: string | null) => {
+  const handleNavAuthChange = (navUser: User | null) => {
     setUser(navUser);
-    setToken(navToken);
   };
 
   useEffect(() => {
@@ -385,19 +384,12 @@ export default function Home() {
         const heroPermitPromise = fetch(`${API_BASE}/api/public/latest-pending-permit`)
           .then((r) => (r.ok ? r.json() : null))
           .catch(() => null);
-        const permitHeaders: HeadersInit = {};
-        if (token) {
-          permitHeaders.Authorization = `Bearer ${token}`;
-        }
-
         const personaPromise = fetch(`${API_BASE}/api/personas`)
           .then((r) => (r.ok ? r.json() : null))
           .catch(() => null);
 
         const [permitsRes, statsData, heroPermitData, personaData] = await Promise.all([
-          fetch(`${API_BASE}/api/permits`, {
-            headers: permitHeaders,
-          }),
+          fetch(`${API_BASE}/api/permits`),
           statsPromise,
           heroPermitPromise,
           personaPromise,
@@ -423,13 +415,13 @@ export default function Home() {
     };
 
     loadData();
-  }, [API_BASE, token, isMounted]);
+  }, [API_BASE, isMounted]);
 
-  const fetchUsage = async (authToken?: string | null) => {
+  const fetchUsage = async () => {
     try {
-      const headers: HeadersInit = {};
-      if (authToken) headers.Authorization = `Bearer ${authToken}`;
-      const response = await fetch(`${API_BASE}/api/usage`, { headers });
+      const response = await fetch(`${API_BASE}/api/usage`, {
+        credentials: "same-origin",
+      });
       if (!response.ok) return;
       const data = await response.json();
       setUsage(data);
@@ -440,8 +432,8 @@ export default function Home() {
 
   useEffect(() => {
     if (!isMounted) return;
-    fetchUsage(token);
-  }, [token, isMounted]);
+    fetchUsage();
+  }, [isMounted]);
 
   useEffect(() => {
     if (!hasApprovedAccess) {
@@ -483,9 +475,6 @@ export default function Home() {
         const suggestionHeaders: HeadersInit = {
           "Content-Type": "application/json",
         };
-        if (token) {
-          suggestionHeaders.Authorization = `Bearer ${token}`;
-        }
         const res = await fetchWithTimeout(`${API_BASE}/api/recipient-suggestions`, {
           method: "POST",
           headers: suggestionHeaders,
@@ -499,8 +488,14 @@ export default function Home() {
 
         const payload = await res.json();
         const suggestions = Array.isArray(payload?.suggestions) ? payload.suggestions : [];
-        const sendTo = Array.isArray(payload?.sendTo) ? payload.sendTo : suggestions.filter((s: RecipientSuggestion) => s.type === "email" && (s as any).recipient_type !== "ngo");
-        const cc = Array.isArray(payload?.cc) ? payload.cc : suggestions.filter((s: RecipientSuggestion) => (s as any).recipient_type === "ngo");
+        const sendTo = Array.isArray(payload?.sendTo)
+          ? payload.sendTo
+          : suggestions.filter(
+              (s: RecipientSuggestion) => s.type === "email" && s.recipient_type !== "ngo",
+            );
+        const cc = Array.isArray(payload?.cc)
+          ? payload.cc
+          : suggestions.filter((s: RecipientSuggestion) => s.recipient_type === "ngo");
         setRecipientSuggestions(suggestions);
         setSendToSuggestions(sendTo);
         setCcSuggestions(cc);
@@ -529,7 +524,7 @@ export default function Home() {
     };
 
     loadRecipientSuggestions();
-  }, [selectedPermit, token, API_BASE]);
+  }, [selectedPermit, API_BASE]);
 
   /* ─── Handlers ─── */
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -550,9 +545,6 @@ export default function Home() {
     const generateHeaders: HeadersInit = {
       "Content-Type": "application/json",
     };
-    if (token) {
-      generateHeaders.Authorization = `Bearer ${token}`;
-    }
 
     try {
       const res = await fetchWithTimeout(`${API_BASE}/api/generate-letter`, {
@@ -580,7 +572,7 @@ export default function Home() {
       if (err instanceof Error) throw err;
       throw new Error("Unknown error");
     } finally {
-      fetchUsage(token);
+      fetchUsage();
     }
   };
 
@@ -634,7 +626,6 @@ export default function Home() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           permit_id: selectedPermit.id,
@@ -656,13 +647,9 @@ export default function Home() {
     }
   };
 
-  const handleLogin = (newToken: string, newUser: User) => {
-    setToken(newToken);
+  const handleLogin = (_newToken: string, newUser: User) => {
     setUser(newUser);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem("token", newToken);
-      localStorage.setItem("user", JSON.stringify(newUser));
-    }
+    fetchUsage();
   };
 
   const buildEmailDraft = () => {
@@ -674,7 +661,7 @@ export default function Home() {
     return { to, subject, body };
   };
 
-  const useSuggestedRecipient = (suggestion: RecipientSuggestion) => {
+  const applySuggestedRecipient = (suggestion: RecipientSuggestion) => {
     if (suggestion.email) {
       setRecipientEmail(suggestion.email);
       setEmailError(null);
@@ -743,9 +730,14 @@ export default function Home() {
   };
 
   const copyLetter = () => {
-    navigator.clipboard.writeText(generatedLetter);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard.writeText(generatedLetter)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {
+        setLetterError("Could not copy the letter to the clipboard.");
+      });
   };
 
   const uniqueCountries = Array.from(new Set(permits.map((p) => p.country))).sort();
@@ -763,10 +755,13 @@ export default function Home() {
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(" ");
   const filteredPermits = permits.filter((p) => {
+    const projectTitle = String(p.project_title || "");
+    const location = String(p.location || "");
+    const activity = String(p.activity || "");
     const matchSearch =
-      p.project_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.activity.toLowerCase().includes(searchTerm.toLowerCase());
+      projectTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      activity.toLowerCase().includes(searchTerm.toLowerCase());
     const matchCountry = selectedCountry === "All" || p.country === selectedCountry;
     const matchDomain =
       selectedPermitDomain === "All" ||
@@ -780,6 +775,22 @@ export default function Home() {
   const animObjections = useAnimatedCounter(stats?.objectionsGenerated || 0);
   const lettersUsage = usage?.letters?.usage;
   const selectedPermitNotes = parsePermitNotes(selectedPermit);
+  const normalizedSelectedPermitStatus = String(selectedPermit?.status || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, " ");
+  const selectedPermitStatusClass = normalizedSelectedPermitStatus.includes("approved")
+    ? "badge-approved"
+    : normalizedSelectedPermitStatus.includes("reject")
+      ? "badge-rejected"
+      : normalizedSelectedPermitStatus.includes("review")
+        ? "badge-under-review"
+        : "badge-pending";
+  const selectedPermitStatusLabel = normalizedSelectedPermitStatus
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ") || "Pending";
 
   /* ─── Loading ─── */
   if (loading) {
@@ -1082,8 +1093,8 @@ export default function Home() {
                 <div className="glass-card p-6">
                   <div className="flex items-start justify-between mb-5">
                     <h2 className="text-xl font-bold leading-snug pr-4">{selectedPermit.project_title}</h2>
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider flex-shrink-0 ${selectedPermit.status === "Approved" ? "badge-approved" : selectedPermit.status === "Pending" ? "badge-pending" : selectedPermit.status === "Rejected" ? "badge-rejected" : "badge-under-review"}`}>
-                      {selectedPermit.status}
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider flex-shrink-0 ${selectedPermitStatusClass}`}>
+                      {selectedPermitStatusLabel}
                     </span>
                   </div>
                   <div className="space-y-3 text-sm">
@@ -1295,7 +1306,7 @@ export default function Home() {
                           {sendToSuggestions.map((suggestion) => (
                             <button
                               key={suggestion.id}
-                              onClick={() => useSuggestedRecipient(suggestion)}
+                              onClick={() => applySuggestedRecipient(suggestion)}
                               className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
                                 recipientEmail === suggestion.email
                                   ? "bg-blue-100 border-blue-400 text-blue-800 font-medium"
@@ -1318,7 +1329,7 @@ export default function Home() {
                           {ccSuggestions.map((suggestion) => (
                             <button
                               key={suggestion.id}
-                              onClick={() => useSuggestedRecipient(suggestion)}
+                              onClick={() => applySuggestedRecipient(suggestion)}
                               className="text-xs px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors"
                               title={suggestion.reason}
                             >
