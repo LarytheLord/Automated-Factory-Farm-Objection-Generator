@@ -2132,6 +2132,18 @@ function getCountryLegalFramework(country, jurisdiction) {
 - Nitrates Directive (91/676/EEC) — Limits on nitrogen from agricultural sources
 - Industrial Emissions Portal Regulation — Public access to environmental data`,
 
+        'Ireland': `
+- Environmental Protection Agency Act 1992 (as amended) — establishes the EPA as competent authority and the Industrial Emissions (IE) licensing regime for intensive agriculture (pig and poultry) installations
+- EPA (Industrial Emissions) (Licensing) Regulations 2013 — transposes the Industrial Emissions Directive (IED, 2010/75/EU); sets IE-licence thresholds and Best Available Techniques (BAT) requirements for intensive rearing of pigs and poultry
+- Planning and Development Act 2000 (as amended) — planning permission requirements, material planning considerations, and appeals to An Bord Pleanála
+- European Union (Environmental Impact Assessment) Regulations (S.I. 296/2018) / EIA Directive (2011/92/EU as amended by 2014/52/EU) — mandatory environmental impact assessment for intensive livestock installations above threshold
+- European Union (Good Agricultural Practice for Protection of Waters) Regulations 2022 (S.I. 113/2022) — transposes the Nitrates Directive (91/676/EEC); limits on nitrogen and phosphorus from agricultural sources and slurry storage/spreading controls
+- European Communities (Water Policy) Regulations 2003 (S.I. 722/2003) / Water Framework Directive (2000/60/EC) — protection of surface water, groundwater and water bodies from agricultural pollution
+- Local Government (Water Pollution) Acts 1977 and 1990 — offences for entry of polluting matter to waters
+- Animal Health and Welfare Act 2013 — statutory welfare duties, prohibition of unnecessary suffering (Section 11), and offences relating to the welfare of farmed animals
+- Wildlife Acts 1976 to 2018 — protection of habitats, protected species and Natural Heritage Areas potentially affected by emissions and runoff
+- Aarhus Convention (transposed via Directives 2003/4/EC and 2003/35/EC) — public right to environmental information, participation in licensing decisions, and access to justice`,
+
         'Australia': `
 - Environment Protection and Biodiversity Conservation Act 1999 (EPBC Act) — Federal environmental protection
 - Environmental Planning and Assessment Act 1979 (NSW) — State development approval requirements
@@ -2147,10 +2159,13 @@ function getCountryLegalFramework(country, jurisdiction) {
 - Canadian Environmental Assessment Act — Federal EA requirements`,
     };
 
+    // Normalise sub-jurisdictions: "Northern Ireland", "England", "Scotland", "Wales" → United Kingdom
+    const normalised = /northern ireland|england|scotland|wales/i.test(country || '') ? 'United Kingdom' : (country || '');
+
     // Try exact match, then partial match
     const key = Object.keys(frameworks).find(k =>
-        k.toLowerCase() === (country || '').toLowerCase() ||
-        (country || '').toLowerCase().includes(k.toLowerCase())
+        k.toLowerCase() === normalised.toLowerCase() ||
+        normalised.toLowerCase().includes(k.toLowerCase())
     );
     return frameworks[key] || frameworks['India'];
 }
@@ -2182,6 +2197,7 @@ function generateTemplatedLetter(details, mode = 'concise', personaId = 'general
         'United States': 'Director\nState Department of Environmental Quality',
         'United Kingdom': 'Head of Planning\nLocal Planning Authority',
         'European Union': 'Director\nEnvironmental Protection Agency',
+        'Ireland': 'Licensing Unit\nEnvironmental Protection Agency (EPA)',
         'Australia': 'Director\nEnvironment Protection Authority',
         'Canada': 'Director\nProvincial Ministry of Environment',
     };
@@ -2349,6 +2365,7 @@ function generateDetailedSupportLetter(details, personaId = 'general') {
         'India': 'The Chairperson\nState Pollution Control Board',
         'United States': 'Director\nState Department of Environmental Quality',
         'United Kingdom': 'Head of Planning\nLocal Planning Authority',
+        'Ireland': 'Licensing Unit\nEnvironmental Protection Agency (EPA)',
         'Australia': 'Director\nEnvironment Protection Authority',
         'Canada': 'Director\nProvincial Ministry of Environment',
     };
@@ -3041,12 +3058,13 @@ app.get('/api/legal-frameworks', (req, res) => {
             { country: 'United States', laws: 7, keyLaw: 'Clean Water Act (NPDES)', status: 'Active' },
             { country: 'United Kingdom', laws: 7, keyLaw: 'Town and Country Planning Act 1990', status: 'Active' },
             { country: 'European Union', laws: 7, keyLaw: 'Industrial Emissions Directive (IED 2.0)', status: 'Active' },
+            { country: 'Ireland', laws: 10, keyLaw: 'Environmental Protection Agency Act 1992 (IE Licensing)', status: 'Active' },
             { country: 'Australia', laws: 5, keyLaw: 'EPBC Act 1999', status: 'Active' },
             { country: 'Canada', laws: 5, keyLaw: 'Canadian Environmental Protection Act', status: 'Active' },
         ],
-        totalLaws: 40,
-        totalCountries: 8,
-        lastUpdated: '2026-02-19'
+        totalLaws: 50,
+        totalCountries: 9,
+        lastUpdated: '2026-06-07'
     });
 });
 

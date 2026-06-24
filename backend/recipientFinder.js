@@ -446,15 +446,33 @@ function buildOfficialFallbacks(permit) {
     });
   }
 
-  if (sourceKey === 'ie_epa_leap') {
+  if (sourceKey === 'ie_epa_leap' || normalizeCountry(country) === 'ireland') {
     suggestions.push({
       id: 'ireland-epa-leap',
       label: 'Ireland EPA LEAP licensing portal',
       type: 'webform',
       confidence: 'official',
       action_url: 'https://leap.epa.ie/',
-      reason: 'Official Ireland EPA licensing portal for application details and authority routes',
-      score: 50,
+      reason: 'Official Ireland EPA licensing portal — view the application and lodge a submission or objection on the IE licence',
+      score: 70,
+    });
+    suggestions.push({
+      id: 'ireland-epa-oee',
+      label: 'EPA Office of Environmental Enforcement (complaints)',
+      type: 'webform',
+      confidence: 'official',
+      action_url: 'https://www.epa.ie/take-action/report-an-environmental-incident/',
+      reason: 'Official EPA enforcement route to report concerns about a licensed intensive-agriculture facility',
+      score: 55,
+    });
+    suggestions.push({
+      id: 'ireland-an-bord-pleanala',
+      label: 'An Bord Pleanála (planning appeals)',
+      type: 'webform',
+      confidence: 'official',
+      action_url: 'https://www.pleanala.ie/',
+      reason: 'Official Irish planning appeals board for the planning-permission dimension of the development',
+      score: 45,
     });
   }
 

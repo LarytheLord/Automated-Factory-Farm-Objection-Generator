@@ -184,6 +184,46 @@
     "notes": "Official LEAP API source used by the global pending sync script."
   },
   {
+    "key": "ie_national_planning",
+    "name": "Ireland National Planning Applications Register",
+    "country": "Ireland",
+    "trust_level": "official",
+    "type": "arcgis_mapserver",
+    "tier": "fast",
+    "transform": "ie_national_planning",
+    "url": "https://services.arcgis.com/NzlPQPKn5QF9v2US/arcgis/rest/services/IrishPlanningApplications/FeatureServer/0/query",
+    "query": {
+      "where": "ApplicationStatus='NEW APPLICATION'",
+      "outFields": "ApplicationNumber,PlanningAuthority,DevelopmentDescription,DevelopmentAddress,ApplicationStatus,ReceivedDate,DecisionDueDate,LinkAppDetails",
+      "resultRecordCount": 2000,
+      "orderByFields": "ReceivedDate DESC",
+      "f": "json"
+    },
+    "max_pages": 3,
+    "min_year": 2020,
+    "include_keywords": [
+      "poultry house", "poultry houses", "broiler house", "broiler unit", "broiler shed",
+      "laying hen", "egg production", "layer house",
+      "piggery", "pig house", "pig unit", "pig houses", "sow unit", "fattening pigs", "pig rearing",
+      "intensive pig", "intensive poultry", "intensive livestock",
+      "poultry shed", "poultry farm", "hatchery", "poultry units",
+      "dairy farm", "dairy parlour", "dairy unit", "dairy house",
+      "cattle house", "cattle unit", "slatted shed", "slatted cattle",
+      "fish farm", "aquaculture", "fishery",
+      "slurry storage", "slurry tank", "slurry accommodation", "slurry holding",
+      "manure storage", "manure tank", "waste storage",
+      "cubicle shed", "beef cattle", "livestock unit", "calf rearing"
+    ],
+    "exclude_keywords": [
+      "demolish old piggery", "demolish existing piggery", "demolition of old piggery"
+    ],
+    "filter_fields": ["project_title", "notes"],
+    "enabled": true,
+    "poll_interval_hours": 12,
+    "timeout_ms": 60000,
+    "notes": "National planning register consolidating all 26 Irish local authorities. ArcGIS FeatureServer ignores server-side LIKE filters so records are fetched with status filter only (max_pages=3 × 2000 records) and include_keywords handles client-side intensive-agriculture filtering."
+  },
+  {
     "key": "ca_on_ero_instruments",
     "name": "Ontario Environmental Registry (ERO) Instruments",
     "country": "Canada",

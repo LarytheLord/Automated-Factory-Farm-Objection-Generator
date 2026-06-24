@@ -101,13 +101,25 @@ function normalizePermit(rawPermit, source, nowIso) {
 }
 
 function shouldIncludePermit(rawPermit, source) {
+  // Minimum year filter (checked against published_at or consultation_deadline)
+  const minYear = Number.isFinite(source?.min_year) ? source.min_year : null;
+  if (minYear) {
+    const dateStr = normalizeText(rawPermit?.published_at || rawPermit?.consultation_deadline, '');
+    const year = dateStr ? parseInt(dateStr.slice(0, 4), 10) : null;
+    if (!year || year < minYear) return false;
+  }
+
   const keywords = Array.isArray(source?.include_keywords)
     ? source.include_keywords
         .map((keyword) => normalizeText(keyword, '').toLowerCase())
         .filter(Boolean)
     : [];
 
-  if (keywords.length === 0) return true;
+  const excludeKeywords = Array.isArray(source?.exclude_keywords)
+    ? source.exclude_keywords
+        .map((keyword) => normalizeText(keyword, '').toLowerCase())
+        .filter(Boolean)
+    : [];
 
   const fields = Array.isArray(source?.filter_fields) && source.filter_fields.length > 0
     ? source.filter_fields
@@ -118,6 +130,10 @@ function shouldIncludePermit(rawPermit, source) {
     .filter(Boolean)
     .join(' ');
 
+  // Exclude wins over include
+  if (excludeKeywords.length > 0 && haystack && excludeKeywords.some((kw) => haystack.includes(kw))) return false;
+
+  if (keywords.length === 0) return true;
   if (!haystack) return false;
   return keywords.some((keyword) => haystack.includes(keyword));
 }
@@ -256,26 +272,39 @@ async function readArcGISPermits(source, fetchImpl) {
     throw new Error(`Source ${source.key} is missing url`);
   }
 
-  const query = {
+  const baseQuery = {
     where: '1=1',
     outFields: '*',
     f: 'json',
     ...(source.query || {}),
   };
 
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(query)) {
-    if (value !== undefined && value !== null) {
-      params.set(key, String(value));
+  const maxPages = Number.isFinite(source.max_pages) && source.max_pages > 0 ? source.max_pages : 1;
+  const perPage = Number(baseQuery.resultRecordCount || 2000);
+  const allFeatures = [];
+
+  for (let page = 0; page < maxPages; page += 1) {
+    const query = { ...baseQuery };
+    if (page > 0) query.resultOffset = String(page * perPage);
+
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== null) {
+        params.set(key, String(value));
+      }
     }
+
+    const joinChar = baseUrl.includes('?') ? '&' : '?';
+    const url = `${baseUrl}${joinChar}${params.toString()}`;
+    const payload = await fetchJson(url, fetchImpl, source.timeout_ms || 15000);
+    const features = extractRecords(payload, source);
+    allFeatures.push(...features);
+
+    // Stop early if the server returned fewer than a full page
+    if (features.length < perPage) break;
   }
 
-  const joinChar = baseUrl.includes('?') ? '&' : '?';
-  const url = `${baseUrl}${joinChar}${params.toString()}`;
-  const payload = await fetchJson(url, fetchImpl, source.timeout_ms || 15000);
-  const features = extractRecords(payload, source);
-
-  return features.map((feature) => {
+  return allFeatures.map((feature) => {
     const record = feature?.attributes || feature?.properties || feature;
     return mapSourceRecordToPermit(record, source);
   });
