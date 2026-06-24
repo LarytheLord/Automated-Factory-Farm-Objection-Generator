@@ -178,6 +178,52 @@ function transformIeEpaLeapRecord(record) {
 // so we fetch all NEW APPLICATION records and rely on shouldIncludePermit() + include_keywords
 // in the source config to filter for intensive agriculture descriptions client-side.
 
+function cleanIePlanningTitle(desc) {
+  // Strip boilerplate planning-application prefixes so the meaningful content leads
+  const stripped = desc
+    .replace(/^planning permission (for development consisting of |for development |for |to )/i, '')
+    .replace(/^permission (for development consisting of |for development |for |to )/i, '')
+    .replace(/^consisting of\s+/i, '')
+    .replace(/^proposed\s+/i, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  const titled = stripped.charAt(0).toUpperCase() + stripped.slice(1);
+  if (titled.length <= 160) return titled;
+  const cut = titled.slice(0, 157);
+  const lastSpace = cut.lastIndexOf(' ');
+  return (lastSpace > 60 ? cut.slice(0, lastSpace) : cut) + '...';
+}
+
+function inferIeActivity(desc) {
+  const d = desc.toLowerCase();
+  if (/poultry house|poultry shed|poultry farm|broiler house|broiler unit|broiler shed|laying hen|layer house|egg production|hatchery/.test(d)) {
+    return 'Intensive Poultry Farm — Planning Application';
+  }
+  if (/pig house|pig unit|piggery|sow unit|fattening pig|pig rearing|intensive pig/.test(d)) {
+    return 'Intensive Pig Farm — Planning Application';
+  }
+  if (/dairy farm|dairy parlour|dairy unit|milking parlour/.test(d)) {
+    return 'Dairy Farm — Planning Application';
+  }
+  if (/slatted shed|slatted unit|slatted area|slatted floor|slatted cattle|cubicle shed|beef cattle|cattle house|cattle unit|calf rearing|livestock|weanling|bullock|heifer|store cattle/.test(d)) {
+    return 'Intensive Cattle Farm — Planning Application';
+  }
+  if (/fish farm|aquaculture|fishery/.test(d)) {
+    return 'Aquaculture — Planning Application';
+  }
+  if (/slurry storage|slurry tank|manure storage|manure tank/.test(d)) {
+    return 'Slurry / Manure Storage — Planning Application';
+  }
+  return 'Intensive Agriculture — Planning Application';
+}
+
+function cleanIeLocation(addr, authority) {
+  // Fix extra spaces around commas from ArcGIS data (e.g. "Town , County , Ireland")
+  const cleanAddr = addr.replace(/\s+,/g, ',').replace(/,\s+/g, ', ').trim();
+  const parts = [cleanAddr, authority].filter(Boolean);
+  return parts.join(' — ');
+}
+
 function transformIeNationalPlanningRecord(record) {
   const appNum = normalizeText(pick(record, ['ApplicationNumber']), '');
   const authority = normalizeText(pick(record, ['PlanningAuthority']), 'Ireland');
@@ -197,13 +243,13 @@ function transformIeNationalPlanningRecord(record) {
 
   return {
     external_id: appNum,
-    project_title: desc.slice(0, 200) || 'Ireland Planning Application',
-    location: [addr, authority].filter(Boolean).join(' — '),
+    project_title: cleanIePlanningTitle(desc) || 'Ireland Planning Application',
+    location: cleanIeLocation(addr, authority),
     country: 'Ireland',
-    activity: 'Planning Application - Intensive Agriculture',
+    activity: inferIeActivity(desc),
     status: 'Pending',
     category: 'Red',
-    notes: `${authority} planning application ${appNum}. ${desc.slice(0, 300)}`,
+    notes: `${authority} planning application ${appNum}. ${desc.slice(0, 400)}`,
     source_url: detailLink || 'https://www.planning.gov.ie/',
     published_at: publishedAt,
     consultation_deadline: deadline,
