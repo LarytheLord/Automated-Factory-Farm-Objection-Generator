@@ -173,6 +173,43 @@ function transformIeEpaLeapRecord(record) {
   };
 }
 
+// ─── Ireland National Planning Applications (ArcGIS FeatureServer) ───
+// Covers all 26 local authorities. The FeatureServer ignores server-side LIKE filters,
+// so we fetch all NEW APPLICATION records and rely on shouldIncludePermit() + include_keywords
+// in the source config to filter for intensive agriculture descriptions client-side.
+
+function transformIeNationalPlanningRecord(record) {
+  const appNum = normalizeText(pick(record, ['ApplicationNumber']), '');
+  const authority = normalizeText(pick(record, ['PlanningAuthority']), 'Ireland');
+  const desc = normalizeText(pick(record, ['DevelopmentDescription']), 'Planning Application');
+  const addr = normalizeText(pick(record, ['DevelopmentAddress']), authority);
+  const detailLink = normalizeText(pick(record, ['LinkAppDetails']), '');
+
+  const rawDate = pick(record, ['ReceivedDate']);
+  const publishedAt = rawDate && Number.isFinite(Number(rawDate))
+    ? new Date(Number(rawDate)).toISOString().slice(0, 10)
+    : null;
+
+  const rawDue = pick(record, ['DecisionDueDate']);
+  const deadline = rawDue && Number.isFinite(Number(rawDue))
+    ? new Date(Number(rawDue)).toISOString().slice(0, 10)
+    : null;
+
+  return {
+    external_id: appNum,
+    project_title: desc.slice(0, 200) || 'Ireland Planning Application',
+    location: [addr, authority].filter(Boolean).join(' — '),
+    country: 'Ireland',
+    activity: 'Planning Application - Intensive Agriculture',
+    status: 'Pending',
+    category: 'Red',
+    notes: `${authority} planning application ${appNum}. ${desc.slice(0, 300)}`,
+    source_url: detailLink || 'https://www.planning.gov.ie/',
+    published_at: publishedAt,
+    consultation_deadline: deadline,
+  };
+}
+
 // ─── Arkansas DEQ (CSV) ───
 
 function transformArkansasDeqRecord(record) {
@@ -208,6 +245,7 @@ function getSourceTransformer(sourceKeyOrName) {
     uk_ea_public_register: transformUkEaRecord,
     au_epbc_referrals: transformAuEpbcRecord,
     ie_epa_leap: transformIeEpaLeapRecord,
+    ie_national_planning: transformIeNationalPlanningRecord,
     us_arkansas_deq_pds: transformArkansasDeqRecord,
   };
   return transformers[key] || null;
@@ -219,5 +257,6 @@ module.exports = {
   transformUkEaRecord,
   transformAuEpbcRecord,
   transformIeEpaLeapRecord,
+  transformIeNationalPlanningRecord,
   transformArkansasDeqRecord,
 };
