@@ -994,6 +994,7 @@ export default function Home() {
                       setGeneratedLetter("");
                       setLetterError(null);
                       setEmailError(null);
+                      document.getElementById("permits")?.scrollIntoView({ behavior: "smooth", block: "start" });
                     }}
                   >
                     <div className="flex justify-between items-start mb-3">
