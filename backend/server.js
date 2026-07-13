@@ -636,7 +636,7 @@ function intFromEnv(name, fallback) {
 }
 
 const DEFAULT_QUOTA_LIMITS = {
-    freeDailyLetters: 15,
+    freeDailyLetters: 6,
     freeMonthlyLetters: 120,
     ngoDailyLetters: 200,
     ngoMonthlyLetters: 3000,
@@ -1787,9 +1787,11 @@ app.post('/api/generate-letter', optionalAuth, letterRateLimiter, async (req, re
         const quotaCheck = enforceQuota(req, 'generate_letter');
         if (!quotaCheck.allowed) {
             recordUsage(req, 'generate_letter', { outcome: 'blocked', reason: 'quota_limit' });
+            const isAnon = quotaCheck.status?.actor?.kind === 'anonymous';
             return res.status(429).json({
                 error: 'Daily or monthly letter generation limit reached.',
                 quota: quotaCheck.status?.usage || null,
+                requireLogin: isAnon,
             });
         }
     }

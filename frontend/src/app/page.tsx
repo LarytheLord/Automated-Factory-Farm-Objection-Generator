@@ -556,6 +556,10 @@ export default function Home() {
       }, 35000);
       if (!res.ok) {
         const err = await res.json();
+        if (res.status === 429 && err.requireLogin) {
+          setIsAuthModalOpen(true);
+          return;
+        }
         throw new Error(err.error || "Failed to generate letter");
       }
       const data = await res.json();
@@ -1183,6 +1187,21 @@ export default function Home() {
                     <p className="mt-2 text-xs text-gray-500">
                       Remaining today: {lettersUsage.dailyRemaining ?? "unlimited"} · This month: {lettersUsage.monthlyRemaining ?? "unlimited"}
                     </p>
+                  )}
+                  {!isAuthenticated && lettersUsage?.dailyRemaining === 0 && (
+                    <div className="mt-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col gap-2">
+                      <p className="text-sm text-amber-300 font-medium">You&apos;ve used your 2 free letters for today.</p>
+                      <p className="text-xs text-gray-400">Sign in to get 6 letters per day and save your objections.</p>
+                      <button
+                        onClick={() => setIsAuthModalOpen(true)}
+                        className="mt-1 self-start px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-semibold rounded-lg transition-all"
+                      >
+                        Sign in / Sign up
+                      </button>
+                    </div>
+                  )}
+                  {!isAuthenticated && lettersUsage?.dailyRemaining === 1 && (
+                    <p className="mt-2 text-xs text-amber-400">1 free letter remaining today — <button onClick={() => setIsAuthModalOpen(true)} className="underline hover:text-amber-300 transition-colors">sign in for 6/day</button></p>
                   )}
                   {letterError && (
                     <div className="mt-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{letterError}</div>
